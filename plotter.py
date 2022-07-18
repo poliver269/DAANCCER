@@ -1,8 +1,9 @@
+import numpy as np
 from matplotlib.widgets import Slider
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import sys
-from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.colors as mcolors
+from mpl_toolkits.mplot3d import Axes3D  # This line is needed for a 3d plot
 
 
 class TrajectoryPlotter:
@@ -11,6 +12,7 @@ class TrajectoryPlotter:
         self.fig = None
         self.axes = None
         self.interactive = interactive
+        self.colors = mcolors.TABLEAU_COLORS
         if self.interactive:
             mpl.use('TkAgg')
         else:
@@ -20,7 +22,7 @@ class TrajectoryPlotter:
         """
         Creates an interactive plot window, where the plotted data at a timestep can be chosen by a Slider.
         Used as in https://matplotlib.org/stable/gallery/widgets/slider_demo.html
-        :param min_max: data range of the data
+        :param min_max: data range of the data with a min and a max value
         """
         if not self.interactive:
             raise ValueError('Plotter has to be interactive to use this plot.')
@@ -29,7 +31,7 @@ class TrajectoryPlotter:
         #    raise ModuleNotFoundError('Axes3D has to be imported from mpl_toolkits.mplot3d to use 3d plotting.')
 
         if min_max is None:  # min_max is a list of two elements
-            min_max = [0, self.data_trajectory.traj.xyz.shape[0]]
+            min_max = [0, self.data_trajectory.dim['time_steps']]
 
         self.fig = plt.figure()
         self.axes = self.fig.add_subplot(111, projection='3d')
@@ -46,15 +48,15 @@ class TrajectoryPlotter:
             valstep=1,  # step between values
             valfmt='%0.0f'
         )
-        freq_slider.on_changed(self.update_plot)
+        freq_slider.on_changed(self.update_on_slider_change)
         plt.show()
 
     def plot_original_data_at(self, timeframe):
         self.fig = plt.figure()
         self.axes = self.fig.add_subplot(111, projection='3d')
-        self.update_plot(timeframe)
+        self.update_on_slider_change(timeframe)
 
-    def update_plot(self, timeframe):
+    def update_on_slider_change(self, timeframe):
         if 0 <= timeframe <= self.data_trajectory.traj.n_frames:
             timeframe = int(timeframe)
             x_coordinates = self.data_trajectory.traj.xyz[timeframe][:, 0]
@@ -62,10 +64,9 @@ class TrajectoryPlotter:
             z_coordinates = self.data_trajectory.traj.xyz[timeframe][:, 2]
             self.axes.cla()
             self.axes.scatter(x_coordinates, y_coordinates, z_coordinates, c='r', marker='.')
-            max_d = self.data_trajectory.traj.xyz.max()
-            self.axes.set_xlim([0, self.data_trajectory.coordinate_maxs['x']])
-            self.axes.set_ylim([0, self.data_trajectory.coordinate_maxs['y']])
-            self.axes.set_zlim([0, self.data_trajectory.coordinate_maxs['z']])
+            self.axes.set_xlim([self.data_trajectory.coordinate_mins['x'], self.data_trajectory.coordinate_maxs['x']])
+            self.axes.set_ylim([self.data_trajectory.coordinate_mins['y'], self.data_trajectory.coordinate_maxs['y']])
+            self.axes.set_zlim([self.data_trajectory.coordinate_mins['z'], self.data_trajectory.coordinate_maxs['z']])
             self.axes.set_xlabel('x-Axis')
             self.axes.set_ylabel('y-Axis')
             self.axes.set_zlabel('z-Axis')
@@ -73,53 +74,21 @@ class TrajectoryPlotter:
         else:
             raise IndexError('Timestep does not exist')
 
-    def plot_models(self, model1, model2, reduced1, reduced2):
+    def plot_models(self, model1, model2, reduced1, reduced2, heat_map=False):
         self.fig, self.axes = plt.subplots(3, 2)
-        self.plot_on_axis(self.axes[0][0], xy_data=reduced1[0], title=str(model1),
-                          x_label='1st component', y_label='2nd component')
-        self.axes[0][0].cla()
-        self.axes[0][0].set_title(str(model1))
-        # print(reduced1)
-        self.axes[0][0].scatter(reduced1[0][:, 0], reduced1[0][:, 1], c='r', marker='.')
-        # self.ax[0][0].contourf(reduced1[0][:, 0], reduced1[0][:, 1], cmap=plt.cm.hot, c='r', marker='.')
-        # self.ax[0][0].scatter(reduced1[1][:, 0], reduced1[1][:, 1], c='b', marker='.')
-        # self.ax[0][0].scatter(reduced1[2][:, 0], reduced1[2][:, 1], c='g', marker='.')
-        try:
-            print(reduced1[0].shape)
-            print(model1.eigenvectors_, model1.eigenvalues_)
-            self.axes[0][0].arrow(0, 0, 100 * model1.eigenvectors_[0, 0], 100 * model1.eigenvectors_[1, 0],
-                                  color='orange')
-        except AttributeError as e:
-            print('%s: %s'.format(e, model1))
-        # print(reduced2)
-        self.axes[1][0].cla()
-        self.axes[1][0].plot(reduced1[0][:, 0], c='r')
-        # self.ax[1][0].plot(reduced1[1][:, 0], c='b')
-        # self.ax[1][0].plot(reduced1[2][:, 0], c='g')
-        self.axes[2][0].cla()
-        self.axes[2][0].plot(reduced1[0][:, 1], c='r')
-        # self.ax[2][0].plot(reduced1[1][:, 1], c='b')
-        # self.ax[2][0].plot(reduced1[2][:, 1], c='g')
-        self.axes[0][1].cla()
-        self.axes[0][1].set_title(str(model2))
-        self.axes[0][1].scatter(reduced2[0][:, 0], reduced2[0][:, 1], c='r', marker='.')
-        # self.ax[0][1].scatter(reduced2[1][:, 0], reduced2[1][:, 1], c='b', marker='.')
-        # self.ax[0][1].scatter(reduced2[2][:, 0], reduced2[2][:, 1], c='g', marker='.')
-        try:
-            print(reduced2[0].shape)
-            print(model2.eigenvectors_, model2.eigenvalues_)
-            self.axes[0][1].arrow(0, 0, 100 * model2.eigenvectors_[0, 0], 100 * model2.eigenvectors_[1, 0],
-                                  color='orange')
-        except AttributeError as e:
-            print('{}: {}'.format(e, model2))
-        self.axes[1][1].cla()
-        self.axes[1][1].plot(reduced2[0][:, 0], c='r')
-        # self.ax[1][1].plot(reduced2[1][:, 0], c='b')
-        # self.ax[1][1].plot(reduced2[2][:, 0], c='g')
-        self.axes[2][1].cla()
-        self.axes[2][1].plot(reduced2[0][:, 1], c='r')
-        # self.ax[2][1].plot(reduced2[1][:, 1], c='b')
-        # self.ax[2][1].plot(reduced2[2][:, 1], c='g')
+        data_elements = [0, 1, 2]
+        # data_elements = [2]
+        if heat_map:
+            self.plot_transformed_data_heat_map(self.axes[0][0], reduced1, data_elements, model=model1)
+            self.plot_transformed_data_heat_map(self.axes[0][1], reduced2, data_elements, model=model2)
+        else:
+            self.plot_transformed_data_on_axis(self.axes[0][0], reduced1, data_elements, model=model1)
+            self.plot_transformed_data_on_axis(self.axes[0][1], reduced2, data_elements, model=model2)
+        self.plot_time_tics(self.axes[1][0], reduced1, data_elements, component=0)
+        self.plot_time_tics(self.axes[2][0], reduced1, data_elements, component=1)
+        self.plot_time_tics(self.axes[1][1], reduced2, data_elements, component=0)
+        self.plot_time_tics(self.axes[2][1], reduced2, data_elements, component=1)
+        self.fig.tight_layout()
         plt.show()
 
     def plot_one_model(self, model, reduced_data):
@@ -129,6 +98,46 @@ class TrajectoryPlotter:
         self.axes.scatter(reduced_data[0][:, 0], reduced_data[0][:, 1], c='r', marker='.')
         self.axes.scatter(reduced_data[1][:, 0], reduced_data[1][:, 1], c='b', marker='.')
         self.axes.scatter(reduced_data[2][:, 0], reduced_data[2][:, 1], c='g', marker='.')
+        plt.show()
 
-    def plot_on_axis(self, param, xy_data, title, x_label, y_label):
-        pass
+    def plot_transformed_data_on_axis(self, ax, data_list, data_elements, model):
+        ax.cla()
+        ax.set_title(str(model))
+        ax.set_xlabel('1st component')
+        ax.set_ylabel('2nd component')
+        for i in data_elements:
+            ax.scatter(data_list[i][:, 0], data_list[i][:, 1], c=list(self.colors.values())[i], marker='.')
+        self.print_model_properties(ax, data_list, model)
+
+    def plot_time_tics(self, ax, data_list, data_elements, component):
+        ax.cla()
+        ax.set_xlabel('Time step')
+        ax.set_ylabel('Model Component {}'.format(component+1))
+
+        for i in data_elements:
+            ax.plot(data_list[i][:, component], c=list(self.colors.values())[i])
+
+    def plot_transformed_data_heat_map(self, ax, data_list, data_elements, model):
+        ax.cla()
+        ax.set_title(str(model))
+        ax.set_xlabel('1st component')
+        ax.set_ylabel('2nd component')
+        for i in data_elements:
+            xi = data_list[i][:, 0]
+            yi = data_list[i][:, 1]
+            bins = 57
+            z, x, y = np.histogram2d(xi, yi, bins)
+            F = -np.log(z)
+            extent = [x[0], x[-1], y[0], y[-1]]
+            ax.contour(F.T, bins, cmap=plt.cm.hot, extent=extent)
+        self.print_model_properties(ax, data_list, model)
+
+    @staticmethod
+    def print_model_properties(ax, data_list, model):
+        try:
+            print(data_list[0].shape)
+            print(model.eigenvectors_, model.eigenvalues_)
+            ax.arrow(0, 0, 3 * model.eigenvectors_[0, 0], 3 * model.eigenvectors_[1, 0], color='tab:cyan')
+        except AttributeError as e:
+            print('%s: %s'.format(e, model))
+

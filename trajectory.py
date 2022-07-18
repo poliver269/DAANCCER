@@ -37,5 +37,5 @@ class DataTrajectory:
         reduced_traj2 = model2.transform(reshaped_traj)
 
         print(model1, model2, sep='\n')
-        TrajectoryPlotter(self).plot_models(model1, model2, reduced_traj1, reduced_traj2)
+        TrajectoryPlotter(self).plot_models(model1, model2, reduced_traj1, reduced_traj2, heat_map=True)
 
