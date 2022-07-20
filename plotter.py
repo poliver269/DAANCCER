@@ -1,8 +1,10 @@
 import numpy as np
+from colour import Color
 from matplotlib.widgets import Slider
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d import Axes3D  # This line is needed for a 3d plot
 
 
@@ -74,20 +76,23 @@ class TrajectoryPlotter:
         else:
             raise IndexError('Timestep does not exist')
 
-    def plot_models(self, model1, model2, reduced1, reduced2, heat_map=False):
-        self.fig, self.axes = plt.subplots(3, 2)
-        data_elements = [0, 1, 2]
-        # data_elements = [2]
-        if heat_map:
-            self.plot_transformed_data_heat_map(self.axes[0][0], reduced1, data_elements, model=model1)
-            self.plot_transformed_data_heat_map(self.axes[0][1], reduced2, data_elements, model=model2)
+    def plot_models(self, model1, model2, reduced1, reduced2, data_elements, plot_type='', plot_tics=False):
+        if plot_tics:
+            self.fig, self.axes = plt.subplots(3, 2)  # subplots(rows, columns) axes[row][column]
+            main_axes = self.axes[0]
+            self.plot_time_tics(self.axes[1][0], reduced1, data_elements, component=0)
+            self.plot_time_tics(self.axes[2][0], reduced1, data_elements, component=1)
+            self.plot_time_tics(self.axes[1][1], reduced2, data_elements, component=0)
+            self.plot_time_tics(self.axes[2][1], reduced2, data_elements, component=1)
         else:
-            self.plot_transformed_data_on_axis(self.axes[0][0], reduced1, data_elements, model=model1)
-            self.plot_transformed_data_on_axis(self.axes[0][1], reduced2, data_elements, model=model2)
-        self.plot_time_tics(self.axes[1][0], reduced1, data_elements, component=0)
-        self.plot_time_tics(self.axes[2][0], reduced1, data_elements, component=1)
-        self.plot_time_tics(self.axes[1][1], reduced2, data_elements, component=0)
-        self.plot_time_tics(self.axes[2][1], reduced2, data_elements, component=1)
+            self.fig, self.axes = plt.subplots(1, 2)
+            main_axes = self.axes
+        if plot_type == 'heat_map':
+            self.plot_transformed_data_heat_map(main_axes[0], reduced1, data_elements, model=model1)
+            self.plot_transformed_data_heat_map(main_axes[1], reduced2, data_elements, model=model2)
+        else:
+            self.plot_transformed_data_on_axis(main_axes[0], reduced1, data_elements, model=model1, color_map=plot_type)
+            self.plot_transformed_data_on_axis(main_axes[1], reduced2, data_elements, model=model2, color_map=plot_type)
         self.fig.tight_layout()
         plt.show()
 
@@ -100,19 +105,28 @@ class TrajectoryPlotter:
         self.axes.scatter(reduced_data[2][:, 0], reduced_data[2][:, 1], c='g', marker='.')
         plt.show()
 
-    def plot_transformed_data_on_axis(self, ax, data_list, data_elements, model):
+    def plot_transformed_data_on_axis(self, ax, data_list, data_elements, model, color_map):
         ax.cla()
         ax.set_title(str(model))
         ax.set_xlabel('1st component')
         ax.set_ylabel('2nd component')
         for i in data_elements:
-            ax.scatter(data_list[i][:, 0], data_list[i][:, 1], c=list(self.colors.values())[i], marker='.')
+            if color_map == 'color_map':
+                color_array = np.arange(data_list[i].shape[0])
+                c_map = plt.cm.viridis
+                im = ax.scatter(data_list[i][:, 0], data_list[i][:, 1], c=color_array,
+                                cmap=c_map, marker='.')
+                self.fig.colorbar(im, ax=ax)
+            else:
+                color = list(self.colors.values())[i]
+                ax.scatter(data_list[i][:, 0], data_list[i][:, 1], c=color, marker='.')
+
         self.print_model_properties(ax, data_list, model)
 
     def plot_time_tics(self, ax, data_list, data_elements, component):
         ax.cla()
         ax.set_xlabel('Time step')
-        ax.set_ylabel('Model Component {}'.format(component+1))
+        ax.set_ylabel('Component {}'.format(component+1))
 
         for i in data_elements:
             ax.plot(data_list[i][:, component], c=list(self.colors.values())[i])
@@ -120,24 +134,26 @@ class TrajectoryPlotter:
     def plot_transformed_data_heat_map(self, ax, data_list, data_elements, model):
         ax.cla()
         ax.set_title(str(model))
-        ax.set_xlabel('1st component')
-        ax.set_ylabel('2nd component')
+        ax.set_xlabel('Component 1')
+        ax.set_ylabel('Component 2')
         for i in data_elements:
             xi = data_list[i][:, 0]
             yi = data_list[i][:, 1]
-            bins = 57
+            bins = 50
             z, x, y = np.histogram2d(xi, yi, bins)
-            F = -np.log(z)
-            extent = [x[0], x[-1], y[0], y[-1]]
-            ax.contour(F.T, bins, cmap=plt.cm.hot, extent=extent)
+            np.seterr(divide='ignore')
+            free_energies = -np.log(z)
+            np.seterr(divide='warn')
+            ax.contourf(free_energies.T, bins, cmap=plt.cm.hot, extent=[x[0], x[-1], y[0], y[-1]])
         self.print_model_properties(ax, data_list, model)
 
     @staticmethod
     def print_model_properties(ax, data_list, model):
         try:
             print(data_list[0].shape)
-            print(model.eigenvectors_, model.eigenvalues_)
-            ax.arrow(0, 0, 3 * model.eigenvectors_[0, 0], 3 * model.eigenvectors_[1, 0], color='tab:cyan')
+            print(model.eigenvectors, model.eigenvalues)
+            # ax.arrow(0, 0, model.eigenvectors[0, 0], model.eigenvectors[1, 0], color='tab:cyan')  # pyemma
+            # ax.arrow(0, 0, model.eigenvectors_[0, 0], model.eigenvectors_[1, 0], color='tab:cyan')  # msm builder
         except AttributeError as e:
-            print('%s: %s'.format(e, model))
+            print('{}: {}'.format(e, model))
 
