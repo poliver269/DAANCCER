@@ -1,10 +1,8 @@
-import numpy as np
-from colour import Color
-from matplotlib.widgets import Slider
 import matplotlib as mpl
-import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.widgets import Slider
 from mpl_toolkits.mplot3d import Axes3D  # This line is needed for a 3d plot
 
 
@@ -29,14 +27,12 @@ class TrajectoryPlotter:
         if not self.interactive:
             raise ValueError('Plotter has to be interactive to use this plot.')
 
-        # if 'Axes3D' not in sys.modules:
-        #    raise ModuleNotFoundError('Axes3D has to be imported from mpl_toolkits.mplot3d to use 3d plotting.')
-
         if min_max is None:  # min_max is a list of two elements
-            min_max = [0, self.data_trajectory.dim['time_steps']]
+            min_max = [0, self.data_trajectory.dim['time_frames']]
 
         self.fig = plt.figure()
-        self.axes = self.fig.add_subplot(111, projection='3d')
+        # self.axes = self.fig.add_subplot(111, projection='3d')
+        self.axes = Axes3D(self.fig)
 
         plt.subplots_adjust(bottom=0.25)
         # noinspection PyTypeChecker
@@ -87,6 +83,7 @@ class TrajectoryPlotter:
         else:
             self.fig, self.axes = plt.subplots(1, 2)
             main_axes = self.axes
+
         if plot_type == 'heat_map':
             self.plot_transformed_data_heat_map(main_axes[0], reduced1, data_elements, model=model1)
             self.plot_transformed_data_heat_map(main_axes[1], reduced2, data_elements, model=model2)
@@ -110,16 +107,17 @@ class TrajectoryPlotter:
         ax.set_title(str(model))
         ax.set_xlabel('1st component')
         ax.set_ylabel('2nd component')
-        for i in data_elements:
+        for index, element in enumerate(data_elements):
             if color_map == 'color_map':
-                color_array = np.arange(data_list[i].shape[0])
+                color_array = np.arange(data_list[element].shape[0])
                 c_map = plt.cm.viridis
-                im = ax.scatter(data_list[i][:, 0], data_list[i][:, 1], c=color_array,
+                im = ax.scatter(data_list[element][:, 0], data_list[element][:, 1], c=color_array,
                                 cmap=c_map, marker='.')
-                self.fig.colorbar(im, ax=ax)
+                if index == 0:
+                    self.fig.colorbar(im, ax=ax)
             else:
-                color = list(self.colors.values())[i]
-                ax.scatter(data_list[i][:, 0], data_list[i][:, 1], c=color, marker='.')
+                color = list(self.colors.values())[element]
+                ax.scatter(data_list[element][:, 0], data_list[element][:, 1], c=color, marker='.')
 
         self.print_model_properties(ax, data_list, model)
 
