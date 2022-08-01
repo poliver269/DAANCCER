@@ -56,13 +56,15 @@ class TLtSNE(DataTrajectory):
         models = [projs_pca, projs_tica, [x_emb_tsne], [x_emb_tltsne]]
         self.save_results(models)
 
-    def get_model_and_projection(self, model_name):
+    def get_model_and_projection(self, model_name, inp=None):
         print(f'Running {model_name}...')
+        if inp is None:
+            inp = self.converted
         if model_name == 'pca':
-            pca = coor.pca(data=self.converted)
+            pca = coor.pca(data=inp)
             return pca, pca.get_output()
         elif model_name == 'tica':
-            tica = coor.tica(data=self.converted, lag=self.params['lag_time'], dim=self.params['tica_dim'])
+            tica = coor.tica(data=inp, lag=self.params['lag_time'], dim=self.params['tica_dim'])
             return tica, tica.get_output()
         else:
             print(f'Model with name \"{model_name}\" does not exists.')
@@ -106,15 +108,20 @@ class TLtSNE(DataTrajectory):
             embedding = model.fit_transform(traj_distance)
             return model, embedding
 
-    def compare(self, model_name):
-        if model_name == 'tsne':
-            model, embedding = self.get_embedded(model_name)
+    def compare(self, model_name1):
+        if model_name1 in ['tsne']:
+            model, embedding = self.get_embedded(model_name1)
             projection = [embedding]
         else:  # tica / pca
-            model, projection = self.get_model_and_projection(model_name)
+            model, projection = self.get_model_and_projection(model_name1)
         tl_tsne, embedding = self.get_embedded('time-lagged_tsne')
         print(model, tl_tsne, sep='\n')
         self.compare_with_plot(model, tl_tsne, projection, [embedding])
+
+    def compare_angles(self, model_name):
+        model1, projection1 = self.get_model_and_projection(model_name, self.phi[1])
+        model2, projection2 = self.get_model_and_projection(model_name, self.psi[1])
+        self.compare_with_plot(model1, model2, projection1, projection2, 'phi\n', 'psi\n')
 
     def save_results(self, models):
         projs_pca, projs_tica, x_emb_tsne, x_emb_tltsne = models

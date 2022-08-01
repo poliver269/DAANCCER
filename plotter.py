@@ -72,25 +72,40 @@ class TrajectoryPlotter:
         else:
             raise IndexError('Timestep does not exist')
 
-    def plot_models(self, model1, model2, reduced1, reduced2, data_elements, plot_type='', plot_tics=False):
+    def plot_models(self, model1, model2, reduced1, reduced2, data_elements, title_prefix1='', title_prefix2='',
+                    plot_type='', plot_tics=False):
+        """
+
+        :param model1:
+        :param model2:
+        :param reduced1:
+        :param reduced2:
+        :param data_elements:
+        :param title_prefix1:
+        :param title_prefix2:
+        :param plot_type: 'heat_map', 'color_map'
+        :param plot_tics: True, False
+        :return:
+        """
+        # TODO: model, reduced, title_prefix same length and not only for 2 models, but for n one.
         if plot_tics:
             self.fig, self.axes = plt.subplots(3, 2)  # subplots(rows, columns) axes[row][column]
             main_axes = self.axes[0]
-            self.plot_time_tics(self.axes[1][0], reduced1, data_elements, component=0)
-            self.plot_time_tics(self.axes[2][0], reduced1, data_elements, component=1)
-            self.plot_time_tics(self.axes[1][1], reduced2, data_elements, component=0)
-            self.plot_time_tics(self.axes[2][1], reduced2, data_elements, component=1)
+            for i, reduced in enumerate([reduced1, reduced2]):
+                for component in [0, 1]:
+                    self.plot_time_tics(self.axes[component+1][i], reduced, data_elements, component=component)
         else:
             self.fig, self.axes = plt.subplots(1, 2)
             main_axes = self.axes
 
         if plot_type == 'heat_map':
-            self.plot_transformed_data_heat_map(main_axes[0], reduced1, data_elements, model=model1)
-            self.plot_transformed_data_heat_map(main_axes[1], reduced2, data_elements, model=model2)
+            for i, (reduced, model) in enumerate([(reduced1, model1), (reduced2, model2)]):
+                self.plot_transformed_data_heat_map(main_axes[i], reduced, data_elements, model=model)
         else:
-            self.plot_transformed_data_on_axis(main_axes[0], reduced1, data_elements, model=model1, color_map=plot_type)
-            self.plot_transformed_data_on_axis(main_axes[1], reduced2, data_elements, model=model2, color_map=plot_type)
-        self.fig.tight_layout()
+            for i, (reduced, model, title_prefix) in enumerate([(reduced1, model1, title_prefix1),
+                                                                (reduced2, model2, title_prefix2)]):
+                self.plot_transformed_data_on_axis(main_axes[i], reduced, data_elements, model=model,
+                                                   color_map=plot_type, title_prefix=title_prefix)
         plt.show()
 
     def plot_one_model(self, model, reduced_data):
@@ -102,9 +117,9 @@ class TrajectoryPlotter:
         self.axes.scatter(reduced_data[2][:, 0], reduced_data[2][:, 1], c='g', marker='.')
         plt.show()
 
-    def plot_transformed_data_on_axis(self, ax, data_list, data_elements, model, color_map):
+    def plot_transformed_data_on_axis(self, ax, data_list, data_elements, model, color_map, title_prefix=''):
         ax.cla()
-        ax.set_title(str(model))
+        ax.set_title(title_prefix + str(model))
         ax.set_xlabel('1st component')
         ax.set_ylabel('2nd component')
         for index, element in enumerate(data_elements):
@@ -155,3 +170,5 @@ class TrajectoryPlotter:
         except AttributeError as e:
             print('{}: {}'.format(e, model))
 
+    def ramachandran_plot(self, phi, psi):
+        pass

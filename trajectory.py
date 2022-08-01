@@ -29,6 +29,8 @@ class DataTrajectory(TrajectoryFile):
             self.dim = {'time_frames': self.traj.xyz.shape[0],
                         'atoms': self.traj.xyz.shape[1],
                         'coordinates': self.traj.xyz.shape[2]}
+            self.phi = md.compute_phi(self.traj)
+            self.psi = md.compute_psi(self.traj)
         except IOError:
             raise FileNotFoundError("Cannot load {} or {}.".format(self.filepath, self.topology_path))
         else:
@@ -63,6 +65,7 @@ class DataTrajectory(TrajectoryFile):
         self.compare_with_plot(model1, model2, reduced_traj1, reduced_traj2)
 
     def compare_with_pyemma(self, model_name1, model_name2):
+        # TODO: compare speed to other loading (and model execution)
         import pyemma.coordinates as coor
         components = 2
         feat = coor.featurizer(self.topology_path)
@@ -74,11 +77,12 @@ class DataTrajectory(TrajectoryFile):
         print(model1, model2, sep='\n')
         self.compare_with_plot(model1, model2, model1.get_output(), model2.get_output())
 
-    def compare_with_plot(self, model1, model2, proj1, proj2):
+    def compare_with_plot(self, model1, model2, proj1, proj2, title_prefix1='', title_prefix2=''):
         TrajectoryPlotter(self).plot_models(model1, model2, proj1, proj2,
+                                            title_prefix1=title_prefix1, title_prefix2=title_prefix2,
                                             data_elements=[0],  # [0, 1, 2]
                                             plot_type='color_map',  # 'heat_map', 'color_map'
-                                            plot_tics=False)  # True, False
+                                            plot_tics=True)  # True, False
 
 
 class TopologyConverter(TrajectoryFile):
