@@ -51,7 +51,8 @@ class TrajectoryPlotter:
 
     def plot_original_data_at(self, timeframe):
         self.fig = plt.figure()
-        self.axes = self.fig.add_subplot(111, projection='3d')
+        self.fig = plt.figure()
+        self.axes = Axes3D(self.fig)
         self.update_on_slider_change(timeframe)
 
     def update_on_slider_change(self, timeframe):
@@ -72,56 +73,48 @@ class TrajectoryPlotter:
         else:
             raise IndexError('Timestep does not exist')
 
-    def plot_models(self, model1, model2, reduced1, reduced2, data_elements, title_prefix1='', title_prefix2='',
-                    plot_type='', plot_tics=False):
+    def plot_models(self, result_list, data_elements, plot_type='', plot_tics=False):
         """
-
-        :param model1:
-        :param model2:
-        :param reduced1:
-        :param reduced2:
+        :param result_list:
         :param data_elements:
-        :param title_prefix1:
-        :param title_prefix2:
         :param plot_type: 'heat_map', 'color_map'
         :param plot_tics: True, False
-        :return:
         """
         # TODO: model, reduced, title_prefix same length and not only for 2 models, but for n one.
         if plot_tics:
             self.fig, self.axes = plt.subplots(3, 2)  # subplots(rows, columns) axes[row][column]
             main_axes = self.axes[0]
-            for i, reduced in enumerate([reduced1, reduced2]):
+            for i, result in enumerate(result_list):
                 for component in [0, 1]:
-                    self.plot_time_tics(self.axes[component+1][i], reduced, data_elements, component=component)
+                    self.plot_time_tics(self.axes[component+1][i], result['projection'], data_elements,
+                                        component=component)
         else:
             self.fig, self.axes = plt.subplots(1, 2)
             main_axes = self.axes
 
         if plot_type == 'heat_map':
-            for i, (reduced, model) in enumerate([(reduced1, model1), (reduced2, model2)]):
-                self.plot_transformed_data_heat_map(main_axes[i], reduced, data_elements, model=model)
+            for i, result in enumerate(result_list):
+                self.plot_transformed_data_heat_map(main_axes[i], result, data_elements)
         else:
-            for i, (reduced, model, title_prefix) in enumerate([(reduced1, model1, title_prefix1),
-                                                                (reduced2, model2, title_prefix2)]):
-                self.plot_transformed_data_on_axis(main_axes[i], reduced, data_elements, model=model,
-                                                   color_map=plot_type, title_prefix=title_prefix)
+            for i, result in enumerate(result_list):
+                self.plot_transformed_data_on_axis(main_axes[i], result, data_elements, color_map=plot_type)
         plt.show()
 
-    def plot_one_model(self, model, reduced_data):
+    def plot_one_model(self, projection_dict, data_elements):
         self.fig = plt.figure()
         self.axes = self.fig.add_subplot(111)
         self.axes.cla()
-        self.axes.scatter(reduced_data[0][:, 0], reduced_data[0][:, 1], c='r', marker='.')
-        self.axes.scatter(reduced_data[1][:, 0], reduced_data[1][:, 1], c='b', marker='.')
-        self.axes.scatter(reduced_data[2][:, 0], reduced_data[2][:, 1], c='g', marker='.')
+        for element in data_elements:
+            self.axes.scatter(projection_dict['projection'][element][:, 0],
+                              projection_dict['projection'][element][:, 1], c='r', marker='.')
         plt.show()
 
-    def plot_transformed_data_on_axis(self, ax, data_list, data_elements, model, color_map, title_prefix=''):
+    def plot_transformed_data_on_axis(self, ax, projection_list, data_elements, color_map):
         ax.cla()
-        ax.set_title(title_prefix + str(model))
+        ax.set_title(projection_list.get('title_prefix', default='') + str(projection_list['model']))
         ax.set_xlabel('1st component')
         ax.set_ylabel('2nd component')
+        data_list = projection_list['projection']
         for index, element in enumerate(data_elements):
             if color_map == 'color_map':
                 color_array = np.arange(data_list[element].shape[0])
@@ -132,38 +125,41 @@ class TrajectoryPlotter:
                     self.fig.colorbar(im, ax=ax)
             else:
                 color = list(self.colors.values())[element]
-                ax.scatter(data_list[element][:, 0], data_list[element][:, 1], c=color, marker='.')
+                ax.scatter(projection_list[element][:, 0], projection_list[element][:, 1], c=color, marker='.')
 
-        self.print_model_properties(ax, data_list, model)
+        self.print_model_properties(ax, projection_list)
 
-    def plot_time_tics(self, ax, data_list, data_elements, component):
+    def plot_time_tics(self, ax, projections, data_elements, component):
         ax.cla()
         ax.set_xlabel('Time step')
         ax.set_ylabel('Component {}'.format(component+1))
 
         for i in data_elements:
-            ax.plot(data_list[i][:, component], c=list(self.colors.values())[i])
+            ax.plot(projections[i][:, component], c=list(self.colors.values())[i])
 
-    def plot_transformed_data_heat_map(self, ax, data_list, data_elements, model):
+    def plot_transformed_data_heat_map(self, ax, projection_dict, data_elements):
         ax.cla()
-        ax.set_title(str(model))
+        ax.set_title(str(projection_dict['model']))
         ax.set_xlabel('Component 1')
         ax.set_ylabel('Component 2')
+        projections = projection_dict['projection']
         for i in data_elements:
-            xi = data_list[i][:, 0]
-            yi = data_list[i][:, 1]
+            xi = projections[i][:, 0]
+            yi = projections[i][:, 1]
             bins = 50
             z, x, y = np.histogram2d(xi, yi, bins)
             np.seterr(divide='ignore')
             free_energies = -np.log(z)
             np.seterr(divide='warn')
             ax.contourf(free_energies.T, bins, cmap=plt.cm.hot, extent=[x[0], x[-1], y[0], y[-1]])
-        self.print_model_properties(ax, data_list, model)
+        self.print_model_properties(ax, projection_dict)
 
     @staticmethod
-    def print_model_properties(ax, data_list, model):
+    def print_model_properties(ax, projection_dict):
+        projections = projection_dict['projection']
+        model = projection_dict['model']
         try:
-            print(data_list[0].shape)
+            print(projections[0].shape)
             print(model.eigenvectors, model.eigenvalues)
             # ax.arrow(0, 0, model.eigenvectors[0, 0], model.eigenvectors[1, 0], color='tab:cyan')  # pyemma
             # ax.arrow(0, 0, model.eigenvectors_[0, 0], model.eigenvectors_[1, 0], color='tab:cyan')  # msm builder

@@ -8,8 +8,8 @@ from trajectory import DataTrajectory
 def main():
     print('Starting time: {}'.format(datetime.now()))
     # TODO: Argsparser for options
-    run_option = 'plot_with_slider'
-    kwargs = {'filename': 'tr3_unfolded.xtc', 'topology_filename': 'all.pdb', 'folder_path':'data/2f4k'}
+    run_option = 'compare_with_pyemma'
+    kwargs = {'filename': 'tr3_unfolded.xtc', 'topology_filename': '2f4k.pdb', 'folder_path':'data/2f4k'}
     if run_option == 'compare_with_tltsne':
         tr = TLtSNE(**kwargs)
         tr.compare('tsne')

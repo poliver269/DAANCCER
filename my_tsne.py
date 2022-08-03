@@ -23,7 +23,7 @@ class TLtSNE(DataTrajectory):
         self.ref_pdb: Trajectory = md.load_pdb(self.topology_path)
         if params is None:
             self.params = {
-                'superpose': True,
+                'superpose': False,
                 'lag_time': 10,
                 'pca_dim': 2,
                 'tica_dim': 2,
@@ -59,7 +59,7 @@ class TLtSNE(DataTrajectory):
     def get_model_and_projection(self, model_name, inp=None):
         print(f'Running {model_name}...')
         if inp is None:
-            inp = self.converted
+            inp = self.flattened_coordinates
         if model_name == 'pca':
             pca = coor.pca(data=inp)
             return pca, pca.get_output()
@@ -79,10 +79,10 @@ class TLtSNE(DataTrajectory):
                 early_exaggeration=self.params['exaggeration'], learning_rate=self.params['learning_rate'],
                 n_iter=self.params['n_iter'], metric="euclidean"
             )
-            embedding = model.fit_transform(self.converted)
+            embedding = model.fit_transform(self.flattened_coordinates)
             return model, embedding
         elif model_name == 'time-lagged_tsne':
-            traj_mean = self.converted - sp.mean(self.converted, axis=0)
+            traj_mean = self.flattened_coordinates - sp.mean(self.flattened_coordinates, axis=0)
             traj_cov = sp.cov(sp.transpose(traj_mean))
             eigenvalue, eigenvector = sp.linalg.eig(traj_cov)
             eigenvalue_order = sp.argsort(eigenvalue)[::-1]
@@ -116,12 +116,14 @@ class TLtSNE(DataTrajectory):
             model, projection = self.get_model_and_projection(model_name1)
         tl_tsne, embedding = self.get_embedded('time-lagged_tsne')
         print(model, tl_tsne, sep='\n')
-        self.compare_with_plot(model, tl_tsne, projection, [embedding])
+        self.compare_with_plot([{'model': model, 'projection': projection},
+                                {'model': tl_tsne, 'projection': [embedding]}])
 
     def compare_angles(self, model_name):
         model1, projection1 = self.get_model_and_projection(model_name, self.phi[1])
         model2, projection2 = self.get_model_and_projection(model_name, self.psi[1])
-        self.compare_with_plot(model1, model2, projection1, projection2, 'phi\n', 'psi\n')
+        self.compare_with_plot([{'model': model1, 'projection': model1.get_output(), 'title_prefix': 'phi\n'},
+                                {'model': model2, 'projection': model2.get_output(), 'title_prefix': 'psi\n'}])
 
     def save_results(self, models):
         projs_pca, projs_tica, x_emb_tsne, x_emb_tltsne = models
