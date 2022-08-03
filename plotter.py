@@ -3,7 +3,7 @@ import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.widgets import Slider
-from mpl_toolkits.mplot3d import Axes3D  # This line is needed for a 3d plot
+from mpl_toolkits.mplot3d import Axes3D
 
 
 class TrajectoryPlotter:
@@ -73,30 +73,30 @@ class TrajectoryPlotter:
         else:
             raise IndexError('Timestep does not exist')
 
-    def plot_models(self, result_list, data_elements, plot_type='', plot_tics=False):
+    def plot_models(self, model_results, data_elements, plot_type='', plot_tics=False, components=None):
         """
-        :param result_list:
+        :param model_results:
         :param data_elements:
         :param plot_type: 'heat_map', 'color_map'
         :param plot_tics: True, False
+        :param components: int
         """
-        # TODO: model, reduced, title_prefix same length and not only for 2 models, but for n one.
         if plot_tics:
-            self.fig, self.axes = plt.subplots(3, 2)  # subplots(rows, columns) axes[row][column]
-            main_axes = self.axes[0]
-            for i, result in enumerate(result_list):
-                for component in [0, 1]:
-                    self.plot_time_tics(self.axes[component+1][i], result['projection'], data_elements,
-                                        component=component)
+            self.fig, self.axes = plt.subplots(components+1, len(model_results))  # subplots(rows, columns)
+            main_axes = self.axes[0]  # axes[row][column]
+            for i, result in enumerate(model_results):
+                for component_nr in range(components+1)[1:]:
+                    self.plot_time_tics(self.axes[component_nr][i], result['projection'], data_elements,
+                                        component=component_nr)
         else:
-            self.fig, self.axes = plt.subplots(1, 2)
+            self.fig, self.axes = plt.subplots(1, len(model_results))
             main_axes = self.axes
 
         if plot_type == 'heat_map':
-            for i, result in enumerate(result_list):
+            for i, result in enumerate(model_results):
                 self.plot_transformed_data_heat_map(main_axes[i], result, data_elements)
         else:
-            for i, result in enumerate(result_list):
+            for i, result in enumerate(model_results):
                 self.plot_transformed_data_on_axis(main_axes[i], result, data_elements, color_map=plot_type)
         plt.show()
 
@@ -111,7 +111,7 @@ class TrajectoryPlotter:
 
     def plot_transformed_data_on_axis(self, ax, projection_list, data_elements, color_map):
         ax.cla()
-        ax.set_title(projection_list.get('title_prefix', default='') + str(projection_list['model']))
+        ax.set_title(projection_list.get('title_prefix', '') + str(projection_list['model']))
         ax.set_xlabel('1st component')
         ax.set_ylabel('2nd component')
         data_list = projection_list['projection']
@@ -132,10 +132,10 @@ class TrajectoryPlotter:
     def plot_time_tics(self, ax, projections, data_elements, component):
         ax.cla()
         ax.set_xlabel('Time step')
-        ax.set_ylabel('Component {}'.format(component+1))
+        ax.set_ylabel('Component {}'.format(component))
 
         for i in data_elements:
-            ax.plot(projections[i][:, component], c=list(self.colors.values())[i])
+            ax.plot(projections[i][:, component-1], c=list(self.colors.values())[i])
 
     def plot_transformed_data_heat_map(self, ax, projection_dict, data_elements):
         ax.cla()

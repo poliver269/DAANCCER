@@ -20,7 +20,7 @@ class TrajectoryFile:
 
 
 class DataTrajectory(TrajectoryFile):
-    def __init__(self, filename, topology_filename, folder_path='data/2f4k'):
+    def __init__(self, filename, topology_filename, folder_path='data/2f4k', params=None):
         super().__init__(filename, topology_filename, folder_path)
         try:
             print("Loading trajectory...")
@@ -30,6 +30,15 @@ class DataTrajectory(TrajectoryFile):
                         'coordinates': self.traj.xyz.shape[2]}
             self.phi = md.compute_phi(self.traj)
             self.psi = md.compute_psi(self.traj)
+            if params is None:
+                params = {}
+            self.params = {
+                'plot_type': params.get('plot_type', 'color_map'),  # 'color_map', 'heat_map'
+                'plot_tics': params.get('plot_tics', True),  # True, False
+                'carbon_atoms_only': params.get('carbon_atoms_only', True),  # True, False
+                'interactive': params.get('interactive', True),  # True, False
+                'n_components': params.get('n_components', 2)
+            }
         except IOError:
             raise FileNotFoundError("Cannot load {} or {}.".format(self.filepath, self.topology_path))
         else:
@@ -59,11 +68,33 @@ class DataTrajectory(TrajectoryFile):
     def get_time_frames(self, element_list):
         return self.traj.xyz[element_list, :, :]
 
+    def get_model_and_projection(self, model_name, inp=None):
+        import pyemma.coordinates as coor
+        print(f'Running {model_name}...')
+        if inp is None:
+            inp = self.flattened_coordinates
+        if model_name == 'pca':
+            pca = coor.pca(data=inp, dim=self.params['n_components'])
+            return pca, pca.get_output()
+        elif model_name == 'tica':
+            tica = coor.tica(data=inp, lag=self.params['lag_time'], dim=self.params['n_components'])
+            return tica, tica.get_output()
+        else:
+            print(f'Model with name \"{model_name}\" does not exists.')
+            return None, None
+
+    def compare_angles(self, model_name):
+        phi_model, phi_projection = self.get_model_and_projection(model_name, self.phi[1])
+        psi_model, psi_projection = self.get_model_and_projection(model_name, self.psi[1])
+        self.compare_with_plot([{'model': phi_model, 'projection': phi_projection, 'title_prefix': 'phi\n'},
+                                {'model': psi_model, 'projection': psi_projection, 'title_prefix': 'psi\n'}])
+
     def compare_with_msmbuilder(self, model_name1, model_name2):
-        from msmbuilder.decomposition import tICA, PCA
-        components = 2
+        # noinspection PyUnresolvedReferences
+        from msmbuilder.decomposition import tICA, PCA  # works only on python 3.5 and smaller
         reshaped_traj = np.reshape(self.traj.xyz, (self.dim['coordinates'], self.dim['time_frames'], self.dim['atoms']))
-        models = {'tica': tICA(n_components=components), 'pca': PCA(n_components=components)}
+        models = {'tica': tICA(n_components=self.params['n_components']),
+                  'pca': PCA(n_components=self.params['n_components'])}
 
         model1 = models[model_name1]  # --> (n_components, time_frames)
         # reshaped_traj = self.converted  # Does not Work
@@ -81,23 +112,22 @@ class DataTrajectory(TrajectoryFile):
     def compare_with_pyemma(self, model_name1, model_name2):
         # TODO: compare speed to other loading (and model execution)
         import pyemma.coordinates as coor
-        components = 2
         feat = coor.featurizer(self.topology_path)
         inp = coor.source(self.filepath, features=feat)
-        models = {'tica': coor.tica(inp, dim=components),
-                  'pca': coor.pca(inp, dim=components)}
+        models = {'tica': coor.tica(inp, dim=self.params['n_components']),
+                  'pca': coor.pca(inp, dim=self.params['n_components'])}
         model1 = models[model_name1]
         model2 = models[model_name2]
         print(model1, model2, sep='\n')
-        # self.compare_with_plot(model1, model2, model1.get_output(), model2.get_output())
         self.compare_with_plot([{'model': model1, 'projection': model1.get_output()},
                                 {'model': model2, 'projection': model2.get_output()}])
 
     def compare_with_plot(self, model_projection_list):
         TrajectoryPlotter(self).plot_models(model_projection_list,
                                             data_elements=[0],  # [0, 1, 2]
-                                            plot_type='color_map',  # 'heat_map', 'color_map'
-                                            plot_tics=True)  # True, False
+                                            plot_type=self.params['plot_type'],  # 'heat_map', 'color_map'
+                                            plot_tics=self.params['plot_tics']
+                                            )  # True, False
 
 
 class TopologyConverter(TrajectoryFile):
@@ -110,7 +140,7 @@ class TopologyConverter(TrajectoryFile):
         return str(self.root_path / self.goal_filename)
 
     def convert(self):
-        import MDAnalysis as mda
-        universe = mda.Universe(self.topology_path)
-        with mda.Writer(self.goal_filepath) as writer:
+        import MDAnalysis
+        universe = MDAnalysis.Universe(self.topology_path)
+        with MDAnalysis.Writer(self.goal_filepath) as writer:
             writer.write(universe)
