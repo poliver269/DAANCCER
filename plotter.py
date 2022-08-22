@@ -160,7 +160,7 @@ class TrajectoryPlotter:
         model = projection_dict['model']
         try:
             print(projections[0].shape)
-            print(model.eigenvectors, model.eigenvalues)
+            print('EV:', model.eigenvectors, 'EW:', model.eigenvalues)
             # ax.arrow(0, 0, model.eigenvectors[0, 0], model.eigenvectors[1, 0], color='tab:cyan')  # pyemma
             # ax.arrow(0, 0, model.eigenvectors_[0, 0], model.eigenvectors_[1, 0], color='tab:cyan')  # msm builder
         except AttributeError as e:

@@ -1,6 +1,8 @@
 from pathlib import Path
 import mdtraj as md
 import numpy as np
+
+from math_utils import generate_independent_matrix, basis_transform
 from plotter import TrajectoryPlotter
 
 
@@ -30,29 +32,44 @@ class DataTrajectory(TrajectoryFile):
                         'coordinates': self.traj.xyz.shape[2]}
             self.phi = md.compute_phi(self.traj)
             self.psi = md.compute_psi(self.traj)
-            if params is None:
-                params = {}
-            self.params = {
-                'plot_type': params.get('plot_type', 'color_map'),  # 'color_map', 'heat_map'
-                'plot_tics': params.get('plot_tics', True),  # True, False
-                'carbon_atoms_only': params.get('carbon_atoms_only', True),  # True, False
-                'interactive': params.get('interactive', True),  # True, False
-                'n_components': params.get('n_components', 2)
-            }
         except IOError:
             raise FileNotFoundError("Cannot load {} or {}.".format(self.filepath, self.topology_path))
         else:
             print("{} successfully loaded.".format(self.traj))
 
-        x_coordinates = self.traj.xyz[:][:, 0]
-        y_coordinates = self.traj.xyz[:][:, 1]
-        z_coordinates = self.traj.xyz[:][:, 2]
+        if params is None:
+            params = {}
+        self.params = {
+            'plot_type': params.get('plot_type', 'color_map'),  # 'color_map', 'heat_map'
+            'plot_tics': params.get('plot_tics', True),
+            'carbon_atoms_only': params.get('carbon_atoms_only', True),
+            'interactive': params.get('interactive', True),
+            'n_components': params.get('n_components', 2),
+            'lag_time': params.get('lag_time', 10),
+            'basis_transformation': params.get('basis_transformation', False),
+            'random_seed': params.get('random_seed', 30)
+        }
+
+        x_coordinates = self.get_coordinates([0])
+        y_coordinates = self.get_coordinates([1])
+        z_coordinates = self.get_coordinates([2])
         self.coordinate_mins = {'x': x_coordinates.min(), 'y': y_coordinates.min(), 'z': z_coordinates.min()}
         self.coordinate_maxs = {'x': x_coordinates.max(), 'y': y_coordinates.max(), 'z': z_coordinates.max()}
 
     @property
+    def coordinates(self):
+        if self.params['basis_transformation']:
+            return self.basis_transformed_coordinates
+        else:
+            return self.traj.xyz
+
+    @property
     def flattened_coordinates(self):
-        return self.traj.xyz.reshape(self.dim['time_frames'], self.dim['atoms'] * self.dim['coordinates'])
+        if self.params['carbon_atoms_only']:
+            return self.alpha_coordinates.reshape(self.dim['time_frames'],
+                                                  len(self.carbon_alpha_indexes) * self.dim['coordinates'])
+        else:
+            return self.coordinates.reshape(self.dim['time_frames'], self.dim['atoms'] * self.dim['coordinates'])
 
     @property
     def carbon_alpha_indexes(self):
@@ -62,11 +79,19 @@ class DataTrajectory(TrajectoryFile):
     def alpha_coordinates(self):
         return self.get_atoms(self.carbon_alpha_indexes)
 
-    def get_atoms(self, element_list):
-        return self.traj.xyz[:, element_list, :]
+    @property
+    def basis_transformed_coordinates(self):
+        np.random.seed(self.params['random_seed'])
+        return basis_transform(self.traj.xyz, self.dim['coordinates'])
 
     def get_time_frames(self, element_list):
-        return self.traj.xyz[element_list, :, :]
+        return self.coordinates[element_list, :, :]
+
+    def get_atoms(self, element_list):
+        return self.coordinates[:, element_list, :]
+
+    def get_coordinates(self, element_list):
+        return self.coordinates[:, :, element_list]
 
     def get_model_and_projection(self, model_name, inp=None):
         import pyemma.coordinates as coor
@@ -105,29 +130,56 @@ class DataTrajectory(TrajectoryFile):
         model2.fit(self.flattened_coordinates)
         reduced_traj2 = model2.transform(self.flattened_coordinates)
 
-        print(model1, model2, sep='\n')
         self.compare_with_plot([{'model': model1, 'projection': reduced_traj1},
                                 {'model': model2, 'projection': reduced_traj2}])
 
     def compare_with_pyemma(self, model_name1, model_name2):
-        # TODO: compare speed to other loading (and model execution)
-        import pyemma.coordinates as coor
-        feat = coor.featurizer(self.topology_path)
-        inp = coor.source(self.filepath, features=feat)
-        models = {'tica': coor.tica(inp, dim=self.params['n_components']),
-                  'pca': coor.pca(inp, dim=self.params['n_components'])}
-        model1 = models[model_name1]
-        model2 = models[model_name2]
+        if model_name1 == 'load input with features and input':
+            # TODO: compare speed to other loading (and model execution)
+            import pyemma.coordinates as coor
+            feat = coor.featurizer(self.topology_path)
+            inp = coor.source(self.filepath, features=feat)
+            model1, projection1 = self.get_model_and_projection(model_name1, inp)
+            model2, projection2 = self.get_model_and_projection(model_name2, inp)
+        else:
+            model1, projection1 = self.get_model_and_projection(model_name1)
+            model2, projection2 = self.get_model_and_projection(model_name2)
         print(model1, model2, sep='\n')
-        self.compare_with_plot([{'model': model1, 'projection': model1.get_output()},
-                                {'model': model2, 'projection': model2.get_output()}])
+        self.compare_with_plot([{'model': model1, 'projection': projection1},
+                                {'model': model2, 'projection': projection2}])
+
+    def compare_with_ac_and_all_atoms(self, model_name):
+        model_results = []
+        model1, projection1 = self.get_model_and_projection(model_name)
+        model_results.append({'model': model1, 'projection': projection1,
+                              'title_prefix': f'CA {self.params["carbon_atoms_only"]}\n'})
+        self.params['carbon_atoms_only'] = not self.params['carbon_atoms_only']
+        model2, projection2 = self.get_model_and_projection(model_name)
+        model_results.append({'model': model2, 'projection': projection2,
+                              'title_prefix': f'CA {self.params["carbon_atoms_only"]}\n'})
+        self.params['carbon_atoms_only'] = not self.params['carbon_atoms_only']
+        self.compare_with_plot(model_results)
+
+    def compare_with_basis_transformation(self, model_names):
+        model_results = []
+        for model_name in model_names:
+            model, projection = self.get_model_and_projection(model_name)
+            model_results.append({'model': model, 'projection': projection,
+                                  'title_prefix': f'Basis transformation {self.params["basis_transformation"]}\n'})
+            self.params['basis_transformation'] = not self.params['basis_transformation']
+            model, projection = self.get_model_and_projection(model_name)
+            model_results.append({'model': model, 'projection': projection,
+                                  'title_prefix': f'Basis transformation {self.params["basis_transformation"]}\n'})
+            self.params['basis_transformation'] = not self.params['basis_transformation']
+        self.compare_with_plot(model_results)
 
     def compare_with_plot(self, model_projection_list):
-        TrajectoryPlotter(self).plot_models(model_projection_list,
-                                            data_elements=[0],  # [0, 1, 2]
-                                            plot_type=self.params['plot_type'],  # 'heat_map', 'color_map'
-                                            plot_tics=self.params['plot_tics']
-                                            )  # True, False
+        TrajectoryPlotter(self).plot_models(
+            model_projection_list,
+            data_elements=[0],  # [0, 1, 2]
+            plot_type=self.params['plot_type'],  # 'heat_map', 'color_map'
+            plot_tics=self.params['plot_tics']  # True, False
+        )
 
 
 class TopologyConverter(TrajectoryFile):

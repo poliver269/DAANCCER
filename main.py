@@ -8,12 +8,14 @@ from trajectory import DataTrajectory, TopologyConverter
 def main():
     print('Starting time: {}'.format(datetime.now()))
     # TODO: Argsparser for options
-    run_option = 'compare_with_pyemma'
+    run_option = 'base_transformation'
     params = {
         'plot_type': 'color_map',  # 'heat_map', 'color_map'
-        'plot_tics': False,  # True, False
-        'carbon_atoms_only': False,  # True, False
-        'interactive': True  # True, False
+        'plot_tics': True,  # True, False
+        'carbon_atoms_only': True,  # True, False
+        'interactive': True,  # True, False
+        'lag_time': 10,
+        'basis_transformation': True
     }
     kwargs = {'filename': 'tr3_unfolded.xtc', 'topology_filename': '2f4k.pdb', 'folder_path': 'data/2f4k',
               'params': params}
@@ -37,6 +39,12 @@ def main():
     elif run_option == 'compare_with_pyemma':
         tr = DataTrajectory(**kwargs)
         tr.compare_with_pyemma('tica', 'pca')
+    elif run_option == 'compare_with_ac':
+        tr = DataTrajectory(**kwargs)
+        tr.compare_with_ac_and_all_atoms('tica')
+    elif run_option == 'base_transformation':
+        tr = DataTrajectory(**kwargs)
+        tr.compare_with_basis_transformation(['pca'])
 
     print('Finishing time: {}'.format(datetime.now()))
 

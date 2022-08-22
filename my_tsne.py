@@ -1,7 +1,6 @@
 import mdtraj as md
 import scipy as sp
 import sklearn.manifold as sk
-import pyemma.coordinates as coor
 import scipy.spatial as spat
 from mdtraj import Trajectory
 
@@ -11,7 +10,7 @@ from trajectory import DataTrajectory
 Parts of this file were originally copied from the tltsne python module.  
 https://github.com/spiwokv/tltsne/blob/master/tltsne/__init__.py
 Since the results in the text file are complicated to reuse, this module was modified somewhat.
-This way, the results of the models can be used and it's OO.  
+This way, the results of the models can be used and it's Object Oriented.  
 """
 
 
@@ -25,7 +24,6 @@ class TrajectoryTSNE(DataTrajectory):
             params = {}
         params = {
             'superpose': params.get('superpose', False),
-            'lag_time': params.get('lag_time', 10),
             'tica_dim': params.get('tica_dim', 2),
             'max_principal_components': params.get('max_principal_components', 50),
             'perplex_tsne': params.get('perplex_tsne', 10.0),
@@ -43,10 +41,10 @@ class TrajectoryTSNE(DataTrajectory):
             raise ValueError("Lag time higher than the number of frames.")
 
     def start_all_and_save(self, out_filename):
-        _, projs_pca = self.get_model_and_projection('pca')
-        _, projs_tica = self.get_model_and_projection('tica')
-        _, x_emb_tsne = self.get_embedded('tsne')
-        _, x_emb_tltsne = self.get_embedded('time-lagged_tsne')
+        projs_pca = self.get_model_and_projection('pca')[1]
+        projs_tica = self.get_model_and_projection('tica')[1]
+        x_emb_tsne = self.get_embedded('tsne')[1]
+        x_emb_tltsne = self.get_embedded('time-lagged_tsne')[1]
 
         models = [projs_pca, projs_tica, [x_emb_tsne], [x_emb_tltsne]]
         self.save_results(models, out_filename)
@@ -65,7 +63,7 @@ class TrajectoryTSNE(DataTrajectory):
         elif model_name == 'time-lagged_tsne':
             # TODO speed up tl tSNE
             traj_mean = self.flattened_coordinates - sp.mean(self.flattened_coordinates, axis=0)
-            traj_cov = sp.cov(sp.transpose(traj_mean))
+            traj_cov = sp.cov(sp.transpose(traj_mean))  # np.linalg.cov
             eigenvalue, eigenvector = sp.linalg.eig(traj_cov)
             eigenvalue_order = sp.argsort(eigenvalue)[::-1]
             eigenvector = eigenvector[:, eigenvalue_order]
