@@ -2,7 +2,7 @@ from pathlib import Path
 import mdtraj as md
 import numpy as np
 
-from math_utils import generate_independent_matrix, basis_transform
+from utils.math import basis_transform
 from plotter import TrajectoryPlotter
 
 
