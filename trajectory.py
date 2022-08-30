@@ -2,6 +2,8 @@ from pathlib import Path
 import mdtraj as md
 import numpy as np
 
+from utils.algorithms.pca import MyPCA, TruncatedPCA
+from utils.algorithms.tica import MyTICA, TruncatedTICA
 from utils.math import basis_transform
 from plotter import TrajectoryPlotter
 
@@ -46,6 +48,7 @@ class DataTrajectory(TrajectoryFile):
             'interactive': params.get('interactive', True),
             'n_components': params.get('n_components', 2),
             'lag_time': params.get('lag_time', 10),
+            'truncation_value': params.get('truncation_value', 0),
             'basis_transformation': params.get('basis_transformation', False),
             'random_seed': params.get('random_seed', 30)
         }
@@ -101,9 +104,21 @@ class DataTrajectory(TrajectoryFile):
         if model_name == 'pca':
             pca = coor.pca(data=inp, dim=self.params['n_components'])
             return pca, pca.get_output()
+        elif model_name == 'mypca':
+            pca = MyPCA()
+            return pca, [pca.fit_transform(inp, n_components=self.params['n_components'])]
+        elif model_name == 'trunc_pca':
+            pca = TruncatedPCA(self.params['truncation_value'])
+            return pca, [pca.fit_transform(inp, n_components=self.params['n_components'])]
         elif model_name == 'tica':
             tica = coor.tica(data=inp, lag=self.params['lag_time'], dim=self.params['n_components'])
             return tica, tica.get_output()
+        elif model_name == 'mytica':
+            tica = MyTICA(lag_time=self.params['lag_time'])
+            return tica, [tica.fit_transform(inp, n_components=self.params['n_components'])]
+        elif model_name == 'trunc_tica':
+            tica = TruncatedTICA(lag_time=self.params['lag_time'], trunc_value=self.params['truncation_value'])
+            return tica, [tica.fit_transform(inp, n_components=self.params['n_components'])]
         else:
             print(f'Model with name \"{model_name}\" does not exists.')
             return None, None
@@ -133,20 +148,12 @@ class DataTrajectory(TrajectoryFile):
         self.compare_with_plot([{'model': model1, 'projection': reduced_traj1},
                                 {'model': model2, 'projection': reduced_traj2}])
 
-    def compare_with_pyemma(self, model_name1, model_name2):
-        if model_name1 == 'load input with features and input':
-            # TODO: compare speed to other loading (and model execution)
-            import pyemma.coordinates as coor
-            feat = coor.featurizer(self.topology_path)
-            inp = coor.source(self.filepath, features=feat)
-            model1, projection1 = self.get_model_and_projection(model_name1, inp)
-            model2, projection2 = self.get_model_and_projection(model_name2, inp)
-        else:
-            model1, projection1 = self.get_model_and_projection(model_name1)
-            model2, projection2 = self.get_model_and_projection(model_name2)
-        print(model1, model2, sep='\n')
-        self.compare_with_plot([{'model': model1, 'projection': projection1},
-                                {'model': model2, 'projection': projection2}])
+    def compare_with_pyemma(self, model_names):
+        model_results = []
+        for model_name in model_names:
+            model, projection = self.get_model_and_projection(model_name)
+            model_results.append({'model': model, 'projection': projection})
+        self.compare_with_plot(model_results)
 
     def compare_with_ac_and_all_atoms(self, model_name):
         model_results = []
@@ -177,8 +184,9 @@ class DataTrajectory(TrajectoryFile):
         TrajectoryPlotter(self).plot_models(
             model_projection_list,
             data_elements=[0],  # [0, 1, 2]
-            plot_type=self.params['plot_type'],  # 'heat_map', 'color_map'
-            plot_tics=self.params['plot_tics']  # True, False
+            plot_type=self.params['plot_type'],
+            plot_tics=self.params['plot_tics'],
+            components=self.params['n_components']
         )
 
 

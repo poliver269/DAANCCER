@@ -51,7 +51,6 @@ class TrajectoryPlotter:
 
     def plot_original_data_at(self, timeframe):
         self.fig = plt.figure()
-        self.fig = plt.figure()
         self.axes = Axes3D(self.fig)
         self.update_on_slider_change(timeframe)
 
