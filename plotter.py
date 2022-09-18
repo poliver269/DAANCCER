@@ -57,9 +57,14 @@ class TrajectoryPlotter:
     def update_on_slider_change(self, timeframe):
         if 0 <= timeframe <= self.data_trajectory.traj.n_frames:
             timeframe = int(timeframe)
-            x_coordinates = self.data_trajectory.traj.xyz[timeframe][:, 0]
-            y_coordinates = self.data_trajectory.traj.xyz[timeframe][:, 1]
-            z_coordinates = self.data_trajectory.traj.xyz[timeframe][:, 2]
+            if self.data_trajectory.params['carbon_atoms_only']:
+                x_coordinates = self.data_trajectory.alpha_coordinates[timeframe][:, 0]
+                y_coordinates = self.data_trajectory.alpha_coordinates[timeframe][:, 1]
+                z_coordinates = self.data_trajectory.alpha_coordinates[timeframe][:, 2]
+            else:
+                x_coordinates = self.data_trajectory.traj.xyz[timeframe][:, 0]
+                y_coordinates = self.data_trajectory.traj.xyz[timeframe][:, 1]
+                z_coordinates = self.data_trajectory.traj.xyz[timeframe][:, 2]
             self.axes.cla()
             self.axes.scatter(x_coordinates, y_coordinates, z_coordinates, c='r', marker='.')
             self.axes.set_xlim([self.data_trajectory.coordinate_mins['x'], self.data_trajectory.coordinate_maxs['x']])
@@ -83,20 +88,31 @@ class TrajectoryPlotter:
         if plot_tics:
             self.fig, self.axes = plt.subplots(components+1, len(model_results))  # subplots(rows, columns)
             main_axes = self.axes[0]  # axes[row][column]
-            for i, result in enumerate(model_results):
+            if len(model_results) == 1:
                 for component_nr in range(components+1)[1:]:
-                    self.plot_time_tics(self.axes[component_nr][i], result['projection'], data_elements,
+                    self.plot_time_tics(self.axes[component_nr], model_results[0]['projection'], data_elements,
                                         component=component_nr)
+            else:
+                for i, result in enumerate(model_results):
+                    for component_nr in range(components+1)[1:]:
+                        self.plot_time_tics(self.axes[component_nr][i], result['projection'], data_elements,
+                                            component=component_nr)
         else:
             self.fig, self.axes = plt.subplots(1, len(model_results))
             main_axes = self.axes
 
         if plot_type == 'heat_map':
-            for i, result in enumerate(model_results):
-                self.plot_transformed_data_heat_map(main_axes[i], result, data_elements)
+            if len(model_results) == 1:
+                self.plot_transformed_data_heat_map(main_axes, model_results[0], data_elements)
+            else:
+                for i, result in enumerate(model_results):
+                    self.plot_transformed_data_heat_map(main_axes[i], result, data_elements)
         else:
-            for i, result in enumerate(model_results):
-                self.plot_transformed_data_on_axis(main_axes[i], result, data_elements, color_map=plot_type)
+            if len(model_results) == 1:
+                self.plot_transformed_data_on_axis(main_axes, model_results[0], data_elements, color_map=plot_type)
+            else:
+                for i, result in enumerate(model_results):
+                    self.plot_transformed_data_on_axis(main_axes[i], result, data_elements, color_map=plot_type)
         plt.show()
 
     def plot_one_model(self, projection_dict, data_elements):
@@ -148,7 +164,7 @@ class TrajectoryPlotter:
             bins = 50
             z, x, y = np.histogram2d(xi, yi, bins)
             np.seterr(divide='ignore')
-            free_energies = -np.log(z)
+            free_energies = -np.log(z, dtype='float')
             np.seterr(divide='warn')
             ax.contourf(free_energies.T, bins, cmap=plt.cm.hot, extent=[x[0], x[-1], y[0], y[-1]])
         self.print_model_properties(ax, projection_dict)

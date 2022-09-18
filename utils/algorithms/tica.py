@@ -9,14 +9,20 @@ class MyTICA(MyModel):
         self.lag_time = lag_time
 
     def __str__(self):
-        return f'MyTICA: components={self.n_components}, time_lag={self.lag_time}'
+        return f'MyTICA:\ncomponents={self.n_components}, time_lag={self.lag_time}'
 
-    def get_covariance_matrix(self, ddof=0):
-        return np.cov(self.standardized_data_matrix[:-self.lag_time].T)
+    def get_covariance_matrix(self):
+        if self.lag_time <= 0:
+            return np.cov(self.standardized_data_matrix.T)
+        else:
+            return np.cov(self.standardized_data_matrix[:-self.lag_time].T)
 
     def get_correlation_matrix(self):
-        return np.dot(self.standardized_data_matrix[:-self.lag_time].T,
-                      self.standardized_data_matrix[self.lag_time:]) / self.n_samples
+        if self.lag_time <= 0:
+            return self.get_covariance_matrix()
+        else:
+            return np.dot(self.standardized_data_matrix[:-self.lag_time].T,
+                          self.standardized_data_matrix[self.lag_time:]) / self.n_samples
 
     def get_eigenvectors(self, covariance_matrix):
         # calculate eigenvalues & eigenvectors of covariance matrix
@@ -35,10 +41,13 @@ class TruncatedTICA(MyTICA):
         self.truncation_value = trunc_value
 
     def __str__(self):
-        return (f'TruncatedTICA: components={self.n_components}, '
+        return (f'TruncatedTICA:\ncomponents={self.n_components}, '
                 f'lag_time={self.lag_time}, '
                 f'truncation_value={self.truncation_value}')
 
-    def get_covariance_matrix(self, ddof=0):
-        return np.dot(self.standardized_data_matrix[self.truncation_value:].T,
-                      self.standardized_data_matrix[:-self.truncation_value]) / (self.n_samples - ddof)
+    def get_covariance_matrix(self):
+        if self.truncation_value <= 0:
+            return np.cov(self.standardized_data_matrix.T)
+        else:
+            return np.dot(self.standardized_data_matrix[self.truncation_value:].T,
+                          self.standardized_data_matrix[:-self.truncation_value]) / self.n_samples

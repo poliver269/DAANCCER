@@ -3,24 +3,20 @@ import numpy as np
 
 
 class MyPCA(MyModel):
-    """
-    https://towardsdatascience.com/implementing-pca-from-scratch-fb434f1acbaa
-    """
     def __str__(self):
-        return f'MyPCA: components={self.n_components}'
+        return f'MyPCA:\ncomponents={self.n_components}'
 
-    def get_covariance_matrix(self, ddof=0):
+    def get_covariance_matrix(self):
         """
         Calculate covariance matrix with standardized matrix A
-        :param ddof:
         :return: Covariance Matrix
         """
-        # return np.dot(self.standardized_data_matrix.T, self.standardized_data_matrix) / (self.n_samples - ddof)
+        # return np.dot(self.standardized_data_matrix.T, self.standardized_data_matrix) / self.n_samples
         return np.cov(self.standardized_data_matrix.T)
 
     def get_eigenvectors(self, covariance_matrix):
         # calculate eigenvalues & eigenvectors of covariance matrix
-        self.eigenvalues, eigenvectors = np.linalg.eig(covariance_matrix)
+        self.eigenvalues, eigenvectors = np.linalg.eigh(covariance_matrix)
 
         # sort eigenvalues descending and select columns based on n_components
         n_cols = np.argsort(self.eigenvalues)[::-1][:self.n_components]
@@ -34,8 +30,8 @@ class TruncatedPCA(MyPCA):
         self.truncation_value = trunc_value
 
     def __str__(self):
-        return f'TruncatedPCA: components={self.n_components}, trunc_value={self.truncation_value}'
+        return f'TruncatedPCA:\ncomponents={self.n_components}, trunc_value={self.truncation_value}'
 
-    def get_covariance_matrix(self, ddof=0):
-        return np.dot(self.standardized_data_matrix[self.truncation_value:].T,
-                      self.standardized_data_matrix[:-self.truncation_value]) / (self.n_samples - ddof)
+    def get_covariance_matrix(self):
+        return np.dot(self.standardized_data_matrix[:-self.truncation_value].T,
+                      self.standardized_data_matrix[self.truncation_value:])  # / self.n_samples

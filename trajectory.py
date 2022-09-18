@@ -123,11 +123,16 @@ class DataTrajectory(TrajectoryFile):
             print(f'Model with name \"{model_name}\" does not exists.')
             return None, None
 
-    def compare_angles(self, model_name):
-        phi_model, phi_projection = self.get_model_and_projection(model_name, self.phi[1])
-        psi_model, psi_projection = self.get_model_and_projection(model_name, self.psi[1])
-        self.compare_with_plot([{'model': phi_model, 'projection': phi_projection, 'title_prefix': 'phi\n'},
-                                {'model': psi_model, 'projection': psi_projection, 'title_prefix': 'psi\n'}])
+    def compare_angles(self, model_names):
+        model_results = []
+        for model_name in model_names:
+            phi_model, phi_projection = self.get_model_and_projection(model_name, self.phi[1])
+            psi_model, psi_projection = self.get_model_and_projection(model_name, self.psi[1])
+            model_results = model_results + [{'model': phi_model, 'projection': phi_projection,
+                                              'title_prefix': f'Phi\n{model_name}'},
+                                             {'model': psi_model, 'projection': psi_projection,
+                                              'title_prefix': f'Psi\n{model_name}'}]
+        self.compare_with_plot(model_results)
 
     def compare_with_msmbuilder(self, model_name1, model_name2):
         # noinspection PyUnresolvedReferences
@@ -155,15 +160,15 @@ class DataTrajectory(TrajectoryFile):
             model_results.append({'model': model, 'projection': projection})
         self.compare_with_plot(model_results)
 
-    def compare_with_ac_and_all_atoms(self, model_name):
+    def compare_with_carbon_alpha_and_all_atoms(self, model_name):
         model_results = []
         model1, projection1 = self.get_model_and_projection(model_name)
         model_results.append({'model': model1, 'projection': projection1,
-                              'title_prefix': f'CA {self.params["carbon_atoms_only"]}\n'})
+                              'title_prefix': f'Only Carbon-Alpha Atoms: {self.params["carbon_atoms_only"]}\n'})
         self.params['carbon_atoms_only'] = not self.params['carbon_atoms_only']
         model2, projection2 = self.get_model_and_projection(model_name)
         model_results.append({'model': model2, 'projection': projection2,
-                              'title_prefix': f'CA {self.params["carbon_atoms_only"]}\n'})
+                              'title_prefix': f'Only Carbon-Alpha Atoms: {self.params["carbon_atoms_only"]}\n'})
         self.params['carbon_atoms_only'] = not self.params['carbon_atoms_only']
         self.compare_with_plot(model_results)
 

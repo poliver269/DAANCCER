@@ -49,7 +49,7 @@ class TrajectoryTSNE(DataTrajectory):
         models = [projs_pca, projs_tica, [x_emb_tsne], [x_emb_tltsne]]
         self.save_results(models, out_filename)
 
-    # noinspection PyTupleAssignmentBalance
+    # noinspection PyTupleAssignmentBalance,PyUnresolvedReferences
     def get_embedded(self, model_name):
         print(f"Running {model_name}...")
         if model_name == 'tsne':
@@ -70,8 +70,12 @@ class TrajectoryTSNE(DataTrajectory):
             eigenvalue = eigenvalue[eigenvalue_order]
             projs = traj_mean.dot(eigenvector)
             projs = projs / sp.sqrt(eigenvalue)
-            component1 = sp.transpose(projs[:-self.params['lag_time'], ]).dot(projs[self.params['lag_time']:, ]) / (
-                    self.traj.n_frames - self.params['lag_time'] - 1)
+            if self.params['lag_time'] <= 0:
+                component1 = sp.transpose(projs[:, ]).dot(projs[:, ]) / (
+                            self.traj.n_frames - 1)
+            else:
+                component1 = sp.transpose(projs[:-self.params['lag_time'], ]).dot(projs[self.params['lag_time']:, ]) / (
+                            self.traj.n_frames - self.params['lag_time'] - 1)
             component1 = (component1 + sp.transpose(component1)) / 2
             eigenvalue2, eigenvector2 = sp.linalg.eig(component1)
             eigenvalue_order = sp.argsort(eigenvalue2)[::-1]
