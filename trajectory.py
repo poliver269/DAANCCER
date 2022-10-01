@@ -4,7 +4,7 @@ import numpy as np
 
 from utils.algorithms.pca import MyPCA, TruncatedPCA
 from utils.algorithms.tica import MyTICA, TruncatedTICA
-from utils.math import basis_transform
+from utils.math import basis_transform, explained_variance, distance_matrix, gkern, exponentiated_quadratic
 from plotter import TrajectoryPlotter
 
 
@@ -120,18 +120,15 @@ class DataTrajectory(TrajectoryFile):
             tica = TruncatedTICA(lag_time=self.params['lag_time'], trunc_value=self.params['truncation_value'])
             return tica, [tica.fit_transform(inp, n_components=self.params['n_components'])]
         else:
-            print(f'Model with name \"{model_name}\" does not exists.')
-            return None, None
+            raise ValueError(f'Model with name \"{model_name}\" does not exists.')
 
     def compare_angles(self, model_names):
         model_results = []
         for model_name in model_names:
-            phi_model, phi_projection = self.get_model_and_projection(model_name, self.phi[1])
-            psi_model, psi_projection = self.get_model_and_projection(model_name, self.psi[1])
-            model_results = model_results + [{'model': phi_model, 'projection': phi_projection,
-                                              'title_prefix': f'Phi\n{model_name}'},
-                                             {'model': psi_model, 'projection': psi_projection,
-                                              'title_prefix': f'Psi\n{model_name}'}]
+            model, projection = self.get_model_and_projection(model_name,
+                                                              np.concatenate([self.phi[1], self.psi[1]], axis=1))
+            model_results = model_results + [{'model': model, 'projection': projection,
+                                              'title_prefix': f'Angles\n'}]
         self.compare_with_plot(model_results)
 
     def compare_with_msmbuilder(self, model_name1, model_name2):
@@ -157,7 +154,9 @@ class DataTrajectory(TrajectoryFile):
         model_results = []
         for model_name in model_names:
             model, projection = self.get_model_and_projection(model_name)
-            model_results.append({'model': model, 'projection': projection})
+            ex_var = explained_variance(model.eigenvalues, self.params['n_components'])
+            model_results.append({'model': model, 'projection': projection,
+                                  'title_prefix': f'explained var: {ex_var}\n'})
         self.compare_with_plot(model_results)
 
     def compare_with_carbon_alpha_and_all_atoms(self, model_name):
@@ -193,6 +192,19 @@ class DataTrajectory(TrajectoryFile):
             plot_tics=self.params['plot_tics'],
             components=self.params['n_components']
         )
+
+    def calculate_pearson_correlation_coefficient(self):
+        new_matrix = np.cov(self.flattened_coordinates)
+        corr_coefficient = np.corrcoef(self.flattened_coordinates)
+        coordinates_mean = np.mean(self.coordinates, axis=2)
+        alpha_coordinates_mean = np.mean(self.alpha_coordinates, axis=2)
+        coefficient_mean = np.corrcoef(coordinates_mean.T)
+        alpha_coefficient_mean = np.corrcoef(alpha_coordinates_mean.T)
+        d_matrix = exponentiated_quadratic(alpha_coefficient_mean.shape[0], sig=0.2)
+        weighted_alpha_coeff_matrix = alpha_coefficient_mean - d_matrix
+        TrajectoryPlotter(self).matrix_plot(weighted_alpha_coeff_matrix,
+                                            title_prefix='Weighted Carbon-Alpha meaned Coordinates',
+                                            as_surface=self.params['plot_type'])
 
 
 class TopologyConverter(TrajectoryFile):

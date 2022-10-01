@@ -86,15 +86,15 @@ class TrajectoryPlotter:
         :param components: int
         """
         if plot_tics:
-            self.fig, self.axes = plt.subplots(components+1, len(model_results))  # subplots(rows, columns)
+            self.fig, self.axes = plt.subplots(components + 1, len(model_results))  # subplots(rows, columns)
             main_axes = self.axes[0]  # axes[row][column]
             if len(model_results) == 1:
-                for component_nr in range(components+1)[1:]:
+                for component_nr in range(components + 1)[1:]:
                     self.plot_time_tics(self.axes[component_nr], model_results[0]['projection'], data_elements,
                                         component=component_nr)
             else:
                 for i, result in enumerate(model_results):
-                    for component_nr in range(components+1)[1:]:
+                    for component_nr in range(components + 1)[1:]:
                         self.plot_time_tics(self.axes[component_nr][i], result['projection'], data_elements,
                                             component=component_nr)
         else:
@@ -140,7 +140,7 @@ class TrajectoryPlotter:
                     self.fig.colorbar(im, ax=ax)
             else:
                 color = list(self.colors.values())[element]
-                ax.scatter(projection_list[element][:, 0], projection_list[element][:, 1], c=color, marker='.')
+                ax.scatter(data_list[element][:, 0], data_list[element][:, 1], c=color, marker='.')
 
         self.print_model_properties(ax, projection_list)
 
@@ -150,7 +150,7 @@ class TrajectoryPlotter:
         ax.set_ylabel('Component {}'.format(component))
 
         for i in data_elements:
-            ax.plot(projections[i][:, component-1], c=list(self.colors.values())[i])
+            ax.plot(projections[i][:, component - 1], c=list(self.colors.values())[i])
 
     def plot_transformed_data_heat_map(self, ax, projection_dict, data_elements):
         ax.cla()
@@ -183,3 +183,22 @@ class TrajectoryPlotter:
 
     def ramachandran_plot(self, phi, psi):
         pass
+
+    def matrix_plot(self, matrix, title_prefix='', as_surface=''):
+        c_map = plt.cm.viridis
+        if as_surface == '3d_map':
+            x_coordinates = np.arange(matrix.shape[0])
+            y_coordinates = np.arange(matrix.shape[1])
+            x_coordinates, y_coordinates = np.meshgrid(x_coordinates, y_coordinates)
+            # z_coordinates = np.sin(matrix)
+            self.fig = plt.figure()
+            self.axes = self.fig.gca(projection='3d')
+            im = self.axes.plot_surface(x_coordinates, y_coordinates, matrix, cmap=c_map)
+        else:
+            self.fig, self.axes = plt.subplots(1, 1)
+            im = self.axes.matshow(matrix, cmap=c_map)
+        self.fig.colorbar(im, ax=self.axes)
+        self.axes.set_xlabel('atoms')
+        self.axes.set_ylabel('time series')
+        self.axes.set_title(title_prefix + ' Matrix')
+        plt.show()
