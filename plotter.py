@@ -202,3 +202,10 @@ class TrajectoryPlotter:
         self.axes.set_ylabel('time series')
         self.axes.set_title(title_prefix + ' Matrix')
         plt.show()
+
+    def plot_gauss2d(self, gauss_fitted, xdata, ydata):
+        self.fig, self.axes = plt.subplots(1, 1)
+        self.axes.plot(xdata, ydata, 'o', label='data')
+        self.axes.plot(xdata, gauss_fitted, '-', label='fit')
+        self.axes.legend()
+        plt.show()

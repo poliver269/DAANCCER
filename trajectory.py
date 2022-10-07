@@ -1,10 +1,14 @@
 from pathlib import Path
 import mdtraj as md
 import numpy as np
+from matplotlib import pyplot as plt
+from scipy.optimize import curve_fit
+from skimage.measure import block_reduce
 
 from utils.algorithms.pca import MyPCA, TruncatedPCA
 from utils.algorithms.tica import MyTICA, TruncatedTICA
-from utils.math import basis_transform, explained_variance, distance_matrix, gkern, exponentiated_quadratic
+from utils.math import basis_transform, explained_variance, gaussian_kern_matrix, diagonal_gauss_matrix_kernel, \
+    matrix_diagonals_calculation, diagonal_indices, gaussian_2d, expand_diagonals_to_matrix
 from plotter import TrajectoryPlotter
 
 
@@ -194,16 +198,38 @@ class DataTrajectory(TrajectoryFile):
         )
 
     def calculate_pearson_correlation_coefficient(self):
-        new_matrix = np.cov(self.flattened_coordinates)
-        corr_coefficient = np.corrcoef(self.flattened_coordinates)
-        coordinates_mean = np.mean(self.coordinates, axis=2)
-        alpha_coordinates_mean = np.mean(self.alpha_coordinates, axis=2)
-        coefficient_mean = np.corrcoef(coordinates_mean.T)
-        alpha_coefficient_mean = np.corrcoef(alpha_coordinates_mean.T)
-        d_matrix = exponentiated_quadratic(alpha_coefficient_mean.shape[0], sig=0.2)
+        mode = 'gauss_distribution_on_data'
+        if mode == 'flattened_coordinates':
+            flattened_covariance = np.cov(self.flattened_coordinates)
+            corr_coefficient = np.corrcoef(self.flattened_coordinates)
+        elif mode == 'coordinates_mean_first':
+            coordinates_mean = np.mean(self.coordinates, axis=2)
+            coefficient_mean = np.corrcoef(coordinates_mean.T)
+        elif mode == 'alpha_carbon_mean_first':
+            alpha_coordinates_mean = np.mean(self.alpha_coordinates, axis=2)
+            alpha_coefficient_mean = np.corrcoef(alpha_coordinates_mean.T)
+        elif mode == 'alpha_carbon_coefficient_first':
+            alpha_coefficient = np.corrcoef(self.flattened_coordinates.T)
+            alpha_coefficient_mean = block_reduce(alpha_coefficient, (3, 3), np.diag)
+        elif mode == 'alpha_carbon_optimized_gauss_kernel':
+            pass  # params, cov = curve_fit()
+        elif mode == 'gauss_distribution_on_data':
+            alpha_coordinates_mean = np.mean(self.alpha_coordinates, axis=2)
+            alpha_coefficient_mean = np.corrcoef(alpha_coordinates_mean.T)
+            ydata = matrix_diagonals_calculation(alpha_coefficient_mean, np.mean)
+            xdata = diagonal_indices(alpha_coefficient_mean)
+            parameters, cov = curve_fit(gaussian_2d, xdata, ydata)
+            fit_y = gaussian_2d(xdata, parameters[0], parameters[1])
+            d_matrix = expand_diagonals_to_matrix(alpha_coefficient_mean, fit_y)
+            # TrajectoryPlotter(self).plot_gauss2d(fit_y, xdata, ydata)
+            # return
+        # d_matrix = diagonal_gauss_matrix_kernel(alpha_coefficient_mean.shape[0], sig=0.2)
+        # d_matrix = exponentiated_quadratic(alpha_coefficient_mean, s=2)
         weighted_alpha_coeff_matrix = alpha_coefficient_mean - d_matrix
+        # sympy_matrix_alpha_carbon = Matrix(alpha_coefficient_mean)
+        # data_nullspace = sympy_matrix_alpha_carbon * sympy_matrix_alpha_carbon.nullspace()
         TrajectoryPlotter(self).matrix_plot(weighted_alpha_coeff_matrix,
-                                            title_prefix='Weighted Carbon-Alpha meaned Coordinates',
+                                            title_prefix='Alpha Carbon Atoms Pearson Coefficient calculation first, mean second',
                                             as_surface=self.params['plot_type'])
 
 
