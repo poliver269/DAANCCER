@@ -24,7 +24,8 @@ class MyModel:
         self.eigenvectors = self.get_eigenvectors(covariance_matrix)
         return self.transform(self.standardized_data_matrix)
 
-    def standardize_data(self, matrix):
+    @staticmethod
+    def standardize_data(matrix):
         """
         Subtract mean and divide by standard deviation column-wise.
         Doing this proves to be very helpful when calculating the covariance matrix.

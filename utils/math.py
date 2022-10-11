@@ -77,6 +77,7 @@ def matrix_diagonals_calculation(matrix: np.ndarray, func: callable = np.sum, fu
         calculated_diagonals.append(func(m, **func_kwargs))
 
     return np.asarray(calculated_diagonals)
+    # Other idea: map diagonals into indices difference (i-j)
 
 
 def is_matrix_symmetric(matrix, rtol=1e-05, atol=1e-08):
@@ -128,3 +129,11 @@ def expand_diagonals_to_matrix(matrix, array):
         new_matrix[i + diagonal_index == j] = array[array_index]
 
     return new_matrix
+
+
+def calculate_pearson_correlations(matrix_list, func):
+    pc_list = list(map(np.corrcoef, matrix_list))
+    pc_list = []
+    for matrix in matrix_list:
+        pc_list.append(np.corrcoef(matrix))
+    return pc_list

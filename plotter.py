@@ -5,6 +5,8 @@ import numpy as np
 from matplotlib.widgets import Slider
 from mpl_toolkits.mplot3d import Axes3D
 
+from utils.param_key import *
+
 
 class TrajectoryPlotter:
     def __init__(self, trajectory, interactive=True):
@@ -28,7 +30,7 @@ class TrajectoryPlotter:
             raise ValueError('Plotter has to be interactive to use this plot.')
 
         if min_max is None:  # min_max is a list of two elements
-            min_max = [0, self.data_trajectory.dim['time_frames']]
+            min_max = [0, self.data_trajectory.dim[TIME_FRAMES]]
 
         self.fig = plt.figure()
         # self.axes = self.fig.add_subplot(111, projection='3d')
@@ -57,7 +59,7 @@ class TrajectoryPlotter:
     def update_on_slider_change(self, timeframe):
         if 0 <= timeframe <= self.data_trajectory.traj.n_frames:
             timeframe = int(timeframe)
-            if self.data_trajectory.params['carbon_atoms_only']:
+            if self.data_trajectory.params[CARBON_ATOMS_ONLY]:
                 x_coordinates = self.data_trajectory.alpha_coordinates[timeframe][:, 0]
                 y_coordinates = self.data_trajectory.alpha_coordinates[timeframe][:, 1]
                 z_coordinates = self.data_trajectory.alpha_coordinates[timeframe][:, 2]
@@ -67,9 +69,9 @@ class TrajectoryPlotter:
                 z_coordinates = self.data_trajectory.traj.xyz[timeframe][:, 2]
             self.axes.cla()
             self.axes.scatter(x_coordinates, y_coordinates, z_coordinates, c='r', marker='.')
-            self.axes.set_xlim([self.data_trajectory.coordinate_mins['x'], self.data_trajectory.coordinate_maxs['x']])
-            self.axes.set_ylim([self.data_trajectory.coordinate_mins['y'], self.data_trajectory.coordinate_maxs['y']])
-            self.axes.set_zlim([self.data_trajectory.coordinate_mins['z'], self.data_trajectory.coordinate_maxs['z']])
+            self.axes.set_xlim([self.data_trajectory.coordinate_mins[X], self.data_trajectory.coordinate_maxs[X]])
+            self.axes.set_ylim([self.data_trajectory.coordinate_mins[Y], self.data_trajectory.coordinate_maxs[Y]])
+            self.axes.set_zlim([self.data_trajectory.coordinate_mins[Z], self.data_trajectory.coordinate_maxs[Z]])
             self.axes.set_xlabel('x-Axis')
             self.axes.set_ylabel('y-Axis')
             self.axes.set_zlabel('z-Axis')
@@ -81,7 +83,7 @@ class TrajectoryPlotter:
         """
         :param model_results:
         :param data_elements:
-        :param plot_type: 'heat_map', 'color_map'
+        :param plot_type: 'heat_map', COLOR_MAP
         :param plot_tics: True, False
         :param components: int
         """
@@ -90,18 +92,18 @@ class TrajectoryPlotter:
             main_axes = self.axes[0]  # axes[row][column]
             if len(model_results) == 1:
                 for component_nr in range(components + 1)[1:]:
-                    self.plot_time_tics(self.axes[component_nr], model_results[0]['projection'], data_elements,
+                    self.plot_time_tics(self.axes[component_nr], model_results[0][PROJECTION], data_elements,
                                         component=component_nr)
             else:
                 for i, result in enumerate(model_results):
                     for component_nr in range(components + 1)[1:]:
-                        self.plot_time_tics(self.axes[component_nr][i], result['projection'], data_elements,
+                        self.plot_time_tics(self.axes[component_nr][i], result[PROJECTION], data_elements,
                                             component=component_nr)
         else:
             self.fig, self.axes = plt.subplots(1, len(model_results))
             main_axes = self.axes
 
-        if plot_type == 'heat_map':
+        if plot_type == HEAT_MAP:
             if len(model_results) == 1:
                 self.plot_transformed_data_heat_map(main_axes, model_results[0], data_elements)
             else:
@@ -120,18 +122,18 @@ class TrajectoryPlotter:
         self.axes = self.fig.add_subplot(111)
         self.axes.cla()
         for element in data_elements:
-            self.axes.scatter(projection_dict['projection'][element][:, 0],
-                              projection_dict['projection'][element][:, 1], c='r', marker='.')
+            self.axes.scatter(projection_dict[PROJECTION][element][:, 0],
+                              projection_dict[PROJECTION][element][:, 1], c='r', marker='.')
         plt.show()
 
     def plot_transformed_data_on_axis(self, ax, projection_list, data_elements, color_map):
         ax.cla()
-        ax.set_title(projection_list.get('title_prefix', '') + str(projection_list['model']))
+        ax.set_title(projection_list.get(TITLE_PREFIX, '') + str(projection_list[MODEL]))
         ax.set_xlabel('1st component')
         ax.set_ylabel('2nd component')
-        data_list = projection_list['projection']
+        data_list = projection_list[PROJECTION]
         for index, element in enumerate(data_elements):
-            if color_map == 'color_map':
+            if color_map == COLOR_MAP:
                 color_array = np.arange(data_list[element].shape[0])
                 c_map = plt.cm.viridis
                 im = ax.scatter(data_list[element][:, 0], data_list[element][:, 1], c=color_array,
@@ -154,10 +156,10 @@ class TrajectoryPlotter:
 
     def plot_transformed_data_heat_map(self, ax, projection_dict, data_elements):
         ax.cla()
-        ax.set_title(str(projection_dict['model']))
+        ax.set_title(str(projection_dict[MODEL]))
         ax.set_xlabel('Component 1')
         ax.set_ylabel('Component 2')
-        projections = projection_dict['projection']
+        projections = projection_dict[PROJECTION]
         for i in data_elements:
             xi = projections[i][:, 0]
             yi = projections[i][:, 1]
@@ -171,8 +173,8 @@ class TrajectoryPlotter:
 
     @staticmethod
     def print_model_properties(ax, projection_dict):
-        projections = projection_dict['projection']
-        model = projection_dict['model']
+        projections = projection_dict[PROJECTION]
+        model = projection_dict[MODEL]
         try:
             print(projections[0].shape)
             print('EV:', model.eigenvectors, 'EW:', model.eigenvalues)
@@ -186,7 +188,7 @@ class TrajectoryPlotter:
 
     def matrix_plot(self, matrix, title_prefix='', as_surface=''):
         c_map = plt.cm.viridis
-        if as_surface == '3d_map':
+        if as_surface == PLOT_3D_MAP:
             x_coordinates = np.arange(matrix.shape[0])
             y_coordinates = np.arange(matrix.shape[1])
             x_coordinates, y_coordinates = np.meshgrid(x_coordinates, y_coordinates)
@@ -203,9 +205,12 @@ class TrajectoryPlotter:
         self.axes.set_title(title_prefix + ' Matrix')
         plt.show()
 
-    def plot_gauss2d(self, gauss_fitted, xdata, ydata):
+    def plot_gauss2d(self, gauss_fitted, xdata, ydata, mean_data=None):
         self.fig, self.axes = plt.subplots(1, 1)
         self.axes.plot(xdata, ydata, 'o', label='data')
         self.axes.plot(xdata, gauss_fitted, '-', label='fit')
+        if mean_data is not None:
+            self.axes.plot(xdata, mean_data, '-', label='mean')
         self.axes.legend()
+        # self.axes.set_ylim(-1, 1)
         plt.show()

@@ -3,6 +3,7 @@ from datetime import datetime
 from my_tsne import TrajectoryTSNE
 from plotter import TrajectoryPlotter
 from trajectory import DataTrajectory, TopologyConverter
+from utils.param_key import *
 
 
 def main():
@@ -10,15 +11,17 @@ def main():
     # TODO: Argsparser for options
     run_option = 'calculate_pcc'
     params = {
-        'plot_type': '3d_map',  # 'heat_map', 'color_map', '3d_map'
-        'plot_tics': False,  # True, False
-        'carbon_atoms_only': True,  # True, False
-        'interactive': True,  # True, False
-        'lag_time': 10,
-        'truncation_value': 30,
-        'basis_transformation': False
+        PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map'
+        PLOT_TICS: False,  # True, False
+        CARBON_ATOMS_ONLY: True,  # True, False
+        INTERACTIVE: True,  # True, False
+        LAG_TIME: 10,
+        TRUNCATION_VALUE: 30,
+        BASIS_TRANSFORMATION: False
     }
     kwargs = {'filename': 'tr8_folded.xtc', 'topology_filename': '2f4k.pdb', 'folder_path': 'data/2f4k',
+    # kwargs = {'filename': 'prod_r3_nojump_prot.xtc', 'topology_filename': 'prod_r1_pbc_fit_prot_last.pdb',
+              # 'folder_path': 'data/ProtNo2',
               'params': params}
     if run_option == 'covert_gro_to_pdb':
         kwargs = {'filename': 'tr3_unfolded.xtc', 'topology_filename': '2f4k.gro',
