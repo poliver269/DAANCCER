@@ -144,7 +144,7 @@ class TrajectoryPlotter:
                 color = list(self.colors.values())[element]
                 ax.scatter(data_list[element][:, 0], data_list[element][:, 1], c=color, marker='.')
 
-        self.print_model_properties(ax, projection_list)
+        self.print_model_properties(projection_list)
 
     def plot_time_tics(self, ax, projections, data_elements, component):
         ax.cla()
@@ -169,17 +169,15 @@ class TrajectoryPlotter:
             free_energies = -np.log(z, dtype='float')
             np.seterr(divide='warn')
             ax.contourf(free_energies.T, bins, cmap=plt.cm.hot, extent=[x[0], x[-1], y[0], y[-1]])
-        self.print_model_properties(ax, projection_dict)
+        self.print_model_properties(projection_dict)
 
     @staticmethod
-    def print_model_properties(ax, projection_dict):
+    def print_model_properties(projection_dict):
         projections = projection_dict[PROJECTION]
         model = projection_dict[MODEL]
         try:
             print(projections[0].shape)
             print('EV:', model.eigenvectors, 'EW:', model.eigenvalues)
-            # ax.arrow(0, 0, model.eigenvectors[0, 0], model.eigenvectors[1, 0], color='tab:cyan')  # pyemma
-            # ax.arrow(0, 0, model.eigenvectors_[0, 0], model.eigenvectors_[1, 0], color='tab:cyan')  # msm builder
         except AttributeError as e:
             print('{}: {}'.format(e, model))
 
@@ -192,7 +190,6 @@ class TrajectoryPlotter:
             x_coordinates = np.arange(matrix.shape[0])
             y_coordinates = np.arange(matrix.shape[1])
             x_coordinates, y_coordinates = np.meshgrid(x_coordinates, y_coordinates)
-            # z_coordinates = np.sin(matrix)
             self.fig = plt.figure()
             self.axes = self.fig.gca(projection='3d')
             im = self.axes.plot_surface(x_coordinates, y_coordinates, matrix, cmap=c_map)

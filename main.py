@@ -32,20 +32,14 @@ def main():
     elif run_option == 'compare_with_tltsne':
         tr = TrajectoryTSNE(**kwargs)
         tr.compare('tsne')
-    elif run_option == 'compare_angles':
-        tr = DataTrajectory(**kwargs)
-        tr.compare_angles(['pca', 'tica'])
     elif run_option == 'plot_with_slider':
         tr = DataTrajectory(**kwargs)
         TrajectoryPlotter(tr).original_data_with_timestep_slider(min_max=None)  # [0, 1000]
-    elif run_option == 'compare_with_msm':  # only with 3.5 and under
+    elif run_option == 'compare':
         tr = DataTrajectory(**kwargs)
-        tr.compare_with_msmbuilder('tica', 'pca')
-    elif run_option == 'compare_with_pyemma':
-        tr = DataTrajectory(**kwargs)
-        # tr.compare_with_pyemma(['pca', 'mypca', 'trunc_pca'])
-        tr.compare_with_pyemma(['pca', 'tica'])  # , 'mytica', 'trunc_tica'])
-        # tr.compare_with_pyemma(['tica', 'mytica'])
+        # tr.compare(['pca', 'mypca', 'trunc_pca'])
+        tr.compare(['pca', 'tica'])  # , 'mytica', 'trunc_tica'])
+        # tr.compare(['tica', 'mytica'])
     elif run_option == 'compare_with_carbon_alpha_atoms':
         tr = DataTrajectory(**kwargs)
         tr.compare_with_carbon_alpha_and_all_atoms('pca')

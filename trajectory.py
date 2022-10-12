@@ -3,6 +3,7 @@ from pathlib import Path
 import mdtraj as md
 import numpy as np
 from scipy.optimize import curve_fit
+import pyemma.coordinates as coor
 
 from plotter import TrajectoryPlotter
 from utils.algorithms.pca import MyPCA, TruncatedPCA
@@ -39,9 +40,9 @@ class DataTrajectory(TrajectoryFile):
             self.phi = md.compute_phi(self.traj)
             self.psi = md.compute_psi(self.traj)
         except IOError:
-            raise FileNotFoundError("Cannot load {} or {}.".format(self.filepath, self.topology_path))
+            raise FileNotFoundError(f"Cannot load {self.filepath} or {self.topology_path}.")
         else:
-            print("{} successfully loaded.".format(self.traj))
+            print(f"{self.traj} successfully loaded.")
 
         if params is None:
             params = {}
@@ -105,7 +106,6 @@ class DataTrajectory(TrajectoryFile):
         return coordinates_dict[:, :, element_list]
 
     def get_model_and_projection(self, model_name, inp=None):
-        import pyemma.coordinates as coor  # Todo: import globally and delete msmbuilder
         print(f'Running {model_name}...')
         if inp is None:
             inp = self.flattened_coordinates
@@ -130,42 +130,20 @@ class DataTrajectory(TrajectoryFile):
         else:
             raise ValueError(f'Model with name \"{model_name}\" does not exists.')
 
-    def compare_angles(self, model_names):
+    def compare(self, model_names):
         model_results = []
         for model_name in model_names:
-            model, projection = self.get_model_and_projection(model_name,  # Todo: refactor to 'use_angles'
-                                                              np.concatenate([self.phi[1], self.psi[1]], axis=1))
-            model_results = model_results + [{MODEL: model, PROJECTION: projection,
-                                              TITLE_PREFIX: f'Angles\n'}]
-        self.compare_with_plot(model_results)
-
-    def compare_with_msmbuilder(self, model_name1, model_name2):
-        # noinspection PyUnresolvedReferences
-        from msmbuilder.decomposition import tICA, PCA  # works only on python 3.5 and smaller
-        reshaped_traj = np.reshape(self.traj.xyz, (self.dim[COORDINATES], self.dim[TIME_FRAMES], self.dim[ATOMS]))
-        models = {'tica': tICA(n_components=self.params[N_COMPONENTS]),
-                  'pca': PCA(n_components=self.params[N_COMPONENTS])}
-
-        model1 = models[model_name1]  # --> (n_components, time_frames)
-        # reshaped_traj = self.converted  # Does not Work
-        model1.fit(reshaped_traj)
-        reduced_traj1 = model1.transform(reshaped_traj)
-
-        model2 = models[model_name2]
-        model2.fit(self.flattened_coordinates)
-        reduced_traj2 = model2.transform(self.flattened_coordinates)
-
-        self.compare_with_plot([{MODEL: model1, PROJECTION: reduced_traj1},
-                                {MODEL: model2, PROJECTION: reduced_traj2}])
-
-    def compare_with_pyemma(self, model_names):
-        model_results = []
-        for model_name in model_names:
-            model, projection = self.get_model_and_projection(model_name)
-            ex_var = explained_variance(model.eigenvalues, self.params[N_COMPONENTS])
-            model_results.append({MODEL: model, PROJECTION: projection,
-                                  TITLE_PREFIX: f'explained var: {ex_var}\n'})
-        self.compare_with_plot(model_results)
+            if self.params[USE_ANGLES]:
+                flattened_angles = np.concatenate([self.phi[1], self.psi[1]], axis=1)
+                model, projection = self.get_model_and_projection(model_name, flattened_angles)
+                ex_var = explained_variance(model.eigenvalues, self.params[N_COMPONENTS])
+                model_results = model_results + [{MODEL: model, PROJECTION: projection,
+                                                  TITLE_PREFIX: f'Flattened Angles, Explained var: {ex_var}\n'}]
+            else:
+                model, projection = self.get_model_and_projection(model_name)
+                ex_var = explained_variance(model.eigenvalues, self.params[N_COMPONENTS])
+                model_results.append({MODEL: model, PROJECTION: projection,
+                                      TITLE_PREFIX: f'Explained var: {ex_var}\n'})
 
     def compare_with_carbon_alpha_and_all_atoms(self, model_names):
         model_results = self.get_model_results_with_different_param(model_names, CARBON_ATOMS_ONLY)
@@ -203,11 +181,13 @@ class DataTrajectory(TrajectoryFile):
             coordinates_mean = np.mean(self.atom_coordinates, axis=2)
             coefficient_mean = np.corrcoef(coordinates_mean.T)
         elif mode == 'mean_first':
+            print('Calculate mean matrix...')
             if self.params[USE_ANGLES]:
                 mean_matrix = np.mean(np.array([self.phi[DIHEDRAL_ANGEL_VALUES], self.psi[DIHEDRAL_ANGEL_VALUES]]),
                                       axis=0)
             else:
                 mean_matrix = np.mean(self.alpha_carbon_coordinates, axis=2)
+            print('Calculate correlation coefficient...')
             coefficient_mean = np.corrcoef(mean_matrix.T)
         elif mode == 'coefficient_first':
             if self.params[USE_ANGLES]:
@@ -215,10 +195,12 @@ class DataTrajectory(TrajectoryFile):
             else:
                 input_list = [self.filter_coordinates_by_coordinates(c, ac_only=self.params[CARBON_ATOMS_ONLY])
                               for c in range(len(self.dim))]
+            print('Calculate correlation coefficient...')
             coefficient_mean = calculate_pearson_correlations(input_list, np.mean)
         else:
             raise ValueError('Invalid mode string was given')
 
+        print('Fit Kernel on data...')
         ydata = matrix_diagonals_calculation(coefficient_mean, np.mean)
         xdata = diagonal_indices(coefficient_mean)
         parameters, cov = curve_fit(gaussian_2d, xdata, ydata)
