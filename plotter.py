@@ -60,9 +60,9 @@ class TrajectoryPlotter:
         if 0 <= timeframe <= self.data_trajectory.traj.n_frames:
             timeframe = int(timeframe)
             if self.data_trajectory.params[CARBON_ATOMS_ONLY]:
-                x_coordinates = self.data_trajectory.alpha_coordinates[timeframe][:, 0]
-                y_coordinates = self.data_trajectory.alpha_coordinates[timeframe][:, 1]
-                z_coordinates = self.data_trajectory.alpha_coordinates[timeframe][:, 2]
+                x_coordinates = self.data_trajectory.alpha_carbon_coordinates[timeframe][:, 0]
+                y_coordinates = self.data_trajectory.alpha_carbon_coordinates[timeframe][:, 1]
+                z_coordinates = self.data_trajectory.alpha_carbon_coordinates[timeframe][:, 2]
             else:
                 x_coordinates = self.data_trajectory.traj.xyz[timeframe][:, 0]
                 y_coordinates = self.data_trajectory.traj.xyz[timeframe][:, 1]
@@ -205,12 +205,13 @@ class TrajectoryPlotter:
         self.axes.set_title(title_prefix + ' Matrix')
         plt.show()
 
-    def plot_gauss2d(self, gauss_fitted, xdata, ydata, mean_data=None):
+    def plot_gauss2d(self, gauss_fitted, xdata, ydata, title_prefix='', mean_data=None):
         self.fig, self.axes = plt.subplots(1, 1)
         self.axes.plot(xdata, ydata, 'o', label='data')
         self.axes.plot(xdata, gauss_fitted, '-', label='fit')
         if mean_data is not None:
             self.axes.plot(xdata, mean_data, '-', label='mean')
         self.axes.legend()
+        self.axes.set_title(title_prefix)
         # self.axes.set_ylim(-1, 1)
         plt.show()

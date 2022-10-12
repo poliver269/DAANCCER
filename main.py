@@ -17,7 +17,8 @@ def main():
         INTERACTIVE: True,  # True, False
         LAG_TIME: 10,
         TRUNCATION_VALUE: 30,
-        BASIS_TRANSFORMATION: False
+        BASIS_TRANSFORMATION: False,
+        USE_ANGLES: True
     }
     kwargs = {'filename': 'tr8_folded.xtc', 'topology_filename': '2f4k.pdb', 'folder_path': 'data/2f4k',
     # kwargs = {'filename': 'prod_r3_nojump_prot.xtc', 'topology_filename': 'prod_r1_pbc_fit_prot_last.pdb',

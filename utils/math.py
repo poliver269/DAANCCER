@@ -31,7 +31,7 @@ def explained_variance(eigenvalues, component):
 
 def gaussian_kern_matrix(size, sig=1.):
     """
-    creates gaussian kernel with size length `size` and a sigma of `sig`
+    Creates gaussian kernel distribution matrix with the given `size` and a sigma of `sig`.
     https://stackoverflow.com/questions/29731726/how-to-calculate-a-gaussian-kernel-matrix-efficiently-in-numpy
     """
     # lin_array = np.linspace(-(size - 1) / 2., (size - 1) / 2., size)  # linear array (from: -size/2, to: size/2)
@@ -43,7 +43,7 @@ def gaussian_kern_matrix(size, sig=1.):
 
 def diagonal_gauss_matrix_kernel(matrix_size, sig=1.):
     """
-    Gaussian diagonal kernel with a specific size and σ (sigma).
+    Gaussian kernel diagonally in the matrix with a specific size and σ (sigma).
     https://peterroelants.github.io/posts/gaussian-process-kernels/
     """
     lin_range = (-1, 1)
@@ -55,7 +55,7 @@ def diagonal_gauss_matrix_kernel(matrix_size, sig=1.):
 
 def matrix_diagonals_calculation(matrix: np.ndarray, func: callable = np.sum, func_kwargs: dict = None):
     """
-    Down sample matrix by applying function `func` to diagonals
+    Down sample matrix to array by applying function `func` to diagonals.
     :param matrix: ndarray
         N-dimensional input image
     :param func: callable
@@ -66,7 +66,7 @@ def matrix_diagonals_calculation(matrix: np.ndarray, func: callable = np.sum, fu
         Keyword arguments passed to `func`. Notably useful for passing dtype
         argument to ``np.mean``. Takes dictionary of inputs, e.g.:
         ``func_kwargs={'dtype': np.float16})``
-    :return:
+    :return: ndarray
     """
     if func_kwargs is None:
         func_kwargs = {}
@@ -77,7 +77,7 @@ def matrix_diagonals_calculation(matrix: np.ndarray, func: callable = np.sum, fu
         calculated_diagonals.append(func(m, **func_kwargs))
 
     return np.asarray(calculated_diagonals)
-    # Other idea: map diagonals into indices difference (i-j)
+    # TODO: Other idea: map diagonals into indices difference (i-j)
 
 
 def is_matrix_symmetric(matrix, rtol=1e-05, atol=1e-08):
@@ -113,9 +113,12 @@ def gaussian_2d(x, mu, sigma):
 
 def expand_diagonals_to_matrix(matrix, array):
     """
+    Expand the values on the minor diagonals to its corresponding off-diagonal.
     Similar to: https://stackoverflow.com/questions/27875931/numpy-affect-diagonal-elements-of-matrix-prior-to-1-10
-    :param matrix:
-    :param array:
+    :param matrix: ndarray
+        N-dimensional input image. Specifies the size and the off-diagonal indexes of the return matrix
+    :param array: ndarray
+        Values on the minor diagonal which are going to expand by the function
     :return:
     """
     new_matrix = np.zeros_like(matrix)
@@ -131,9 +134,24 @@ def expand_diagonals_to_matrix(matrix, array):
     return new_matrix
 
 
-def calculate_pearson_correlations(matrix_list, func):
-    pc_list = list(map(np.corrcoef, matrix_list))
-    pc_list = []
-    for matrix in matrix_list:
-        pc_list.append(np.corrcoef(matrix))
-    return pc_list
+def calculate_pearson_correlations(matrix_list: list, func: callable = np.sum, func_kwargs=None):
+    """
+    Calculates the Pearson product-moment correlation coefficients of all the matrix in the list and applies a function.
+    :param matrix_list: list of ndarray
+        List of N-dimensional input image
+    :param func: callable
+        Function object which is used to calculate the return value for each
+        element in the matrix. This function must implement an ``axis`` parameter.
+        Primary functions are ``numpy.sum``, ``numpy.min``, ``numpy.max``,
+        ``numpy.mean`` and ``numpy.median``.  See also `func_kwargs`
+    :param func_kwargs: dict
+        Keyword arguments passed to `func`. Notably useful for passing dtype
+        argument to ``np.mean``. Takes dictionary of inputs, e.g.:
+        ``func_kwargs={'dtype': np.float16})``
+    """
+    if func_kwargs is None:
+        func_kwargs = {}
+
+    pc_list = list(map(lambda m: np.corrcoef(m.T), matrix_list))
+
+    return func(np.array(pc_list), axis=0, **func_kwargs)

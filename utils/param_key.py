@@ -13,6 +13,7 @@ LAG_TIME = 'lag_time'
 TRUNCATION_VALUE = 'truncation_value'
 BASIS_TRANSFORMATION = 'basis_transformation'
 RANDOM_SEED = 'random_seed'
+USE_ANGLES = 'use_angles'
 
 # Model Results
 MODEL = 'model'
@@ -28,3 +29,7 @@ PLOT_3D_MAP = '3d_map'
 X = 'x'
 Y = 'y'
 Z = 'z'
+
+# Angel Tuple Index
+ANGEL_INDICES = 0
+DIHEDRAL_ANGEL_VALUES = 1

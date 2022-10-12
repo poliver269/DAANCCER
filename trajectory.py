@@ -1,16 +1,15 @@
 from pathlib import Path
+
 import mdtraj as md
 import numpy as np
 from scipy.optimize import curve_fit
-from skimage.measure import block_reduce
 
+from plotter import TrajectoryPlotter
 from utils.algorithms.pca import MyPCA, TruncatedPCA
 from utils.algorithms.tica import MyTICA, TruncatedTICA
+from utils.math import basis_transform, explained_variance, matrix_diagonals_calculation, diagonal_indices, \
+    gaussian_2d, expand_diagonals_to_matrix, calculate_pearson_correlations
 from utils.param_key import *
-from utils.math import basis_transform, explained_variance, \
-    matrix_diagonals_calculation, diagonal_indices, gaussian_2d, expand_diagonals_to_matrix, \
-    calculate_pearson_correlations
-from plotter import TrajectoryPlotter
 
 
 class TrajectoryFile:
@@ -47,7 +46,7 @@ class DataTrajectory(TrajectoryFile):
         if params is None:
             params = {}
         self.params = {
-            PLOT_TYPE: params.get(PLOT_TYPE, 'color_map'),  # 'color_map', 'heat_map'
+            PLOT_TYPE: params.get(PLOT_TYPE, COLOR_MAP),  # 'color_map', 'heat_map'
             PLOT_TICS: params.get(PLOT_TICS, True),
             CARBON_ATOMS_ONLY: params.get(CARBON_ATOMS_ONLY, True),
             INTERACTIVE: params.get(INTERACTIVE, True),
@@ -55,19 +54,18 @@ class DataTrajectory(TrajectoryFile):
             LAG_TIME: params.get(LAG_TIME, 10),
             TRUNCATION_VALUE: params.get(TRUNCATION_VALUE, 0),
             BASIS_TRANSFORMATION: params.get(BASIS_TRANSFORMATION, False),
-            RANDOM_SEED: params.get(RANDOM_SEED, 30)
+            RANDOM_SEED: params.get(RANDOM_SEED, 30),
+            USE_ANGLES: params.get(USE_ANGLES, True)
         }
 
-        self.x_coordinates = self.get_coordinates([0])
-        self.y_coordinates = self.get_coordinates([1])
-        self.z_coordinates = self.get_coordinates([2])
-        self.coordinate_mins = {X: self.x_coordinates.min(), Y: self.y_coordinates.min(),
-                                Z: self.z_coordinates.min()}
-        self.coordinate_maxs = {X: self.x_coordinates.max(), Y: self.y_coordinates.max(),
-                                Z: self.z_coordinates.max()}
+        self.x_coordinates = self.filter_coordinates_by_coordinates(0)
+        self.y_coordinates = self.filter_coordinates_by_coordinates(1)
+        self.z_coordinates = self.filter_coordinates_by_coordinates(2)
+        self.coordinate_mins = {X: self.x_coordinates.min(), Y: self.y_coordinates.min(), Z: self.z_coordinates.min()}
+        self.coordinate_maxs = {X: self.x_coordinates.max(), Y: self.y_coordinates.max(), Z: self.z_coordinates.max()}
 
     @property
-    def coordinates(self):
+    def atom_coordinates(self):
         if self.params[BASIS_TRANSFORMATION]:
             return self.basis_transformed_coordinates
         else:
@@ -76,35 +74,38 @@ class DataTrajectory(TrajectoryFile):
     @property
     def flattened_coordinates(self):
         if self.params[CARBON_ATOMS_ONLY]:
-            return self.alpha_coordinates.reshape(self.dim[TIME_FRAMES],
-                                                  len(self.carbon_alpha_indexes) * self.dim[COORDINATES])
+            return self.alpha_carbon_coordinates.reshape(self.dim[TIME_FRAMES],
+                                                         len(self.carbon_alpha_indexes) * self.dim[COORDINATES])
         else:
-            return self.coordinates.reshape(self.dim[TIME_FRAMES], self.dim[ATOMS] * self.dim[COORDINATES])
+            return self.atom_coordinates.reshape(self.dim[TIME_FRAMES], self.dim[ATOMS] * self.dim[COORDINATES])
 
     @property
     def carbon_alpha_indexes(self):
         return [a.index for a in self.traj.topology.atoms if a.name == 'CA']
 
     @property
-    def alpha_coordinates(self):
-        return self.get_atoms(self.carbon_alpha_indexes)
+    def alpha_carbon_coordinates(self):
+        return self.filter_coordinates_by_atom_index(self.carbon_alpha_indexes)
 
     @property
     def basis_transformed_coordinates(self):
         np.random.seed(self.params[RANDOM_SEED])
         return basis_transform(self.traj.xyz, self.dim[COORDINATES])
 
-    def get_time_frames(self, element_list):
-        return self.coordinates[element_list, :, :]
+    def filter_coordinates_by_time_frames(self, element_list, ac_only=False):
+        coordinates_dict = self.alpha_carbon_coordinates if ac_only else self.atom_coordinates
+        return coordinates_dict[element_list, :, :]
 
-    def get_atoms(self, element_list):
-        return self.coordinates[:, element_list, :]
+    def filter_coordinates_by_atom_index(self, element_list, ac_only=False):
+        coordinates_dict = self.alpha_carbon_coordinates if ac_only else self.atom_coordinates
+        return coordinates_dict[:, element_list, :]
 
-    def get_coordinates(self, element_list):
-        return self.coordinates[:, :, element_list]
+    def filter_coordinates_by_coordinates(self, element_list, ac_only=False):
+        coordinates_dict = self.alpha_carbon_coordinates if ac_only else self.atom_coordinates
+        return coordinates_dict[:, :, element_list]
 
     def get_model_and_projection(self, model_name, inp=None):
-        import pyemma.coordinates as coor
+        import pyemma.coordinates as coor  # Todo: import globally and delete msmbuilder
         print(f'Running {model_name}...')
         if inp is None:
             inp = self.flattened_coordinates
@@ -132,7 +133,7 @@ class DataTrajectory(TrajectoryFile):
     def compare_angles(self, model_names):
         model_results = []
         for model_name in model_names:
-            model, projection = self.get_model_and_projection(model_name,
+            model, projection = self.get_model_and_projection(model_name,  # Todo: refactor to 'use_angles'
                                                               np.concatenate([self.phi[1], self.psi[1]], axis=1))
             model_results = model_results + [{MODEL: model, PROJECTION: projection,
                                               TITLE_PREFIX: f'Angles\n'}]
@@ -173,12 +174,12 @@ class DataTrajectory(TrajectoryFile):
     def compare_with_basis_transformation(self, model_names):
         model_results = self.get_model_results_with_different_param(model_names, BASIS_TRANSFORMATION)
         self.compare_with_plot(model_results)
-        
+
     def get_model_results_with_different_param(self, model_names, parameter):
         model_results = []
         for model_name in model_names:
             model, projection = self.get_model_and_projection(model_name)
-            model_results.append({MODEL: model, PROJECTION: projection, 
+            model_results.append({MODEL: model, PROJECTION: projection,
                                   TITLE_PREFIX: f'{parameter}: {self.params[parameter]}\n'})
             self.params[parameter] = not self.params[parameter]
             model, projection = self.get_model_and_projection(model_name)
@@ -197,38 +198,43 @@ class DataTrajectory(TrajectoryFile):
         )
 
     def calculate_pearson_correlation_coefficient(self):
-        mode = 'gauss_distribution_on_data'
-        if mode == 'flattened_coordinates':
-            flattened_covariance = np.cov(self.flattened_coordinates)
-            corr_coefficient = np.corrcoef(self.flattened_coordinates)
-        elif mode == 'coordinates_mean_first':
-            coordinates_mean = np.mean(self.coordinates, axis=2)
+        mode = 'mean_first'
+        if mode == 'coordinates_mean_first':
+            coordinates_mean = np.mean(self.atom_coordinates, axis=2)
             coefficient_mean = np.corrcoef(coordinates_mean.T)
-        elif mode == 'alpha_carbon_mean_first':
-            alpha_coordinates_mean = np.mean(self.alpha_coordinates, axis=2)
-            alpha_coefficient_mean = np.corrcoef(alpha_coordinates_mean.T)
-        elif mode == 'alpha_carbon_coefficient_first':
-            alpha_coefficient = np.corrcoef(self.flattened_coordinates.T)
-            alpha_coefficient_mean = block_reduce(alpha_coefficient, (3, 3), np.diag)
-        elif mode == 'alpha_carbon_optimized_gauss_kernel':
-            pass  # params, cov = curve_fit()
-        elif mode == 'gauss_distribution_on_data':
-            alpha_coordinates_mean = np.mean(self.alpha_coordinates, axis=2)
-            alpha_coefficient_mean = np.corrcoef(alpha_coordinates_mean.T)
-            ydata = matrix_diagonals_calculation(alpha_coefficient_mean, np.mean)
-            xdata = diagonal_indices(alpha_coefficient_mean)
-            parameters, cov = curve_fit(gaussian_2d, xdata, ydata)
-            fit_y = gaussian_2d(xdata, parameters[0], parameters[1])
-            d_matrix = expand_diagonals_to_matrix(alpha_coefficient_mean, fit_y)
-            TrajectoryPlotter(self).plot_gauss2d(fit_y, xdata, ydata, mean_data=np.full(xdata.shape, ydata.mean()))
-        # d_matrix = diagonal_gauss_matrix_kernel(alpha_coefficient_mean.shape[0], sig=0.2)
-        # d_matrix = exponentiated_quadratic(alpha_coefficient_mean, s=2)
-        weighted_alpha_coeff_matrix = alpha_coefficient_mean - d_matrix
-        # sympy_matrix_alpha_carbon = Matrix(alpha_coefficient_mean)
-        # data_nullspace = sympy_matrix_alpha_carbon * sympy_matrix_alpha_carbon.nullspace()
-        TrajectoryPlotter(self).matrix_plot(weighted_alpha_coeff_matrix,
-                                            title_prefix='Alpha Carbon Atoms Pearson Coefficient calculation first, mean second',
-                                            as_surface=self.params[PLOT_TYPE])
+        elif mode == 'mean_first':
+            if self.params[USE_ANGLES]:
+                mean_matrix = np.mean(np.array([self.phi[DIHEDRAL_ANGEL_VALUES], self.psi[DIHEDRAL_ANGEL_VALUES]]),
+                                      axis=0)
+            else:
+                mean_matrix = np.mean(self.alpha_carbon_coordinates, axis=2)
+            coefficient_mean = np.corrcoef(mean_matrix.T)
+        elif mode == 'coefficient_first':
+            if self.params[USE_ANGLES]:
+                input_list = [self.phi[DIHEDRAL_ANGEL_VALUES], self.psi[DIHEDRAL_ANGEL_VALUES]]
+            else:
+                input_list = [self.filter_coordinates_by_coordinates(c, ac_only=self.params[CARBON_ATOMS_ONLY])
+                              for c in range(len(self.dim))]
+            coefficient_mean = calculate_pearson_correlations(input_list, np.mean)
+        else:
+            raise ValueError('Invalid mode string was given')
+
+        ydata = matrix_diagonals_calculation(coefficient_mean, np.mean)
+        xdata = diagonal_indices(coefficient_mean)
+        parameters, cov = curve_fit(gaussian_2d, xdata, ydata)
+        fit_y = gaussian_2d(xdata, parameters[0], parameters[1])
+        d_matrix = expand_diagonals_to_matrix(coefficient_mean, fit_y)
+
+        weighted_alpha_coeff_matrix = coefficient_mean - d_matrix
+
+        mode2 = 'plot_2d_gauss'
+        if mode2 == 'plot_2d_gauss':
+            TrajectoryPlotter(self).plot_gauss2d(fit_y, xdata, ydata, title_prefix='Angles fitted after Mean 1st',
+                                                 mean_data=np.full(xdata.shape, ydata.mean()))
+        else:
+            TrajectoryPlotter(self).matrix_plot(weighted_alpha_coeff_matrix,
+                                                title_prefix='Angles. Pearson Coefficient. Coefficient 1st, Mean 2nd',
+                                                as_surface=self.params[PLOT_TYPE])
 
 
 class TopologyConverter(TrajectoryFile):
