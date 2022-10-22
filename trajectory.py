@@ -5,11 +5,13 @@ import numpy as np
 from scipy.optimize import curve_fit
 import pyemma.coordinates as coor
 
-from plotter import TrajectoryPlotter
-from utils.algorithms.pca import MyPCA, TruncatedPCA
+from plotter import TrajectoryPlotter, TrajectoryResultPlotter, ArrayPlotter
+from utils.algorithms.pca import MyPCA, TruncatedPCA, PccPCA
+from utils.algorithms.tensor_dimension_reduction import TensorPCA, TensorDR, TensorPearsonPCA, TensorPearsonKernelPCA, \
+    TensorKernelPCA, KernelOnlyPCA
 from utils.algorithms.tica import MyTICA, TruncatedTICA
 from utils.math import basis_transform, explained_variance, matrix_diagonals_calculation, diagonal_indices, \
-    gaussian_2d, expand_diagonals_to_matrix, calculate_pearson_correlations
+    gaussian_2d, expand_diagonals_to_matrix, calculate_pearson_correlations, gauss_kernel_symmetrical_matrix
 from utils.param_key import *
 
 
@@ -118,6 +120,21 @@ class DataTrajectory(TrajectoryFile):
         elif model_name == 'trunc_pca':
             pca = TruncatedPCA(self.params[TRUNCATION_VALUE])
             return pca, [pca.fit_transform(inp, n_components=self.params[N_COMPONENTS])]
+        elif model_name == 'tensorPCA':
+            pca = TensorPCA()
+            return pca, [pca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
+        elif model_name == 'pearsonPCA':
+            ppca = TensorPearsonPCA()
+            return ppca, [ppca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
+        elif model_name == 'pearson_kernel_PCA':
+            pkpca = TensorPearsonKernelPCA()
+            return pkpca, [pkpca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
+        elif model_name == 'cov_kernel_PCA':
+            ckpca = TensorKernelPCA()
+            return ckpca, [ckpca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
+        elif model_name == 'koPCA':
+            ko_pcc = KernelOnlyPCA()
+            return ko_pcc, [ko_pcc.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
         elif model_name == 'tica':
             tica = coor.tica(data=inp, lag=self.params[LAG_TIME], dim=self.params[N_COMPONENTS])
             return tica, tica.get_output()
@@ -144,6 +161,7 @@ class DataTrajectory(TrajectoryFile):
                 ex_var = explained_variance(model.eigenvalues, self.params[N_COMPONENTS])
                 model_results.append({MODEL: model, PROJECTION: projection,
                                       TITLE_PREFIX: f'Explained var: {ex_var}\n'})
+        self.compare_with_plot(model_results)
 
     def compare_with_carbon_alpha_and_all_atoms(self, model_names):
         model_results = self.get_model_results_with_different_param(model_names, CARBON_ATOMS_ONLY)
@@ -167,7 +185,7 @@ class DataTrajectory(TrajectoryFile):
         return model_results
 
     def compare_with_plot(self, model_projection_list):
-        TrajectoryPlotter(self).plot_models(
+        TrajectoryResultPlotter().plot_models(
             model_projection_list,
             data_elements=[0],  # [0, 1, 2]
             plot_type=self.params[PLOT_TYPE],
@@ -176,8 +194,8 @@ class DataTrajectory(TrajectoryFile):
         )
 
     def calculate_pearson_correlation_coefficient(self):
-        mode = 'mean_first'
-        if mode == 'coordinates_mean_first':
+        mode = 'coefficient_first'
+        if mode == 'coordinates_mean_first':  # Not used currently
             coordinates_mean = np.mean(self.atom_coordinates, axis=2)
             coefficient_mean = np.corrcoef(coordinates_mean.T)
         elif mode == 'mean_first':
@@ -195,28 +213,21 @@ class DataTrajectory(TrajectoryFile):
             else:
                 input_list = [self.filter_coordinates_by_coordinates(c, ac_only=self.params[CARBON_ATOMS_ONLY])
                               for c in range(len(self.dim))]
+                # input_list = list(
+                #     map(lambda c: self.filter_coordinates_by_coordinates(c, ac_only=self.params[CARBON_ATOMS_ONLY]),
+                #         range(len(self.dim))))
             print('Calculate correlation coefficient...')
             coefficient_mean = calculate_pearson_correlations(input_list, np.mean)
         else:
             raise ValueError('Invalid mode string was given')
 
         print('Fit Kernel on data...')
-        ydata = matrix_diagonals_calculation(coefficient_mean, np.mean)
-        xdata = diagonal_indices(coefficient_mean)
-        parameters, cov = curve_fit(gaussian_2d, xdata, ydata)
-        fit_y = gaussian_2d(xdata, parameters[0], parameters[1])
-        d_matrix = expand_diagonals_to_matrix(coefficient_mean, fit_y)
-
+        d_matrix = gauss_kernel_symmetrical_matrix(coefficient_mean)
         weighted_alpha_coeff_matrix = coefficient_mean - d_matrix
 
-        mode2 = 'plot_2d_gauss'
-        if mode2 == 'plot_2d_gauss':
-            TrajectoryPlotter(self).plot_gauss2d(fit_y, xdata, ydata, title_prefix='Angles fitted after Mean 1st',
-                                                 mean_data=np.full(xdata.shape, ydata.mean()))
-        else:
-            TrajectoryPlotter(self).matrix_plot(weighted_alpha_coeff_matrix,
-                                                title_prefix='Angles. Pearson Coefficient. Coefficient 1st, Mean 2nd',
-                                                as_surface=self.params[PLOT_TYPE])
+        ArrayPlotter().matrix_plot(weighted_alpha_coeff_matrix,
+                                   title_prefix='Angles. Pearson Coefficient. Coefficient 1st, Mean 2nd',
+                                   as_surface=self.params[PLOT_TYPE])
 
 
 class TopologyConverter(TrajectoryFile):

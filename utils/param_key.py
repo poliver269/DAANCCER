@@ -24,6 +24,7 @@ TITLE_PREFIX = 'title_prefix'
 HEAT_MAP = 'heat_map'
 COLOR_MAP = 'color_map'
 PLOT_3D_MAP = '3d_map'
+PLOT_2D_GAUSS = 'plot_2d_gauss'
 
 # Coordinates
 X = 'x'

@@ -13,26 +13,25 @@ class MyTICA(MyModel):
 
     def get_covariance_matrix(self):
         if self.lag_time <= 0:
-            return np.cov(self.standardized_data_matrix.T)
+            return np.cov(self.standardized_data.T)
         else:
-            return np.cov(self.standardized_data_matrix[:-self.lag_time].T)
+            return np.cov(self.standardized_data[:-self.lag_time].T)
 
     def get_correlation_matrix(self):
         if self.lag_time <= 0:
             return self.get_covariance_matrix()
         else:
-            return np.dot(self.standardized_data_matrix[:-self.lag_time].T,
-                          self.standardized_data_matrix[self.lag_time:]) / self.n_samples
+            return np.dot(self.standardized_data[:-self.lag_time].T,
+                          self.standardized_data[self.lag_time:]) / self.n_samples
 
-    def get_eigenvectors(self, covariance_matrix):
+    def get_eigenvectors(self):
         # calculate eigenvalues & eigenvectors of covariance matrix
         correlation_matrix = self.get_correlation_matrix()
-        self.eigenvalues, eigenvectors = scipy.linalg.eig(correlation_matrix, b=covariance_matrix)
+        self.eigenvalues, eigenvectors = scipy.linalg.eig(correlation_matrix, b=self._covariance_matrix)
 
         # sort eigenvalues descending and select columns based on n_components
-        n_cols = np.argsort(self.eigenvalues)[::-1][:self.n_components]
-        selected_vectors = eigenvectors[:, n_cols]
-        return selected_vectors
+        n_cols = np.argsort(self.eigenvalues)[::-1]
+        return eigenvectors[:, n_cols]
 
 
 class TruncatedTICA(MyTICA):
@@ -47,7 +46,7 @@ class TruncatedTICA(MyTICA):
 
     def get_covariance_matrix(self):
         if self.truncation_value <= 0:
-            return np.cov(self.standardized_data_matrix.T)
+            return np.cov(self.standardized_data.T)
         else:
-            return np.dot(self.standardized_data_matrix[self.truncation_value:].T,
-                          self.standardized_data_matrix[:-self.truncation_value]) / self.n_samples
+            return np.dot(self.standardized_data[self.truncation_value:].T,
+                          self.standardized_data[:-self.truncation_value]) / self.n_samples

@@ -1,5 +1,8 @@
 import numpy as np
+from scipy.optimize import curve_fit
 from scipy.spatial import distance
+
+from plotter import ArrayPlotter
 
 
 def generate_independent_matrix(row, dimension):
@@ -155,3 +158,24 @@ def calculate_pearson_correlations(matrix_list: list, func: callable = np.sum, f
     pc_list = list(map(lambda m: np.corrcoef(m.T), matrix_list))
 
     return func(np.array(pc_list), axis=0, **func_kwargs)
+
+
+def diagonal_block_expand(matrix, n_repeats):
+    """
+    Expands a Matrix with the values as diagonals on a block with the size n_repeats.
+    https://stackoverflow.com/questions/74054138/fastest-way-to-resize-a-numpy-matrix-in-diagonal-blocks
+    :param matrix: matrix ndarray which should be expanded
+    :param n_repeats:
+    :return:
+    """
+    return np.einsum('ij,kl->ikjl', matrix, np.eye(n_repeats)).reshape(len(matrix) * n_repeats, -1)
+
+
+def gauss_kernel_symmetrical_matrix(matrix):
+    ydata = matrix_diagonals_calculation(matrix, np.mean)
+    xdata = diagonal_indices(matrix)
+    parameters, cov = curve_fit(gaussian_2d, xdata, ydata)
+    fit_y = gaussian_2d(xdata, parameters[0], parameters[1])
+    kernel_matrix = expand_diagonals_to_matrix(matrix, fit_y)
+    ArrayPlotter(interactive=False).plot_gauss2d(fit_y, xdata, ydata, np.full(xdata.shape, np.median(ydata)))
+    return kernel_matrix

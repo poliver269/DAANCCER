@@ -8,22 +8,36 @@ from mpl_toolkits.mplot3d import Axes3D
 from utils.param_key import *
 
 
-class TrajectoryPlotter:
-    def __init__(self, trajectory, interactive=True):
-        self.data_trajectory = trajectory
+class MyPlotter:
+    def __init__(self, interactive=True):
         self.fig = None
         self.axes = None
         self.interactive = interactive
         self.colors = mcolors.TABLEAU_COLORS
+
         if self.interactive:
             mpl.use('TkAgg')
-        else:
-            pass
+
+
+class TrajectoryPlotter(MyPlotter):
+    def __init__(self, trajectory, interactive=True):
+        super().__init__(interactive)
+        self.data_trajectory = trajectory
+
+    def plot_trajectory_at(self, timestep: int):
+        """
+        This function gives the opportunity to plot the trajectory at a specific timeframe.
+        :param timestep: int
+            Time step value of the trajectory
+        """
+        self.fig = plt.figure()
+        self.axes = Axes3D(self.fig)
+        self.update_on_slider_change(timestep)
 
     def original_data_with_timestep_slider(self, min_max=None):
         """
-        Creates an interactive plot window, where the plotted data at a timestep can be chosen by a Slider.
-        Used as in https://matplotlib.org/stable/gallery/widgets/slider_demo.html
+        Creates an interactive plot window, where the trajectory to plot can can be chosen by a Slider at a specific
+        timestep. Used as in https://matplotlib.org/stable/gallery/widgets/slider_demo.html
         :param min_max: data range of the data with a min and a max value
         """
         if not self.interactive:
@@ -33,7 +47,6 @@ class TrajectoryPlotter:
             min_max = [0, self.data_trajectory.dim[TIME_FRAMES]]
 
         self.fig = plt.figure()
-        # self.axes = self.fig.add_subplot(111, projection='3d')
         self.axes = Axes3D(self.fig)
 
         plt.subplots_adjust(bottom=0.25)
@@ -42,21 +55,21 @@ class TrajectoryPlotter:
         freq_slider = Slider(
             ax=ax_freq,
             label='Time Step',
-            valmin=min_max[0],  # minimun value of range
+            valmin=min_max[0],  # minimum value of range
             valmax=min_max[-1] - 1,  # maximum value of range
-            valinit=0,
+            valinit=1,
             valstep=1,  # step between values
             valfmt='%0.0f'
         )
         freq_slider.on_changed(self.update_on_slider_change)
         plt.show()
 
-    def plot_original_data_at(self, timeframe):
-        self.fig = plt.figure()
-        self.axes = Axes3D(self.fig)
-        self.update_on_slider_change(timeframe)
-
     def update_on_slider_change(self, timeframe):
+        """
+        Callable function for the slider, which updates the figure.
+        :param timeframe: Input value of the slider.
+        :return:
+        """
         if 0 <= timeframe <= self.data_trajectory.traj.n_frames:
             timeframe = int(timeframe)
             if self.data_trajectory.params[CARBON_ATOMS_ONLY]:
@@ -69,9 +82,9 @@ class TrajectoryPlotter:
                 z_coordinates = self.data_trajectory.traj.xyz[timeframe][:, 2]
             self.axes.cla()
             self.axes.scatter(x_coordinates, y_coordinates, z_coordinates, c='r', marker='.')
-            self.axes.set_xlim([self.data_trajectory.coordinate_mins[X], self.data_trajectory.coordinate_maxs[X]])
-            self.axes.set_ylim([self.data_trajectory.coordinate_mins[Y], self.data_trajectory.coordinate_maxs[Y]])
-            self.axes.set_zlim([self.data_trajectory.coordinate_mins[Z], self.data_trajectory.coordinate_maxs[Z]])
+            self.axes.set_xlim(self.data_trajectory.coordinate_mins[X], self.data_trajectory.coordinate_maxs[X])
+            self.axes.set_ylim(self.data_trajectory.coordinate_mins[Y], self.data_trajectory.coordinate_maxs[Y])
+            self.axes.set_zlim(self.data_trajectory.coordinate_mins[Z], self.data_trajectory.coordinate_maxs[Z])
             self.axes.set_xlabel('x-Axis')
             self.axes.set_ylabel('y-Axis')
             self.axes.set_zlabel('z-Axis')
@@ -79,13 +92,22 @@ class TrajectoryPlotter:
         else:
             raise IndexError('Timestep does not exist')
 
+
+class TrajectoryResultPlotter(MyPlotter):
     def plot_models(self, model_results, data_elements, plot_type='', plot_tics=False, components=None):
         """
-        :param model_results:
-        :param data_elements:
-        :param plot_type: 'heat_map', COLOR_MAP
-        :param plot_tics: True, False
+        Plots the model results in 2d-coordinate system next to each other.
+        Alternatively with tics of the components can be plotted under the figures when `plot_tics` is True
+        :param model_results: list of dictionary
+            dict should contain the keys: 'model', 'projection', 'title_prefix' (optional)
+        :param data_elements: List of elements
+            The result of the models can contain a list of results,
+            from which is possible to choose with this parameter
+        :param plot_type: param_key.plot_type
+        :param plot_tics: bool (default: False)
+            Plots the component tics under the base figures if True
         :param components: int
+            Number of components used for the reduced
         """
         if plot_tics:
             self.fig, self.axes = plt.subplots(components + 1, len(model_results))  # subplots(rows, columns)
@@ -111,27 +133,29 @@ class TrajectoryPlotter:
                     self.plot_transformed_data_heat_map(main_axes[i], result, data_elements)
         else:
             if len(model_results) == 1:
-                self.plot_transformed_data_on_axis(main_axes, model_results[0], data_elements, color_map=plot_type)
+                self.plot_transformed_trajectory(main_axes, model_results[0], data_elements, color_map=plot_type)
             else:
                 for i, result in enumerate(model_results):
-                    self.plot_transformed_data_on_axis(main_axes[i], result, data_elements, color_map=plot_type)
+                    self.plot_transformed_trajectory(main_axes[i], result, data_elements, color_map=plot_type)
         plt.show()
 
-    def plot_one_model(self, projection_dict, data_elements):
-        self.fig = plt.figure()
-        self.axes = self.fig.add_subplot(111)
-        self.axes.cla()
-        for element in data_elements:
-            self.axes.scatter(projection_dict[PROJECTION][element][:, 0],
-                              projection_dict[PROJECTION][element][:, 1], c='r', marker='.')
-        plt.show()
-
-    def plot_transformed_data_on_axis(self, ax, projection_list, data_elements, color_map):
+    def plot_transformed_trajectory(self, ax, projection, data_elements, color_map):
+        """
+        Plot the projection results of the transformed trajectory on an axis
+        :param ax: Which axis the result should be plotted on
+        :param projection: dictionary
+            dict should contain the keys: 'model', 'projection', 'title_prefix' (optional)
+        :param data_elements: List of elements
+            The result of the models can contain a list of results,
+            from which is possible to choose with this parameter
+        :param color_map: str
+            String value of the plot mapping type
+        """
         ax.cla()
-        ax.set_title(projection_list.get(TITLE_PREFIX, '') + str(projection_list[MODEL]))
+        ax.set_title(projection.get(TITLE_PREFIX, '') + str(projection[MODEL]))
         ax.set_xlabel('1st component')
         ax.set_ylabel('2nd component')
-        data_list = projection_list[PROJECTION]
+        data_list = projection[PROJECTION]
         for index, element in enumerate(data_elements):
             if color_map == COLOR_MAP:
                 color_array = np.arange(data_list[element].shape[0])
@@ -144,9 +168,19 @@ class TrajectoryPlotter:
                 color = list(self.colors.values())[element]
                 ax.scatter(data_list[element][:, 0], data_list[element][:, 1], c=color, marker='.')
 
-        self.print_model_properties(projection_list)
+        self.print_model_properties(projection)
 
     def plot_time_tics(self, ax, projections, data_elements, component):
+        """
+        Plot the time tics on a specific axis
+        :param ax: axis
+        :param projections:
+        :param data_elements: List of elements
+            The result of the models can contain a list of results,
+            from which is possible to choose with this parameter.
+        :param component:
+        :return:
+        """
         ax.cla()
         ax.set_xlabel('Time step')
         ax.set_ylabel('Component {}'.format(component))
@@ -155,6 +189,15 @@ class TrajectoryPlotter:
             ax.plot(projections[i][:, component - 1], c=list(self.colors.values())[i])
 
     def plot_transformed_data_heat_map(self, ax, projection_dict, data_elements):
+        """
+
+        :param ax:
+        :param projection_dict:
+        :param data_elements: List of elements
+            The result of the models can contain a list of results,
+            from which is possible to choose with this parameter.
+        :return:
+        """
         ax.cla()
         ax.set_title(str(projection_dict[MODEL]))
         ax.set_xlabel('Component 1')
@@ -173,6 +216,11 @@ class TrajectoryPlotter:
 
     @staticmethod
     def print_model_properties(projection_dict):
+        """
+        Prints the model result properties: Eigenvector (EV) and Eigenvalue (EW)
+        :param projection_dict: dictionary
+            dict should contain the keys: 'model', 'projection'
+        """
         projections = projection_dict[PROJECTION]
         model = projection_dict[MODEL]
         try:
@@ -181,10 +229,15 @@ class TrajectoryPlotter:
         except AttributeError as e:
             print('{}: {}'.format(e, model))
 
-    def ramachandran_plot(self, phi, psi):
-        pass
 
+class ArrayPlotter(MyPlotter):
     def matrix_plot(self, matrix, title_prefix='', as_surface=''):
+        """
+        Plots the values of a matrix on a 2d or a 3d axes
+        :param matrix: ndarray matrix, which should be plotted
+        :param title_prefix: str
+        :param as_surface: Plot as a 3d-surface if value PLOT_3D_MAP else 2d-axes
+        """
         c_map = plt.cm.viridis
         if as_surface == PLOT_3D_MAP:
             x_coordinates = np.arange(matrix.shape[0])
@@ -203,6 +256,15 @@ class TrajectoryPlotter:
         plt.show()
 
     def plot_gauss2d(self, gauss_fitted, xdata, ydata, title_prefix='', mean_data=None):
+        """
+        Plot the data (ydata) in a range (xdata), the (fitted) gauss curve and a line (mean, median)
+        :param gauss_fitted: A curve
+        :param xdata: range of plotting
+        :param ydata:
+        :param title_prefix:
+        :param mean_data:
+        :return:
+        """
         self.fig, self.axes = plt.subplots(1, 1)
         self.axes.plot(xdata, ydata, 'o', label='data')
         self.axes.plot(xdata, gauss_fitted, '-', label='fit')

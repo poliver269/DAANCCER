@@ -12,17 +12,18 @@ class MyModel:
         self.standardize = None
         self.eigenvalues = None
         self.eigenvectors = None
-        self.standardized_data_matrix = None
+        self.standardized_data = None
         self.n_components = None
         self.n_samples = None
+        self._covariance_matrix = None
 
     def fit_transform(self, data_matrix, n_components=2):
         self.n_samples = data_matrix.shape[0]
         self.n_components = n_components
-        self.standardized_data_matrix = self.standardize_data(data_matrix)
-        covariance_matrix = self.get_covariance_matrix()
-        self.eigenvectors = self.get_eigenvectors(covariance_matrix)
-        return self.transform(self.standardized_data_matrix)
+        self.standardized_data = self.standardize_data(data_matrix)
+        self._covariance_matrix = self.get_covariance_matrix()
+        self.eigenvectors = self.get_eigenvectors()
+        return self.transform(self.standardized_data)
 
     @staticmethod
     def standardize_data(matrix):
@@ -39,7 +40,7 @@ class MyModel:
     def get_covariance_matrix(self):
         pass
 
-    def get_eigenvectors(self, covariance_matrix):
+    def get_eigenvectors(self):
         pass
 
     def transform(self, data_matrix):
@@ -47,4 +48,4 @@ class MyModel:
         Project the data to the lower dimension with the help of the eigenvectors.
         :return: Data reduced to lower dimensions from higher dimensions
         """
-        return np.dot(data_matrix, self.eigenvectors)
+        return np.dot(data_matrix, self.eigenvectors[:, :self.n_components])
