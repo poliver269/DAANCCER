@@ -58,7 +58,7 @@ def diagonal_gauss_matrix_kernel(matrix_size, sig=1.):
 
 def matrix_diagonals_calculation(matrix: np.ndarray, func: callable = np.sum, func_kwargs: dict = None):
     """
-    Down sample matrix to array by applying function `func` to diagonals.
+    Down sample matrix to array by applying function `func` to diagonals
     :param matrix: ndarray
         N-dimensional input image
     :param func: callable
@@ -100,7 +100,7 @@ def is_matrix_symmetric(matrix, rtol=1e-05, atol=1e-08):
 
 def diagonal_indices(matrix):
     """
-    Determines the diagonal indices of a matrix.
+    Determines the (main and off) diagonal indices of a matrix
     :param matrix: array like
     :return:
     """
@@ -139,7 +139,7 @@ def expand_diagonals_to_matrix(matrix, array):
 
 def calculate_pearson_correlations(matrix_list: list, func: callable = np.sum, func_kwargs=None):
     """
-    Calculates the Pearson product-moment correlation coefficients of all the matrix in the list and applies a function.
+    Calculates the Pearson product-moment correlation coefficients of all the matrix in the list and applies a function
     :param matrix_list: list of ndarray
         List of N-dimensional input image
     :param func: callable
@@ -171,11 +171,41 @@ def diagonal_block_expand(matrix, n_repeats):
     return np.einsum('ij,kl->ikjl', matrix, np.eye(n_repeats)).reshape(len(matrix) * n_repeats, -1)
 
 
-def gauss_kernel_symmetrical_matrix(matrix):
-    ydata = matrix_diagonals_calculation(matrix, np.mean)
+def gauss_kernel_symmetrical_matrix(matrix, func=np.median, trajectory_name=None):
     xdata = diagonal_indices(matrix)
-    parameters, cov = curve_fit(gaussian_2d, xdata, ydata)
-    fit_y = gaussian_2d(xdata, parameters[0], parameters[1])
+    diag_func = np.mean
+    ydata = matrix_diagonals_calculation(matrix, diag_func)  # TODO: func or median
+    ydata = interpolate_center(ydata, func)
+    fit_parameters, _ = curve_fit(gaussian_2d, xdata, ydata)
+    fit_y = gaussian_2d(xdata, fit_parameters[0], fit_parameters[1])
     kernel_matrix = expand_diagonals_to_matrix(matrix, fit_y)
-    ArrayPlotter(interactive=False).plot_gauss2d(fit_y, xdata, ydata, np.full(xdata.shape, np.median(ydata)))
+    if trajectory_name is not None:
+        ArrayPlotter(interactive=False).plot_gauss2d(fit_y, xdata, ydata,
+                                                     title_prefix=f'{trajectory_name} and '
+                                                                  f'{"mean" if "mean" in str(diag_func) else "median"}'
+                                                                  f' on diagonal of cov',
+                                                     statistical_function=func)
     return kernel_matrix
+
+
+def interpolate_center(ydata, func: callable = np.median):
+    ydata = interpolate_array(ydata, func)
+    return extinct_side_values(ydata)
+
+
+def interpolate_array(ydata, func: callable = np.median):
+    statistical_value = func(ydata)
+    return np.interp(ydata, [statistical_value, ydata.max()], [0, 1])
+
+
+def extinct_side_values(ydata, smaller_than=0):
+    right_i = np.argmax(split_list_in_half(ydata)[1] <= smaller_than)
+    center_i = len(ydata) // 2
+    new_y = np.zeros_like(ydata)
+    new_y[center_i - right_i:center_i + right_i] = ydata[center_i - right_i:center_i + right_i]
+    return new_y
+
+
+def split_list_in_half(a_list):
+    half = len(a_list) // 2
+    return a_list[:half], a_list[half:]

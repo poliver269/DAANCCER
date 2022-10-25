@@ -2,16 +2,15 @@ from pathlib import Path
 
 import mdtraj as md
 import numpy as np
-from scipy.optimize import curve_fit
 import pyemma.coordinates as coor
 
-from plotter import TrajectoryPlotter, TrajectoryResultPlotter, ArrayPlotter
-from utils.algorithms.pca import MyPCA, TruncatedPCA, PccPCA
-from utils.algorithms.tensor_dimension_reduction import TensorPCA, TensorDR, TensorPearsonPCA, TensorPearsonKernelPCA, \
+from plotter import ArrayPlotter, TrajectoryPlotter
+from utils.algorithms.pca import MyPCA, TruncatedPCA
+from utils.algorithms.tensor_dimension_reduction import TensorPCA, TensorPearsonPCA, TensorPearsonKernelPCA, \
     TensorKernelPCA, KernelOnlyPCA
 from utils.algorithms.tica import MyTICA, TruncatedTICA
-from utils.math import basis_transform, explained_variance, matrix_diagonals_calculation, diagonal_indices, \
-    gaussian_2d, expand_diagonals_to_matrix, calculate_pearson_correlations, gauss_kernel_symmetrical_matrix
+from utils.math import basis_transform, explained_variance, calculate_pearson_correlations, \
+    gauss_kernel_symmetrical_matrix
 from utils.param_key import *
 
 
@@ -49,7 +48,7 @@ class DataTrajectory(TrajectoryFile):
         if params is None:
             params = {}
         self.params = {
-            PLOT_TYPE: params.get(PLOT_TYPE, COLOR_MAP),  # 'color_map', 'heat_map'
+            PLOT_TYPE: params.get(PLOT_TYPE, COLOR_MAP),
             PLOT_TICS: params.get(PLOT_TICS, True),
             CARBON_ATOMS_ONLY: params.get(CARBON_ATOMS_ONLY, True),
             INTERACTIVE: params.get(INTERACTIVE, True),
@@ -58,7 +57,8 @@ class DataTrajectory(TrajectoryFile):
             TRUNCATION_VALUE: params.get(TRUNCATION_VALUE, 0),
             BASIS_TRANSFORMATION: params.get(BASIS_TRANSFORMATION, False),
             RANDOM_SEED: params.get(RANDOM_SEED, 30),
-            USE_ANGLES: params.get(USE_ANGLES, True)
+            USE_ANGLES: params.get(USE_ANGLES, True),
+            TRAJECTORY_NAME: params.get(TRAJECTORY_NAME, 'Not Found')  # TODO: Should raise Error?
         }
 
         self.x_coordinates = self.filter_coordinates_by_coordinates(0)
@@ -185,7 +185,7 @@ class DataTrajectory(TrajectoryFile):
         return model_results
 
     def compare_with_plot(self, model_projection_list):
-        TrajectoryResultPlotter().plot_models(
+        TrajectoryPlotter(self).plot_models(
             model_projection_list,
             data_elements=[0],  # [0, 1, 2]
             plot_type=self.params[PLOT_TYPE],
@@ -194,11 +194,11 @@ class DataTrajectory(TrajectoryFile):
         )
 
     def calculate_pearson_correlation_coefficient(self):
-        mode = 'coefficient_first'
+        mode = 'calculate_coefficients_than_mean_dimensions'
         if mode == 'coordinates_mean_first':  # Not used currently
             coordinates_mean = np.mean(self.atom_coordinates, axis=2)
             coefficient_mean = np.corrcoef(coordinates_mean.T)
-        elif mode == 'mean_first':
+        elif mode == 'calculate_mean_of_dimensions_to_matrix_than_correlation_coefficient':
             print('Calculate mean matrix...')
             if self.params[USE_ANGLES]:
                 mean_matrix = np.mean(np.array([self.phi[DIHEDRAL_ANGEL_VALUES], self.psi[DIHEDRAL_ANGEL_VALUES]]),
@@ -207,7 +207,7 @@ class DataTrajectory(TrajectoryFile):
                 mean_matrix = np.mean(self.alpha_carbon_coordinates, axis=2)
             print('Calculate correlation coefficient...')
             coefficient_mean = np.corrcoef(mean_matrix.T)
-        elif mode == 'coefficient_first':
+        elif mode == 'calculate_coefficients_than_mean_dimensions':
             if self.params[USE_ANGLES]:
                 input_list = [self.phi[DIHEDRAL_ANGEL_VALUES], self.psi[DIHEDRAL_ANGEL_VALUES]]
             else:
@@ -222,9 +222,10 @@ class DataTrajectory(TrajectoryFile):
             raise ValueError('Invalid mode string was given')
 
         print('Fit Kernel on data...')
-        d_matrix = gauss_kernel_symmetrical_matrix(coefficient_mean)
+        d_matrix = gauss_kernel_symmetrical_matrix(coefficient_mean, trajectory_name=self.params[TRAJECTORY_NAME])
         weighted_alpha_coeff_matrix = coefficient_mean - d_matrix
 
+        title_prefix = ('Angles' if self.params[USE_ANGLES] else 'Coordinates') + f'. Pearson Coefficient. {mode}'
         ArrayPlotter().matrix_plot(weighted_alpha_coeff_matrix,
                                    title_prefix='Angles. Pearson Coefficient. Coefficient 1st, Mean 2nd',
                                    as_surface=self.params[PLOT_TYPE])

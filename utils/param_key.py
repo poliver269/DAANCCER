@@ -14,6 +14,7 @@ TRUNCATION_VALUE = 'truncation_value'
 BASIS_TRANSFORMATION = 'basis_transformation'
 RANDOM_SEED = 'random_seed'
 USE_ANGLES = 'use_angles'
+TRAJECTORY_NAME = 'trajectory_name'
 
 # Model Results
 MODEL = 'model'

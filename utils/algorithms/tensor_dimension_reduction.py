@@ -5,6 +5,11 @@ from utils.math import diagonal_block_expand, gauss_kernel_symmetrical_matrix
 
 
 class TensorDR(MyModel):
+    def __init__(self, cov_stat_func=np.mean, kernel_stat_func=np.median):
+        super().__init__()
+        self.cov_statistical_function = cov_stat_func
+        self.kernel_statistical_function = kernel_stat_func
+
     def fit_transform(self, data_tensor, n_components=2):
         self.n_samples = data_tensor.shape[0]
         self.n_components = n_components
@@ -19,7 +24,7 @@ class TensorDR(MyModel):
         pass
 
     def _update_cov(self):
-        averaged_cov = np.mean(self._covariance_matrix, axis=0)
+        averaged_cov = self.cov_statistical_function(self._covariance_matrix, axis=0)
         self._covariance_matrix = diagonal_block_expand(averaged_cov, self._covariance_matrix.shape[0])
 
     def get_eigenvectors(self):
@@ -64,7 +69,7 @@ class TensorKernelPCA(TensorPCA):
         return f'CovKernelPCA:\ncomponents={self.n_components}'
 
     def _update_cov(self):
-        averaged_cov = np.mean(self._covariance_matrix, axis=0)
+        averaged_cov = self.cov_statistical_function(self._covariance_matrix, axis=0)
         d_matrix = gauss_kernel_symmetrical_matrix(averaged_cov)
         weighted_alpha_coeff_matrix = averaged_cov - d_matrix
 
@@ -76,17 +81,17 @@ class TensorPearsonKernelPCA(TensorPearsonPCA):
         return f'PearsonKernelPCA:\ncomponents={self.n_components}'
 
     def _update_cov(self):
-        averaged_cov = np.mean(self._covariance_matrix, axis=0)
-        d_matrix = gauss_kernel_symmetrical_matrix(averaged_cov)
+        averaged_cov = self.cov_statistical_function(self._covariance_matrix, axis=0)
+        d_matrix = gauss_kernel_symmetrical_matrix(averaged_cov, self.kernel_statistical_function)
         weighted_alpha_coeff_matrix = averaged_cov - d_matrix
         self._covariance_matrix = diagonal_block_expand(weighted_alpha_coeff_matrix, self._covariance_matrix.shape[0])
 
 
 class KernelOnlyPCA(TensorPCA):
     def __str__(self):
-        return f'KernelOnly'
+        return f'KernelOnly:\ncomponents={self.n_components}'
 
     def _update_cov(self):
-        averaged_cov = np.mean(self._covariance_matrix, axis=0)
-        d_matrix = gauss_kernel_symmetrical_matrix(averaged_cov)
+        averaged_cov = self.cov_statistical_function(self._covariance_matrix, axis=0)
+        d_matrix = gauss_kernel_symmetrical_matrix(averaged_cov, self.kernel_statistical_function)
         self._covariance_matrix = diagonal_block_expand(d_matrix, self._covariance_matrix.shape[0])

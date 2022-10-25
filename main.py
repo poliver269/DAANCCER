@@ -9,8 +9,8 @@ from utils.param_key import *
 def main():
     print('Starting time: {}'.format(datetime.now()))
     # TODO: Argsparser for options
-    run_option = 'calculate_pcc'
-    data = 'savinase'
+    run_option = 'compare'
+    trajectory_name = 'savinase'
     params = {
         PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map'
         PLOT_TICS: True,  # True, False
@@ -19,19 +19,20 @@ def main():
         LAG_TIME: 10,
         TRUNCATION_VALUE: 30,
         BASIS_TRANSFORMATION: False,
-        USE_ANGLES: False
+        USE_ANGLES: False,
+        TRAJECTORY_NAME: trajectory_name
     }
-    if data == '2f4k':
+    if trajectory_name == '2f4k':
         kwargs = {'filename': 'tr3_unfolded.xtc', 'topology_filename': '2f4k.pdb', 'folder_path': 'data/2f4k',
                   'params': params}
-    elif data == 'prot2':
+    elif trajectory_name == 'prot2':
         kwargs = {'filename': 'prod_r1_nojump_prot.xtc', 'topology_filename': 'prod_r1_pbc_fit_prot_last.pdb',
                   'folder_path': 'data/ProtNo2', 'params': params}
-    elif data == 'savinase':
+    elif trajectory_name == 'savinase':
         kwargs = {'filename': 'savinase_1.xtc', 'topology_filename': 'savinase.pdb',
                   'folder_path': 'data/Savinase', 'params': params}
     else:
-        raise ValueError(f'No data parameter with the name `{data}` was found.')
+        raise ValueError(f'No data trajectory was found with the name `{trajectory_name}`.')
 
     if run_option == 'covert_gro_to_pdb':
         kwargs = {'filename': 'tr3_unfolded.xtc', 'topology_filename': '2f4k.gro',

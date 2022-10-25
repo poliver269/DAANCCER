@@ -24,6 +24,9 @@ class TrajectoryPlotter(MyPlotter):
         super().__init__(interactive)
         self.data_trajectory = trajectory
 
+    def _set_figure_title(self):
+        self.fig.suptitle(f'Trajectory: {self.data_trajectory.params[TRAJECTORY_NAME]}')
+
     def plot_trajectory_at(self, timestep: int):
         """
         This function gives the opportunity to plot the trajectory at a specific timeframe.
@@ -31,8 +34,9 @@ class TrajectoryPlotter(MyPlotter):
             Time step value of the trajectory
         """
         self.fig = plt.figure()
+        self._set_figure_title()
         self.axes = Axes3D(self.fig)
-        self.update_on_slider_change(timestep)
+        self._update_on_slider_change(timestep)
 
     def original_data_with_timestep_slider(self, min_max=None):
         """
@@ -48,6 +52,7 @@ class TrajectoryPlotter(MyPlotter):
 
         self.fig = plt.figure()
         self.axes = Axes3D(self.fig)
+        self._set_figure_title()
 
         plt.subplots_adjust(bottom=0.25)
         # noinspection PyTypeChecker
@@ -61,10 +66,10 @@ class TrajectoryPlotter(MyPlotter):
             valstep=1,  # step between values
             valfmt='%0.0f'
         )
-        freq_slider.on_changed(self.update_on_slider_change)
+        freq_slider.on_changed(self._update_on_slider_change)
         plt.show()
 
-    def update_on_slider_change(self, timeframe):
+    def _update_on_slider_change(self, timeframe):
         """
         Callable function for the slider, which updates the figure.
         :param timeframe: Input value of the slider.
@@ -92,8 +97,6 @@ class TrajectoryPlotter(MyPlotter):
         else:
             raise IndexError('Timestep does not exist')
 
-
-class TrajectoryResultPlotter(MyPlotter):
     def plot_models(self, model_results, data_elements, plot_type='', plot_tics=False, components=None):
         """
         Plots the model results in 2d-coordinate system next to each other.
@@ -114,32 +117,32 @@ class TrajectoryResultPlotter(MyPlotter):
             main_axes = self.axes[0]  # axes[row][column]
             if len(model_results) == 1:
                 for component_nr in range(components + 1)[1:]:
-                    self.plot_time_tics(self.axes[component_nr], model_results[0][PROJECTION], data_elements,
-                                        component=component_nr)
+                    self._plot_time_tics(self.axes[component_nr], model_results[0][PROJECTION], data_elements,
+                                         component=component_nr)
             else:
                 for i, result in enumerate(model_results):
                     for component_nr in range(components + 1)[1:]:
-                        self.plot_time_tics(self.axes[component_nr][i], result[PROJECTION], data_elements,
-                                            component=component_nr)
+                        self._plot_time_tics(self.axes[component_nr][i], result[PROJECTION], data_elements,
+                                             component=component_nr)
         else:
             self.fig, self.axes = plt.subplots(1, len(model_results))
             main_axes = self.axes
-
+        self._set_figure_title()
         if plot_type == HEAT_MAP:
             if len(model_results) == 1:
-                self.plot_transformed_data_heat_map(main_axes, model_results[0], data_elements)
+                self._plot_transformed_data_heat_map(main_axes, model_results[0], data_elements)
             else:
                 for i, result in enumerate(model_results):
-                    self.plot_transformed_data_heat_map(main_axes[i], result, data_elements)
+                    self._plot_transformed_data_heat_map(main_axes[i], result, data_elements)
         else:
             if len(model_results) == 1:
-                self.plot_transformed_trajectory(main_axes, model_results[0], data_elements, color_map=plot_type)
+                self._plot_transformed_trajectory(main_axes, model_results[0], data_elements, color_map=plot_type)
             else:
                 for i, result in enumerate(model_results):
-                    self.plot_transformed_trajectory(main_axes[i], result, data_elements, color_map=plot_type)
+                    self._plot_transformed_trajectory(main_axes[i], result, data_elements, color_map=plot_type)
         plt.show()
 
-    def plot_transformed_trajectory(self, ax, projection, data_elements, color_map):
+    def _plot_transformed_trajectory(self, ax, projection, data_elements, color_map):
         """
         Plot the projection results of the transformed trajectory on an axis
         :param ax: Which axis the result should be plotted on
@@ -168,9 +171,9 @@ class TrajectoryResultPlotter(MyPlotter):
                 color = list(self.colors.values())[element]
                 ax.scatter(data_list[element][:, 0], data_list[element][:, 1], c=color, marker='.')
 
-        self.print_model_properties(projection)
+        self._print_model_properties(projection)
 
-    def plot_time_tics(self, ax, projections, data_elements, component):
+    def _plot_time_tics(self, ax, projections, data_elements, component):
         """
         Plot the time tics on a specific axis
         :param ax: axis
@@ -188,7 +191,7 @@ class TrajectoryResultPlotter(MyPlotter):
         for i in data_elements:
             ax.plot(projections[i][:, component - 1], c=list(self.colors.values())[i])
 
-    def plot_transformed_data_heat_map(self, ax, projection_dict, data_elements):
+    def _plot_transformed_data_heat_map(self, ax, projection_dict, data_elements):
         """
 
         :param ax:
@@ -212,10 +215,10 @@ class TrajectoryResultPlotter(MyPlotter):
             free_energies = -np.log(z, dtype='float')
             np.seterr(divide='warn')
             ax.contourf(free_energies.T, bins, cmap=plt.cm.hot, extent=[x[0], x[-1], y[0], y[-1]])
-        self.print_model_properties(projection_dict)
+        self._print_model_properties(projection_dict)
 
     @staticmethod
-    def print_model_properties(projection_dict):
+    def _print_model_properties(projection_dict):
         """
         Prints the model result properties: Eigenvector (EV) and Eigenvalue (EW)
         :param projection_dict: dictionary
@@ -250,26 +253,27 @@ class ArrayPlotter(MyPlotter):
             self.fig, self.axes = plt.subplots(1, 1)
             im = self.axes.matshow(matrix, cmap=c_map)
         self.fig.colorbar(im, ax=self.axes)
-        self.axes.set_xlabel('atoms')
-        self.axes.set_ylabel('time series')
+        self.axes.set_xlabel('number of correlations')
+        self.axes.set_ylabel('number of correlations')
         self.axes.set_title(title_prefix + ' Matrix')
         plt.show()
 
-    def plot_gauss2d(self, gauss_fitted, xdata, ydata, title_prefix='', mean_data=None):
+    def plot_gauss2d(self, gauss_fitted, xdata, ydata, title_prefix='', statistical_function=np.median):
         """
         Plot the data (ydata) in a range (xdata), the (fitted) gauss curve and a line (mean, median)
         :param gauss_fitted: A curve
         :param xdata: range of plotting
         :param ydata:
         :param title_prefix:
-        :param mean_data:
+        :param statistical_function:
         :return:
         """
         self.fig, self.axes = plt.subplots(1, 1)
         self.axes.plot(xdata, ydata, 'o', label='data')
         self.axes.plot(xdata, gauss_fitted, '-', label='fit')
-        if mean_data is not None:
-            self.axes.plot(xdata, mean_data, '-', label='mean')
+        statistical_value = np.full(xdata.shape, statistical_function(ydata))
+        function_label = 'mean' if 'mean' in str(statistical_function) else 'median'
+        self.axes.plot(xdata, statistical_value, '-', label=function_label)
         self.axes.legend()
         self.axes.set_title(title_prefix)
         # self.axes.set_ylim(-1, 1)
