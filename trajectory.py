@@ -227,7 +227,7 @@ class DataTrajectory(TrajectoryFile):
 
         title_prefix = ('Angles' if self.params[USE_ANGLES] else 'Coordinates') + f'. Pearson Coefficient. {mode}'
         ArrayPlotter().matrix_plot(weighted_alpha_coeff_matrix,
-                                   title_prefix='Angles. Pearson Coefficient. Coefficient 1st, Mean 2nd',
+                                   title_prefix=title_prefix,
                                    as_surface=self.params[PLOT_TYPE])
 
 

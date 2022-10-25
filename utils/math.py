@@ -171,11 +171,19 @@ def diagonal_block_expand(matrix, n_repeats):
     return np.einsum('ij,kl->ikjl', matrix, np.eye(n_repeats)).reshape(len(matrix) * n_repeats, -1)
 
 
-def gauss_kernel_symmetrical_matrix(matrix, func=np.median, trajectory_name=None):
+def gauss_kernel_symmetrical_matrix(matrix, stat_func=np.median, trajectory_name=None):
+    """
+    Creates a symmetrical gaussian kernel matrix out of a symmetrical matrix
+    :param matrix: symmetrical matrix
+    :param stat_func: Some statistical function of an array: np.median (default), np.mean, ...
+    :param trajectory_name: str
+        If the name of the trajectory is given than a plot of the Gauss curve will be plotted
+    :return: The gaussian kernel matrix
+    """
     xdata = diagonal_indices(matrix)
     diag_func = np.mean
     ydata = matrix_diagonals_calculation(matrix, diag_func)  # TODO: func or median
-    ydata = interpolate_center(ydata, func)
+    ydata = interpolate_center(ydata, stat_func)
     fit_parameters, _ = curve_fit(gaussian_2d, xdata, ydata)
     fit_y = gaussian_2d(xdata, fit_parameters[0], fit_parameters[1])
     kernel_matrix = expand_diagonals_to_matrix(matrix, fit_y)
@@ -184,28 +192,57 @@ def gauss_kernel_symmetrical_matrix(matrix, func=np.median, trajectory_name=None
                                                      title_prefix=f'{trajectory_name} and '
                                                                   f'{"mean" if "mean" in str(diag_func) else "median"}'
                                                                   f' on diagonal of cov',
-                                                     statistical_function=func)
+                                                     statistical_function=stat_func)
     return kernel_matrix
 
 
-def interpolate_center(ydata, func: callable = np.median):
-    ydata = interpolate_array(ydata, func)
-    return extinct_side_values(ydata)
+def interpolate_center(symmetrical_array, stat_func: callable = np.median):
+    """
+    Interpolates the data in the array center, and zeroes all the other values
+    :param symmetrical_array: (nd)array symmetrical
+    :param stat_func: Some statistical function of an array: np.median (default), np.mean, ...
+    :return:
+    """
+    symmetrical_array = interpolate_array(symmetrical_array, stat_func)
+    return extinct_side_values(symmetrical_array)
 
 
-def interpolate_array(ydata, func: callable = np.median):
-    statistical_value = func(ydata)
-    return np.interp(ydata, [statistical_value, ydata.max()], [0, 1])
+def interpolate_array(array, stat_func: callable = np.median, interp_range=None):
+    """
+    Interpolate an array from a range, of its statistical value (mean, median, min, ...) to the maximum,
+    into a new range `interp_range` (default: 0-1)
+    :param array:
+    :param stat_func: Some statistical function of an array: np.median (default), np.mean, ...
+    :param interp_range: the new range for the interpolation
+    :return: the new interpolated array
+    """
+    if interp_range is None:
+        interp_range = [0, 1]
+    statistical_value = stat_func(array)
+    return np.interp(array, [statistical_value, array.max()], interp_range)
 
 
-def extinct_side_values(ydata, smaller_than=0):
-    right_i = np.argmax(split_list_in_half(ydata)[1] <= smaller_than)
-    center_i = len(ydata) // 2
-    new_y = np.zeros_like(ydata)
-    new_y[center_i - right_i:center_i + right_i] = ydata[center_i - right_i:center_i + right_i]
+def extinct_side_values(symmetrical_array, smaller_than=0):
+    """
+    Takes an array and searches the first value from the center smaller than the given value.
+    All the border values from that criteria are zeroed
+    :param symmetrical_array: symmetrical (nd)array
+    :param smaller_than: int
+        Sets the criteria to find the index between the center and the border.
+    :return:
+    """
+    right_i = np.argmax(split_list_in_half(symmetrical_array)[1] <= smaller_than)
+    center_i = len(symmetrical_array) // 2
+    new_y = np.zeros_like(symmetrical_array)
+    new_y[center_i - right_i:center_i + right_i] = symmetrical_array[center_i - right_i:center_i + right_i]
     return new_y
 
 
 def split_list_in_half(a_list):
+    """
+    https://stackoverflow.com/questions/752308/split-list-into-smaller-lists-split-in-half
+    :param a_list: array (list, ndarray)
+    :return: tuple with the first and the second half of the list
+    """
     half = len(a_list) // 2
     return a_list[:half], a_list[half:]
