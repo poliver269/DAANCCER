@@ -7,7 +7,7 @@ import pyemma.coordinates as coor
 from plotter import ArrayPlotter, TrajectoryPlotter
 from utils.algorithms.pca import MyPCA, TruncatedPCA
 from utils.algorithms.tensor_dimension_reduction import TensorPCA, TensorPearsonPCA, TensorPearsonKernelPCA, \
-    TensorKernelPCA, KernelOnlyPCA
+    TensorKernelPCA, KernelOnlyPCA, KernelOnlyMadPCA
 from utils.algorithms.tica import MyTICA, TruncatedTICA
 from utils.math import basis_transform, explained_variance, calculate_pearson_correlations, \
     gauss_kernel_symmetrical_matrix
@@ -133,8 +133,12 @@ class DataTrajectory(TrajectoryFile):
             ckpca = TensorKernelPCA()
             return ckpca, [ckpca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
         elif model_name == 'koPCA':
-            ko_pcc = KernelOnlyPCA()
-            return ko_pcc, [ko_pcc.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
+            ko_pca = KernelOnlyPCA()
+            return ko_pca, [ko_pca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
+        elif model_name == 'koMadPCA':
+            ko_med_pca = KernelOnlyMadPCA()
+            return ko_med_pca, [ko_med_pca.fit_transform(self.alpha_carbon_coordinates,
+                                                         n_components=self.params[N_COMPONENTS])]
         elif model_name == 'tica':
             tica = coor.tica(data=inp, lag=self.params[LAG_TIME], dim=self.params[N_COMPONENTS])
             return tica, tica.get_output()

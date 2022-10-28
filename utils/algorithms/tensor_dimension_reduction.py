@@ -1,7 +1,7 @@
 import numpy as np
 
 from utils.algorithms import MyModel
-from utils.math import diagonal_block_expand, gauss_kernel_symmetrical_matrix
+from utils.math import diagonal_block_expand, gauss_kernel_symmetrical_matrix, comedian4df, co_mad
 
 
 class TensorDR(MyModel):
@@ -95,3 +95,15 @@ class KernelOnlyPCA(TensorPCA):
         averaged_cov = self.cov_statistical_function(self._covariance_matrix, axis=0)
         d_matrix = gauss_kernel_symmetrical_matrix(averaged_cov, self.kernel_statistical_function)
         self._covariance_matrix = diagonal_block_expand(d_matrix, self._covariance_matrix.shape[0])
+
+
+class KernelOnlyMadPCA(KernelOnlyPCA):
+    def __str__(self):
+        return f'KernelOnlyMadPCA:'
+
+    def get_covariance_matrix(self):
+        return np.asarray(list(
+            map(lambda index: co_mad(self.standardized_data[:, :, index].T),
+                range(self.standardized_data.shape[2]))
+        ))
+

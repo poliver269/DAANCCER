@@ -30,6 +30,8 @@ class MyModel:
         """
         Subtract mean and divide by standard deviation column-wise.
         Doing this proves to be very helpful when calculating the covariance matrix.
+        https://towardsdatascience.com/understanding-the-covariance-matrix-92076554ea44
+        Mean-Center the data
         :param matrix: Data as matrix
         :return: Standardized data matrix
         """
