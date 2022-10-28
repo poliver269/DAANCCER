@@ -6,7 +6,7 @@ import pyemma.coordinates as coor
 
 from plotter import ArrayPlotter, TrajectoryPlotter
 from utils.algorithms.pca import MyPCA, TruncatedPCA
-from utils.algorithms.tensor_dimension_reduction import TensorPCA, TensorPearsonPCA, TensorPearsonKernelPCA, \
+from utils.algorithms.tensor_dim_reductions.pca import TensorPCA, TensorPearsonPCA, TensorPearsonKernelPCA, \
     TensorKernelPCA, KernelOnlyPCA, KernelOnlyMadPCA
 from utils.algorithms.tica import MyTICA, TruncatedTICA
 from utils.math import basis_transform, explained_variance, calculate_pearson_correlations, \
