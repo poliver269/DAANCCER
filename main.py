@@ -10,10 +10,10 @@ def main():
     print('Starting time: {}'.format(datetime.now()))
     # TODO: Argsparser for options
     run_option = 'compare'
-    trajectory_name = 'prot2'
+    trajectory_name = 'savinase'
     params = {
         PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map'
-        PLOT_TICS: False,  # True, False
+        PLOT_TICS: True,  # True, False
         CARBON_ATOMS_ONLY: True,  # True, False
         INTERACTIVE: True,  # True, False
         LAG_TIME: 10,
@@ -47,7 +47,9 @@ def main():
         TrajectoryPlotter(tr).original_data_with_timestep_slider(min_max=None)  # [0, 1000]
     elif run_option == 'compare':
         tr = DataTrajectory(**kwargs)
-        tr.compare(['pca', 'koPCA', 'koMadPCA'])
+        tr.compare(['tica', 'tensor_tica', 'tensor_kernel_tica',
+                    'tensor_kp_tica', 'tensor_ko_tica', 'tensor_comad_tica'])
+        # tr.compare(['pca', 'koPCA', 'tica', 'tensor_ko_tica'])
         # tr.compare(['pca', 'tica'])  # , 'mytica', 'trunc_tica'])
         # tr.compare(['tica', 'mytica'])
     elif run_option == 'compare_with_carbon_alpha_atoms':

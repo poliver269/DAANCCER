@@ -173,7 +173,7 @@ def diagonal_block_expand(matrix, n_repeats):
     return np.einsum('ij,kl->ikjl', matrix, np.eye(n_repeats)).reshape(len(matrix) * n_repeats, -1)
 
 
-def gauss_kernel_symmetrical_matrix(matrix, stat_func=np.median, trajectory_name=None):
+def calculate_gauss_kernel_on_matrix(matrix, stat_func=np.median, trajectory_name=None):
     """
     Creates a symmetrical gaussian kernel matrix out of a symmetrical matrix
     :param matrix: symmetrical matrix
@@ -182,6 +182,9 @@ def gauss_kernel_symmetrical_matrix(matrix, stat_func=np.median, trajectory_name
         If the name of the trajectory is given than a plot of the Gauss curve will be plotted
     :return: The gaussian kernel matrix
     """
+    if not is_matrix_symmetric(matrix):
+        raise ValueError('Input matrix to calculate the gaussian kernel has to be symmetric.')
+
     xdata = diagonal_indices(matrix)
     diag_func = np.mean
     ydata = matrix_diagonals_calculation(matrix, diag_func)  # TODO: func or median
@@ -267,10 +270,10 @@ def co_mad(matrix):
     for i in tqdm(range(0, matrix.shape[0])):
         row = []
         for j in range(0, matrix.shape[0]):
-            if i == j:
-                mul = np.absolute(matrix_sub[:, i])
-            else:
-                mul = matrix_sub[:, i] * matrix_sub[:, j]
+            # if i == j:
+            #     mul = np.absolute(matrix_sub[:, i])
+            # else:
+            mul = matrix_sub[:, i] * matrix_sub[:, j]
             row.append(np.median(mul))
         temp_list.append(row)
     return np.asarray(temp_list)
