@@ -253,43 +253,6 @@ def split_list_in_half(a_list):
     return a_list[:half], a_list[half:]
 
 
-def co_med(matrix):
-    median_matrix = np.median(matrix, axis=1)
-    w_sum = median_matrix.dtype.type(matrix.size/median_matrix.size)
-    if w_sum.shape != median_matrix.shape:
-        w_sum = np.broadcast_to(w_sum, median_matrix.shape).copy()[0]
-    matrix -= median_matrix[:, None]
-    co = np.dot(matrix, matrix.T)
-    # co *= np.true_divide(1, w_sum)
-    return co
-
-
 def co_mad(matrix):
     matrix_sub = matrix - np.median(matrix, axis=1)[:, None]
-    temp_list = []
-    for i in tqdm(range(0, matrix.shape[0])):
-        row = []
-        for j in range(0, matrix.shape[0]):
-            # if i == j:
-            #     mul = np.absolute(matrix_sub[:, i])
-            # else:
-            mul = matrix_sub[:, i] * matrix_sub[:, j]
-            row.append(np.median(mul))
-        temp_list.append(row)
-    return np.asarray(temp_list)
-
-
-def comedian4df(data):
-    import pandas as pd
-    data_sub = data.sub(data.median(axis=0), axis=1)
-    temp_list = []
-    for i in range(0, data.shape[1]):
-        row = []
-        for j in range(0, data.shape[1]):
-            column_name_1 = data_sub.keys()[i]
-            column_name_2 = data_sub.keys()[j]
-            mul = data_sub.loc[:, column_name_1] * data_sub.loc[:, column_name_2]
-            row.append(mul.median())
-        temp_list.append(pd.Series(row))
-    co_mad = pd.DataFrame(temp_list)
-    return co_mad
+    return np.median(matrix_sub[None, :, :] * matrix_sub[:, None, :], axis=2)

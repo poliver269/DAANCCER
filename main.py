@@ -10,7 +10,7 @@ def main():
     print('Starting time: {}'.format(datetime.now()))
     # TODO: Argsparser for options
     run_option = 'compare'
-    trajectory_name = 'savinase'
+    trajectory_name = '2f4k'
     params = {
         PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map'
         PLOT_TICS: True,  # True, False
