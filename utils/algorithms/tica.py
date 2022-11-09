@@ -1,6 +1,8 @@
-from utils.algorithms import MyModel
 import numpy as np
 import scipy
+
+from utils.algorithms import MyModel
+from utils.math import calculate_symmetrical_kernel_from_matrix
 
 
 class MyTICA(MyModel):
@@ -9,7 +11,7 @@ class MyTICA(MyModel):
         self.lag_time = lag_time
 
     def __str__(self):
-        return f'MyTICA:\ncomponents={self.n_components}, time_lag={self.lag_time}'
+        return f'{super().__str__()}\ntime_lag={self.lag_time}'
 
     def get_covariance_matrix(self):
         """
@@ -17,7 +19,7 @@ class MyTICA(MyModel):
         :return:
         """
         if self.lag_time <= 0:
-            return np.cov(self.standardized_data.T)
+            return super().get_covariance_matrix()
         else:
             return np.cov(self.standardized_data[:-self.lag_time].T)
 
@@ -29,16 +31,18 @@ class MyTICA(MyModel):
         if self.lag_time <= 0:
             return self.get_covariance_matrix()
         else:
-            return np.dot(self.standardized_data[:-self.lag_time].T,
+            corr = np.dot(self.standardized_data[:-self.lag_time].T,
                           self.standardized_data[self.lag_time:]) / (self.n_samples - self.lag_time)
+            return 0.5 * (corr + corr.T)
 
     def get_eigenvectors(self):
         # calculate eigenvalues & eigenvectors of covariance and correlation matrix
         correlation_matrix = self.get_correlation_matrix()
-        self.eigenvalues, eigenvectors = scipy.linalg.eig(correlation_matrix, b=self._covariance_matrix)
+        eigenvalues, eigenvectors = scipy.linalg.eigh(correlation_matrix, b=self._covariance_matrix)
 
         # sort eigenvalues descending
         sorted_eigenvalue_indexes = np.argsort(self.eigenvalues)[::-1]
+        self.eigenvalues = eigenvalues[sorted_eigenvalue_indexes]
         return eigenvectors[:, sorted_eigenvalue_indexes]
 
 
@@ -48,9 +52,7 @@ class TruncatedTICA(MyTICA):
         self.truncation_value = trunc_value
 
     def __str__(self):
-        return (f'TruncatedTICA:\ncomponents={self.n_components}, '
-                f'lag_time={self.lag_time}, '
-                f'truncation_value={self.truncation_value}')
+        return f'{super().__str__()}\ntruncation_value={self.truncation_value}'
 
     def get_covariance_matrix(self):
         if self.truncation_value <= 0:
@@ -66,13 +68,21 @@ class TruncatedTICA(MyTICA):
             return super().get_covariance_matrix()
         else:
             if self.lag_time <= 0:
-                return np.dot(self.standardized_data[:, :-self.truncation_value:].T,
-                              self.standardized_data[:, self.truncation_value:]) / self.n_samples
+                cov = np.dot(self.standardized_data[:, :-self.truncation_value].T,
+                             self.standardized_data[:, self.truncation_value:]) / self.n_samples
             else:
-                return np.dot(self.standardized_data[:-self.lag_time, :-self.truncation_value].T,
-                              self.standardized_data[self.lag_time:, self.truncation_value:]) / (
-                                   self.n_samples - self.lag_time)
+                cov = np.dot(self.standardized_data[:-self.lag_time, :-self.truncation_value].T,
+                             self.standardized_data[self.lag_time:, self.truncation_value:]) / (
+                             self.n_samples - self.lag_time)
+            return 0.5 * (cov + cov.T)
 
     def fit_transform(self, data_matrix, n_components=2):
-        raise NotImplementedError(
-            'Truncated eigenvalue matrix, has an other shape as the data matrix which should be transformed.')
+        raise NotImplementedError('Truncated eigenvalue matrix, has an other shape as the data matrix '
+                                  'which should be transformed. '
+                                  'Idea: truncate also the input by the truncation value.')
+
+
+class KernelFromCovTICA(MyTICA):
+    def get_covariance_matrix(self):
+        super_cov = super().get_covariance_matrix()
+        return calculate_symmetrical_kernel_from_matrix(super_cov, flattened=True)

@@ -1,8 +1,8 @@
-from tqdm import tqdm
-
 import numpy as np
 from scipy.optimize import curve_fit
 from scipy.spatial import distance
+from sklearn.model_selection import GridSearchCV, LeaveOneOut
+from sklearn.neighbors import KernelDensity
 
 from plotter import ArrayPlotter
 
@@ -173,9 +173,10 @@ def diagonal_block_expand(matrix, n_repeats):
     return np.einsum('ij,kl->ikjl', matrix, np.eye(n_repeats)).reshape(len(matrix) * n_repeats, -1)
 
 
-def calculate_gauss_kernel_on_matrix(matrix, stat_func=np.median, trajectory_name=None):
+def calculate_symmetrical_kernel_from_matrix(matrix, stat_func=np.median, trajectory_name=None, flattened=False):
     """
-    Creates a symmetrical gaussian kernel matrix out of a symmetrical matrix
+    Creates a symmetrical kernel matrix out of a symmetrical matrix
+    :param flattened:
     :param matrix: symmetrical matrix
     :param stat_func: Some statistical function of an array: np.median (default), np.mean, ...
     :param trajectory_name: str
@@ -185,15 +186,30 @@ def calculate_gauss_kernel_on_matrix(matrix, stat_func=np.median, trajectory_nam
     if not is_matrix_symmetric(matrix):
         raise ValueError('Input matrix to calculate the gaussian kernel has to be symmetric.')
 
-    xdata = diagonal_indices(matrix)
+    kernel_name = 'mygaussian'  # gaussian, exponential, epanechnikov
     diag_func = np.mean
-    ydata = matrix_diagonals_calculation(matrix, diag_func)  # TODO: func or median
-    ydata = interpolate_center(ydata, stat_func)
-    fit_parameters, _ = curve_fit(gaussian_2d, xdata, ydata)
-    fit_y = gaussian_2d(xdata, fit_parameters[0], fit_parameters[1])
+    original_ydata = matrix_diagonals_calculation(matrix, diag_func)
+    if kernel_name == 'mygaussian':
+        xdata = diagonal_indices(matrix)
+        if flattened:
+            ydata = interpolate_array(original_ydata, np.min)
+        else:
+            ydata = interpolate_center(original_ydata, stat_func)
+        fit_parameters, _ = curve_fit(gaussian_2d, xdata, ydata)
+        fit_y = gaussian_2d(xdata, fit_parameters[0], fit_parameters[1])
+    else:
+        xdata = diagonal_indices(matrix)[:, np.newaxis]
+        ydata = interpolate_center(original_ydata, stat_func)[:, np.newaxis]
+        bandwidths = 10 ** np.linspace(-1, 1, 100)
+        grid = GridSearchCV(KernelDensity(kernel=kernel_name), {'bandwidth': bandwidths}, cv=LeaveOneOut())
+        grid.fit(xdata)
+        print(f'Best parameters for {kernel_name}: {grid.best_params_}')
+        kde = KernelDensity(kernel=kernel_name, **grid.best_params_).fit(ydata)
+        fit_y = np.exp(kde.score_samples(xdata))
+        fit_y = np.interp(fit_y, [0, fit_y.max()], [0, 1])
     kernel_matrix = expand_diagonals_to_matrix(matrix, fit_y)
     if trajectory_name is not None:
-        ArrayPlotter(interactive=False).plot_gauss2d(fit_y, xdata, ydata,
+        ArrayPlotter(interactive=False).plot_gauss2d(fit_y, xdata, original_ydata, ydata, kernel_name,
                                                      title_prefix=f'{trajectory_name} and '
                                                                   f'{"mean" if "mean" in str(diag_func) else "median"}'
                                                                   f' on diagonal of cov',
@@ -254,5 +270,5 @@ def split_list_in_half(a_list):
 
 
 def co_mad(matrix):
-    matrix_sub = matrix - np.median(matrix, axis=1)[:, None]
-    return np.median(matrix_sub[None, :, :] * matrix_sub[:, None, :], axis=2)
+    matrix_sub = matrix - np.median(matrix, axis=1)[:, np.newaxis]
+    return np.median(matrix_sub[np.newaxis, :, :] * matrix_sub[:, np.newaxis, :], axis=2)

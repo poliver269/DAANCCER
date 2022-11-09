@@ -67,6 +67,7 @@ class TrajectoryPlotter(MyPlotter):
             valfmt='%0.0f'
         )
         freq_slider.on_changed(self._update_on_slider_change)
+        self._update_on_slider_change(0)
         plt.show()
 
     def _update_on_slider_change(self, timeframe):
@@ -78,18 +79,30 @@ class TrajectoryPlotter(MyPlotter):
         if 0 <= timeframe <= self.data_trajectory.traj.n_frames:
             timeframe = int(timeframe)
             if self.data_trajectory.params[CARBON_ATOMS_ONLY]:
-                x_coordinates = self.data_trajectory.alpha_carbon_coordinates[timeframe][:, 0]
-                y_coordinates = self.data_trajectory.alpha_carbon_coordinates[timeframe][:, 1]
-                z_coordinates = self.data_trajectory.alpha_carbon_coordinates[timeframe][:, 2]
+                data_tensor = self.data_trajectory.alpha_carbon_coordinates
             else:
-                x_coordinates = self.data_trajectory.traj.xyz[timeframe][:, 0]
-                y_coordinates = self.data_trajectory.traj.xyz[timeframe][:, 1]
-                z_coordinates = self.data_trajectory.traj.xyz[timeframe][:, 2]
+                data_tensor = self.data_trajectory.traj.xyz
+
+            if self.data_trajectory.params[STANDARDIZED_PLOT]:
+                numerator = data_tensor - np.mean(data_tensor, axis=1)[:, np.newaxis, :]
+                denominator = np.std(data_tensor, axis=0)
+                data_tensor = numerator / denominator
+                coordinate_mins = {X: data_tensor[:, :, 0].min(), Y: data_tensor[:, :, 1].min(),
+                                   Z: data_tensor[:, :, 2].min()}
+                coordinate_maxs = {X: data_tensor[:, :, 0].max(), Y: data_tensor[:, :, 1].max(),
+                                   Z: data_tensor[:, :, 2].max()}
+            else:
+                coordinate_mins = self.data_trajectory.coordinate_mins
+                coordinate_maxs = self.data_trajectory.coordinate_maxs
+
+            x_coordinates = data_tensor[timeframe, :, 0]
+            y_coordinates = data_tensor[timeframe, :, 1]
+            z_coordinates = data_tensor[timeframe, :, 2]
             self.axes.cla()
             self.axes.scatter(x_coordinates, y_coordinates, z_coordinates, c='r', marker='.')
-            self.axes.set_xlim(self.data_trajectory.coordinate_mins[X], self.data_trajectory.coordinate_maxs[X])
-            self.axes.set_ylim(self.data_trajectory.coordinate_mins[Y], self.data_trajectory.coordinate_maxs[Y])
-            self.axes.set_zlim(self.data_trajectory.coordinate_mins[Z], self.data_trajectory.coordinate_maxs[Z])
+            self.axes.set_xlim(coordinate_mins[X], coordinate_maxs[X])
+            self.axes.set_ylim(coordinate_mins[Y], coordinate_maxs[Y])
+            self.axes.set_zlim(coordinate_mins[Z], coordinate_maxs[Z])
             self.axes.set_xlabel('x-Axis')
             self.axes.set_ylabel('y-Axis')
             self.axes.set_zlabel('z-Axis')
@@ -155,7 +168,7 @@ class TrajectoryPlotter(MyPlotter):
             String value of the plot mapping type
         """
         ax.cla()
-        ax.set_title(projection.get(TITLE_PREFIX, '') + str(projection[MODEL]))
+        ax.set_title(projection.get(TITLE_PREFIX, '') + str(projection[MODEL]), fontsize=10)
         ax.set_xlabel('1st component')
         ax.set_ylabel('2nd component')
         data_list = projection[PROJECTION]
@@ -258,9 +271,12 @@ class ArrayPlotter(MyPlotter):
         self.axes.set_title(title_prefix + ' Matrix')
         plt.show()
 
-    def plot_gauss2d(self, gauss_fitted, xdata, ydata, title_prefix='', statistical_function=np.median):
+    def plot_gauss2d(self, gauss_fitted, xdata, ydata, new_ydata, fit_method, title_prefix='',
+                     statistical_function=np.median):
         """
         Plot the data (ydata) in a range (xdata), the (fitted) gauss curve and a line (mean, median)
+        :param fit_method:
+        :param new_ydata:
         :param gauss_fitted: A curve
         :param xdata: range of plotting
         :param ydata:
@@ -269,11 +285,12 @@ class ArrayPlotter(MyPlotter):
         :return:
         """
         self.fig, self.axes = plt.subplots(1, 1)
-        self.axes.plot(xdata, ydata, 'o', label='data')
-        self.axes.plot(xdata, gauss_fitted, '-', label='fit')
+        self.axes.plot(xdata, ydata, 'o', label='original data')
+        self.axes.plot(xdata, gauss_fitted, '-', label=f'fit {fit_method}')
         statistical_value = np.full(xdata.shape, statistical_function(ydata))
         function_label = 'mean' if 'mean' in str(statistical_function) else 'median'
         self.axes.plot(xdata, statistical_value, '-', label=function_label)
+        self.axes.plot(xdata, new_ydata, 'o', label='interpolated data')
         self.axes.legend()
         self.axes.set_title(title_prefix)
         # self.axes.set_ylim(-1, 1)

@@ -3,14 +3,17 @@ import scipy
 
 from utils.algorithms.tensor_dim_reductions import TensorDR
 from utils.algorithms.tensor_dim_reductions.pca import TensorKernelOnCovPCA, TensorKernelOnPearsonCovPCA, \
-    TensorKernelFromCovPCA
-from utils.math import co_mad, calculate_gauss_kernel_on_matrix, diagonal_block_expand
+    TensorKernelFromCovPCA, TensorKernelFromComadPCA
+from utils.math import co_mad, calculate_symmetrical_kernel_from_matrix, diagonal_block_expand, is_matrix_symmetric
 
 
 class TensorTICA(TensorDR):
     def __init__(self, lag_time):
         super().__init__()
         self.lag_time = lag_time
+
+    def __str__(self):
+        return f'{super().__str__()}\ntime_lag={self.lag_time}'
 
     def get_covariance_matrix(self):
         if self.lag_time <= 0:
@@ -20,7 +23,7 @@ class TensorTICA(TensorDR):
             ))
         else:
             return np.asarray(list(
-                map(lambda index: np.cov(self.standardized_data[:, :, index][:-self.lag_time].T),
+                map(lambda index: np.cov(self.standardized_data[:-self.lag_time, :, index].T),
                     range(self.standardized_data.shape[2]))
             ))
 
@@ -28,26 +31,33 @@ class TensorTICA(TensorDR):
         if self.lag_time <= 0:
             return self.get_covariance_matrix()
         else:
-            return np.asarray(list(
-                map(lambda index: np.dot(self.standardized_data[:, :, index][:-self.lag_time].T,
-                                         self.standardized_data[:, :, index][self.lag_time:]) / (
-                                              self.n_samples - self.lag_time),
-                    range(self.standardized_data.shape[2]))
-            ))
+            temp_list = []
+            for index in range(self.standardized_data.shape[2]):
+                dot_i = np.dot(self.standardized_data[:-self.lag_time, :, index].T,
+                               self.standardized_data[self.lag_time:, :, index]) / (
+                                self.n_samples - self.lag_time)
+                sym_i = 0.5 * (dot_i + dot_i.T)
+                temp_list.append(sym_i)
+            return np.asarray(temp_list)
 
     def _update_corr(self, correlation_matrix):
+        for i in range(self.standardized_data.shape[2]):
+            assert is_matrix_symmetric(correlation_matrix[i, :, :]), f'Correlation-Matrix ({i}) should be symmetric'
         averaged_corr = self.cov_statistical_function(correlation_matrix, axis=0)
         return diagonal_block_expand(averaged_corr, correlation_matrix.shape[0])
 
     def get_eigenvectors(self):
         # calculate eigenvalues & eigenvectors of covariance matrix
-        correlation_matrix = self.get_correlation_matrix()
-        correlation_matrix = self._update_corr(correlation_matrix)
-        self.eigenvalues, eigenvectors = scipy.linalg.eig(correlation_matrix, b=self._covariance_matrix)
+        tensor_correlation_matrix = self.get_correlation_matrix()
+        correlation_matrix = self._update_corr(tensor_correlation_matrix)
+        assert is_matrix_symmetric(correlation_matrix), 'Correlation-Matrix should be symmetric.'
+        assert is_matrix_symmetric(self._covariance_matrix), 'Covariance-Matrix should be symmetric.'
+        eigenvalues, eigenvectors = scipy.linalg.eigh(correlation_matrix, b=self._covariance_matrix)
 
         # sort eigenvalues descending and select columns based on n_components
-        n_cols = np.argsort(self.eigenvalues)[::-1]
-        return eigenvectors[:, n_cols]
+        sorted_eigenvalue_indexes = np.argsort(eigenvalues)[::-1]
+        self.eigenvalues = eigenvalues[sorted_eigenvalue_indexes]
+        return eigenvectors[:, sorted_eigenvalue_indexes]
 
 
 class TensorPearsonCovTICA(TensorTICA):
@@ -69,11 +79,30 @@ class TensorKernelOnPearsonCovTICA(TensorPearsonCovTICA, TensorKernelOnPearsonCo
 class TensorKernelFromCovTICA(TensorTICA, TensorKernelFromCovPCA):
     def _update_cov(self):
         averaged_cov = self.cov_statistical_function(self._covariance_matrix, axis=0)
-        d_matrix = calculate_gauss_kernel_on_matrix(averaged_cov, self.kernel_statistical_function)
+        d_matrix = calculate_symmetrical_kernel_from_matrix(averaged_cov, self.kernel_statistical_function)
+        if not is_matrix_symmetric(d_matrix):
+            if is_matrix_symmetric(d_matrix, rtol=1.e-3, atol=1.e-6):
+                d_matrix = 0.5 * (d_matrix + d_matrix.T)
+            else:
+                raise ValueError('Created Matrix is asymmetric.')
         self._covariance_matrix = diagonal_block_expand(d_matrix, self._covariance_matrix.shape[0])
 
 
-class TensorKernelFromComadTICA(TensorKernelFromCovTICA):
+class TensorKernelFromCoMadTICA(TensorKernelFromCovTICA):
+    def get_covariance_matrix(self):
+        if self.lag_time <= 0:
+            return np.asarray(list(
+                map(lambda index: co_mad(self.standardized_data[:, :, index].T),
+                    range(self.standardized_data.shape[2]))
+            ))
+        else:
+            return np.asarray(list(
+                map(lambda index: co_mad(self.standardized_data[:-self.lag_time, :, index].T),
+                    range(self.standardized_data.shape[2]))
+            ))
+
+
+class TensorKernelOnCoMadTICA(TensorKernelOnCovTICA):
     def get_covariance_matrix(self):
         return np.asarray(list(
             map(lambda index: co_mad(self.standardized_data[:, :, index][:-self.lag_time].T),

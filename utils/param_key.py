@@ -15,6 +15,7 @@ BASIS_TRANSFORMATION = 'basis_transformation'
 RANDOM_SEED = 'random_seed'
 USE_ANGLES = 'use_angles'
 TRAJECTORY_NAME = 'trajectory_name'
+STANDARDIZED_PLOT = 'standardized_plot'
 
 # Model Results
 MODEL = 'model'

@@ -5,14 +5,17 @@ import numpy as np
 import pyemma.coordinates as coor
 
 from plotter import ArrayPlotter, TrajectoryPlotter
-from utils.algorithms.pca import MyPCA, TruncatedPCA
-from utils.algorithms.tensor_dim_reductions.pca import TensorPCA, TensorPearsonCovPCA, TensorKernelOnPearsonCovPCA, \
-    TensorKernelOnCovPCA, TensorKernelFromCovPCA, TensorKernelFromComadPCA
-from utils.algorithms.tensor_dim_reductions.tica import TensorTICA, TensorKernelOnCovTICA, TensorKernelOnPearsonCovTICA, \
-    TensorKernelFromCovTICA, TensorKernelFromComadTICA
-from utils.algorithms.tica import MyTICA, TruncatedTICA
-from utils.math import basis_transform, explained_variance, calculate_pearson_correlations, \
-    calculate_gauss_kernel_on_matrix
+from utils.algorithms.pca import MyPCA, TruncatedPCA, KernelFromCovPCA
+from utils.algorithms.tensor_dim_reductions.pca import (TensorPCA, TensorPearsonCovPCA, TensorKernelOnPearsonCovPCA,
+                                                        TensorKernelOnCovPCA, TensorKernelFromCovPCA,
+                                                        TensorKernelFromComadPCA)
+from utils.algorithms.tensor_dim_reductions.tica import (TensorTICA, TensorKernelOnCovTICA,
+                                                         TensorKernelOnPearsonCovTICA,
+                                                         TensorKernelFromCovTICA, TensorKernelFromCoMadTICA,
+                                                         TensorKernelOnCoMadTICA)
+from utils.algorithms.tica import MyTICA, TruncatedTICA, KernelFromCovTICA
+from utils.math import (basis_transform, explained_variance, calculate_pearson_correlations,
+                        calculate_symmetrical_kernel_from_matrix)
 from utils.param_key import *
 
 
@@ -52,6 +55,7 @@ class DataTrajectory(TrajectoryFile):
         self.params = {
             PLOT_TYPE: params.get(PLOT_TYPE, COLOR_MAP),
             PLOT_TICS: params.get(PLOT_TICS, True),
+            STANDARDIZED_PLOT: params.get(STANDARDIZED_PLOT, False),
             CARBON_ATOMS_ONLY: params.get(CARBON_ATOMS_ONLY, True),
             INTERACTIVE: params.get(INTERACTIVE, True),
             N_COMPONENTS: params.get(N_COMPONENTS, 2),
@@ -122,22 +126,25 @@ class DataTrajectory(TrajectoryFile):
         elif model_name == 'trunc_pca':
             pca = TruncatedPCA(self.params[TRUNCATION_VALUE])
             return pca, [pca.fit_transform(inp, n_components=self.params[N_COMPONENTS])]
-        elif model_name == 'tensorPCA':
+        elif model_name == 'pca_kernel_only':
+            pca = KernelFromCovPCA()
+            return pca, [pca.fit_transform(inp, n_components=self.params[N_COMPONENTS])]
+        elif model_name == 'tensor_pca':
             pca = TensorPCA()
             return pca, [pca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
-        elif model_name == 'pearsonPCA':
+        elif model_name == 'tensor_pearson_pca':
             ppca = TensorPearsonCovPCA()
             return ppca, [ppca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
-        elif model_name == 'pearson_kernel_PCA':
+        elif model_name == 'tensor_pearson_kernel_pca':
             pkpca = TensorKernelOnPearsonCovPCA()
             return pkpca, [pkpca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
-        elif model_name == 'cov_kernel_PCA':
+        elif model_name == 'tensor_kernel_pca':
             ckpca = TensorKernelOnCovPCA()
             return ckpca, [ckpca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
-        elif model_name == 'koPCA':
+        elif model_name == 'tensor_ko_pca':
             ko_pca = TensorKernelFromCovPCA()
             return ko_pca, [ko_pca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
-        elif model_name == 'koMadPCA':
+        elif model_name == 'tensor_kernel_mad_pca':
             ko_med_pca = TensorKernelFromComadPCA()
             return ko_med_pca, [ko_med_pca.fit_transform(self.alpha_carbon_coordinates,
                                                          n_components=self.params[N_COMPONENTS])]
@@ -149,6 +156,9 @@ class DataTrajectory(TrajectoryFile):
             return tica, [tica.fit_transform(inp, n_components=self.params[N_COMPONENTS])]
         elif model_name == 'trunc_tica':
             tica = TruncatedTICA(lag_time=self.params[LAG_TIME], trunc_value=self.params[TRUNCATION_VALUE])
+            return tica, [tica.fit_transform(inp, n_components=self.params[N_COMPONENTS])]
+        elif model_name == 'kernel_only_tica':
+            tica = KernelFromCovTICA(lag_time=self.params[LAG_TIME])
             return tica, [tica.fit_transform(inp, n_components=self.params[N_COMPONENTS])]
         elif model_name == 'tensor_tica':
             tica = TensorTICA(lag_time=self.params[LAG_TIME])
@@ -163,7 +173,10 @@ class DataTrajectory(TrajectoryFile):
             tica = TensorKernelFromCovTICA(lag_time=self.params[LAG_TIME])
             return tica, [tica.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
         elif model_name == 'tensor_comad_tica':
-            tica = TensorKernelFromComadTICA(lag_time=self.params[LAG_TIME])
+            tica = TensorKernelFromCoMadTICA(lag_time=self.params[LAG_TIME])
+            return tica, [tica.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
+        elif model_name == 'tensor_comad_kernel_tica':
+            tica = TensorKernelOnCoMadTICA(lag_time=self.params[LAG_TIME])
             return tica, [tica.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
 
         else:
@@ -244,7 +257,7 @@ class DataTrajectory(TrajectoryFile):
             raise ValueError('Invalid mode string was given')
 
         print('Fit Kernel on data...')
-        d_matrix = calculate_gauss_kernel_on_matrix(coefficient_mean, trajectory_name=self.params[TRAJECTORY_NAME])
+        d_matrix = calculate_symmetrical_kernel_from_matrix(coefficient_mean, trajectory_name=self.params[TRAJECTORY_NAME])
         weighted_alpha_coeff_matrix = coefficient_mean - d_matrix
 
         title_prefix = ('Angles' if self.params[USE_ANGLES] else 'Coordinates') + f'. Pearson Coefficient. {mode}'

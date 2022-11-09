@@ -17,6 +17,9 @@ class MyModel:
         self.n_samples = None
         self._covariance_matrix = None
 
+    def __str__(self):
+        return f'{self.__class__.__name__}:\ncomponents={self.n_components}'
+
     def fit_transform(self, data_matrix, n_components=2):
         self.n_samples = data_matrix.shape[0]
         self.n_components = n_components
@@ -40,7 +43,11 @@ class MyModel:
         return numerator / denominator
 
     def get_covariance_matrix(self):
-        pass
+        """
+        Calculate covariance matrix with standardized matrix A
+        :return: Covariance Matrix
+        """
+        return np.cov(self.standardized_data.T)
 
     def get_eigenvectors(self):
         pass

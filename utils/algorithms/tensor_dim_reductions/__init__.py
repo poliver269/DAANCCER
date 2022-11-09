@@ -1,5 +1,5 @@
 from utils.algorithms import MyModel
-from utils.math import diagonal_block_expand
+from utils.math import diagonal_block_expand, is_matrix_symmetric
 import numpy as np
 
 
@@ -8,9 +8,6 @@ class TensorDR(MyModel):
         super().__init__()
         self.cov_statistical_function = cov_stat_func
         self.kernel_statistical_function = kernel_stat_func
-
-    def __str__(self):
-        return f'{self.__class__.__name__}:\ncomponents={self.n_components}\n'
 
     def fit_transform(self, data_tensor, n_components=2):
         self.n_samples = data_tensor.shape[0]
@@ -42,3 +39,9 @@ class TensorDR(MyModel):
         self.standardized_data = self.standardized_data.reshape(self.standardized_data.shape[0],
                                                                 self.standardized_data.shape[1] *
                                                                 self.standardized_data.shape[2])
+
+    @staticmethod
+    def standardize_data(tensor):
+        numerator = tensor - np.mean(tensor, axis=1)[:, np.newaxis, :]
+        denominator = np.std(tensor, axis=0)
+        return numerator / denominator
