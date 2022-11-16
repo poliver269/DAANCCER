@@ -2,7 +2,7 @@ import numpy as np
 import scipy
 
 from utils.algorithms import MyModel
-from utils.math import calculate_symmetrical_kernel_from_matrix
+from utils.matrix_tools import calculate_symmetrical_kernel_from_matrix
 
 
 class MyTICA(MyModel):

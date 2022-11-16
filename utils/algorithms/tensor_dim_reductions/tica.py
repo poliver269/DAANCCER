@@ -2,9 +2,10 @@ import numpy as np
 import scipy
 
 from utils.algorithms.tensor_dim_reductions import TensorDR
-from utils.algorithms.tensor_dim_reductions.pca import TensorKernelOnCovPCA, TensorKernelOnPearsonCovPCA, \
-    TensorKernelFromCovPCA, TensorKernelFromComadPCA
-from utils.math import co_mad, calculate_symmetrical_kernel_from_matrix, diagonal_block_expand, is_matrix_symmetric
+from utils.algorithms.tensor_dim_reductions.pca import (TensorKernelOnCovPCA, TensorKernelOnPearsonCovPCA,
+                                                        TensorKernelFromCovPCA)
+from utils.matrix_tools import (co_mad, calculate_symmetrical_kernel_from_matrix, diagonal_block_expand,
+                                is_matrix_symmetric)
 
 
 class TensorTICA(TensorDR):

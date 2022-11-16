@@ -3,7 +3,6 @@ from pathlib import Path
 import mdtraj as md
 import numpy as np
 import pyemma.coordinates as coor
-from sklearn.metrics.pairwise import cosine_similarity
 
 from plotter import ArrayPlotter, TrajectoryPlotter, MultiTrajectoryPlotter
 from utils.algorithms.pca import MyPCA, TruncatedPCA, KernelFromCovPCA
@@ -15,8 +14,8 @@ from utils.algorithms.tensor_dim_reductions.tica import (TensorTICA, TensorKerne
                                                          TensorKernelFromCovTICA, TensorKernelFromCoMadTICA,
                                                          TensorKernelOnCoMadTICA)
 from utils.algorithms.tica import MyTICA, TruncatedTICA, KernelFromCovTICA
-from utils.math import (basis_transform, explained_variance, calculate_pearson_correlations,
-                        calculate_symmetrical_kernel_from_matrix)
+from utils.math import basis_transform, explained_variance
+from utils.matrix_tools import calculate_pearson_correlations, calculate_symmetrical_kernel_from_matrix
 from utils.param_key import *
 
 

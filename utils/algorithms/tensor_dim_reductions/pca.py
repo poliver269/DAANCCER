@@ -1,7 +1,7 @@
 import numpy as np
 
 from utils.algorithms.tensor_dim_reductions import TensorDR
-from utils.math import diagonal_block_expand, calculate_symmetrical_kernel_from_matrix, co_mad
+from utils.matrix_tools import diagonal_block_expand, calculate_symmetrical_kernel_from_matrix, co_mad
 
 
 class TensorPCA(TensorDR):

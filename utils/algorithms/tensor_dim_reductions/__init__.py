@@ -1,5 +1,5 @@
 from utils.algorithms import MyModel
-from utils.math import diagonal_block_expand, is_matrix_symmetric
+from utils.matrix_tools import diagonal_block_expand
 import numpy as np
 
 
