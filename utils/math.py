@@ -112,6 +112,21 @@ def diagonal_indices(matrix):
     return np.linspace(lower_indices, upper_indices, number_of_diagonals, dtype=int)
 
 
+def exponential_2d(x, sigma):
+    """
+    Function from:
+    https://medium.com/geekculture/kernel-methods-in-support-vector-machines-bb9409342c49
+    :param x: int or ndarray
+    :param sigma:
+    :return:
+    """
+    return np.exp(-np.abs(x) / (2 * np.power(sigma, 2.)))
+
+
+def epanechnikov_2d(x, sigma):
+    return 1 - (np.power(x, 2.) / np.power(sigma, 2.))
+
+
 def gaussian_2d(x, mu, sigma):
     return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sigma, 2.)))
 
@@ -175,45 +190,65 @@ def diagonal_block_expand(matrix, n_repeats):
 
 def calculate_symmetrical_kernel_from_matrix(matrix, stat_func=np.median, trajectory_name=None, flattened=False):
     """
-    Creates a symmetrical kernel matrix out of a symmetrical matrix
-    :param flattened:
-    :param matrix: symmetrical matrix
-    :param stat_func: Some statistical function of an array: np.median (default), np.mean, ...
+    Creates a symmetrical kernel matrix out of a symmetrical matrix.
+    :param matrix: ndarray (symmetrical)
+    :param stat_func: Numpy statistical function: np.median (default), np.mean, np.min, ... (See link below)
+        https://www.tutorialspoint.com/numpy/numpy_statistical_functions.htm
     :param trajectory_name: str
-        If the name of the trajectory is given than a plot of the Gauss curve will be plotted
+        If the name of the trajectory is given than a plot of the gauss curve will be plotted with the given
+    :param flattened: bool
+        If True: runs the calculation in a way, where discontinuous input values are permitted.
     :return: The gaussian kernel matrix
     """
     if not is_matrix_symmetric(matrix):
         raise ValueError('Input matrix to calculate the gaussian kernel has to be symmetric.')
 
-    kernel_name = 'mygaussian'  # gaussian, exponential, epanechnikov
-    diag_func = np.mean
-    original_ydata = matrix_diagonals_calculation(matrix, diag_func)
-    if kernel_name == 'mygaussian':
-        xdata = diagonal_indices(matrix)
-        if flattened:
-            ydata = interpolate_array(original_ydata, np.min)
-        else:
-            ydata = interpolate_center(original_ydata, stat_func)
-        fit_parameters, _ = curve_fit(gaussian_2d, xdata, ydata)
-        fit_y = gaussian_2d(xdata, fit_parameters[0], fit_parameters[1])
+    kernel_name = 'my_exponential'  # gaussian, exponential, epanechnikov
+    xdata = diagonal_indices(matrix)
+    original_ydata = matrix_diagonals_calculation(matrix, np.mean)
+    if flattened:
+        stat_func = np.min
+        interpolated_ydata = interpolate_array(original_ydata, stat_func)
     else:
-        xdata = diagonal_indices(matrix)[:, np.newaxis]
-        ydata = interpolate_center(original_ydata, stat_func)[:, np.newaxis]
+        interpolated_ydata = interpolate_center(original_ydata, stat_func)
+
+    kernel_funcs = {'my_exponential': exponential_2d, 'my_epanechnikov': epanechnikov_2d, 'my_gaussian': gaussian_2d}
+    if kernel_name in kernel_funcs.keys():
+        if kernel_name == 'my_epanechnikov':
+            non_zero_i = np.argmax(interpolated_ydata > 0)
+            fit_parameters, _ = curve_fit(epanechnikov_2d, xdata[non_zero_i:-non_zero_i], interpolated_ydata[non_zero_i:-non_zero_i])
+            center_fit_y = epanechnikov_2d(xdata[non_zero_i:-non_zero_i], *fit_parameters)
+            center_fit_y = np.where(center_fit_y < 0, 0, center_fit_y)
+            fit_y = interpolated_ydata.copy()
+            fit_y[non_zero_i:-non_zero_i] = center_fit_y
+        else:
+            fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata, interpolated_ydata)
+            fit_y = kernel_funcs[kernel_name](xdata, *fit_parameters)
+    else:  # Try to use an implemented kernel from sklearn
+        xdata = xdata[:, np.newaxis]
+        interpolated_ydata = interpolated_ydata[:, np.newaxis]
+        interpolated_ydata = interpolated_ydata / interpolated_ydata.sum()
         bandwidths = 10 ** np.linspace(-1, 1, 100)
         grid = GridSearchCV(KernelDensity(kernel=kernel_name), {'bandwidth': bandwidths}, cv=LeaveOneOut())
         grid.fit(xdata)
         print(f'Best parameters for {kernel_name}: {grid.best_params_}')
-        kde = KernelDensity(kernel=kernel_name, **grid.best_params_).fit(ydata)
+        kde = KernelDensity(kernel=kernel_name, **grid.best_params_).fit(interpolated_ydata)
+        # noinspection PyUnresolvedReferences
         fit_y = np.exp(kde.score_samples(xdata))
         fit_y = np.interp(fit_y, [0, fit_y.max()], [0, 1])
     kernel_matrix = expand_diagonals_to_matrix(matrix, fit_y)
     if trajectory_name is not None:
-        ArrayPlotter(interactive=False).plot_gauss2d(fit_y, xdata, original_ydata, ydata, kernel_name,
-                                                     title_prefix=f'{trajectory_name} and '
-                                                                  f'{"mean" if "mean" in str(diag_func) else "median"}'
-                                                                  f' on diagonal of cov',
-                                                     statistical_function=stat_func)
+        if trajectory_name == 'weighted':
+            ArrayPlotter(interactive=False).plot_gauss2d(xdata, original_ydata - fit_y, interpolated_ydata, fit_y,
+                                                         kernel_name,
+                                                         title_prefix=f'{trajectory_name}'
+                                                                      f' on diagonal of cov',
+                                                         statistical_function=stat_func)
+        else:
+            ArrayPlotter(interactive=False).plot_gauss2d(xdata, original_ydata, interpolated_ydata, fit_y, kernel_name,
+                                                         title_prefix=f'Trajectory: {trajectory_name}, '
+                                                                      f' on diagonal of cov',
+                                                         statistical_function=stat_func)
     return kernel_matrix
 
 
@@ -270,5 +305,12 @@ def split_list_in_half(a_list):
 
 
 def co_mad(matrix):
+    """
+    Calculates the coMAD (Co Median Absolute Deviation) matrix of an input matrix.
+    https://ceur-ws.org/Vol-2454/paper_74.pdf
+    https://github.com/huenemoerder/CODEC/blob/master/CODEC.ipynb
+    :param matrix: ndarray
+    :return: Co-Median Absolute Deviation
+    """
     matrix_sub = matrix - np.median(matrix, axis=1)[:, np.newaxis]
     return np.median(matrix_sub[np.newaxis, :, :] * matrix_sub[:, np.newaxis, :], axis=2)

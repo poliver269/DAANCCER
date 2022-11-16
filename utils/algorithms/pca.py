@@ -43,4 +43,4 @@ class KernelFromCovPCA(MyPCA):
         :return: The kernel from the covariance matrix
         """
         super_cov = super().get_covariance_matrix()
-        return calculate_symmetrical_kernel_from_matrix(super_cov, flattened=True)
+        return calculate_symmetrical_kernel_from_matrix(super_cov, flattened=True, trajectory_name='print')

@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.widgets import Slider
 from mpl_toolkits.mplot3d import Axes3D
+from sklearn.metrics.pairwise import cosine_similarity
 
 from utils.param_key import *
 
@@ -160,7 +161,8 @@ class TrajectoryPlotter(MyPlotter):
         Plot the projection results of the transformed trajectory on an axis
         :param ax: Which axis the result should be plotted on
         :param projection: dictionary
-            dict should contain the keys: 'model', 'projection', 'title_prefix' (optional)
+            dict should contain the keys: 'model', 'projection',
+            and optional keys: 'title_prefix', 'explained_variance'
         :param data_elements: List of elements
             The result of the models can contain a list of results,
             from which is possible to choose with this parameter
@@ -168,7 +170,8 @@ class TrajectoryPlotter(MyPlotter):
             String value of the plot mapping type
         """
         ax.cla()
-        ax.set_title(projection.get(TITLE_PREFIX, '') + str(projection[MODEL]), fontsize=10)
+        ax.set_title(projection.get(TITLE_PREFIX, '') + str(projection[MODEL]) + projection.get(EXPLAINED_VAR, ''),
+                     fontsize=10)
         ax.set_xlabel('1st component')
         ax.set_ylabel('2nd component')
         data_list = projection[PROJECTION]
@@ -176,7 +179,7 @@ class TrajectoryPlotter(MyPlotter):
             if color_map == COLOR_MAP:
                 color_array = np.arange(data_list[element].shape[0])
                 c_map = plt.cm.viridis
-                im = ax.scatter(data_list[element][:, 0], data_list[element][:, 1], c=color_array,
+                im = ax.scatter(data_list[element][:, 0][::-1], data_list[element][:, 1][::-1], c=color_array,
                                 cmap=c_map, marker='.')
                 if index == 0:
                     self.fig.colorbar(im, ax=ax)
@@ -246,6 +249,20 @@ class TrajectoryPlotter(MyPlotter):
             print('{}: {}'.format(e, model))
 
 
+class MultiTrajectoryPlotter(MyPlotter):
+    def plot_principal_components(self, algorithm, principal_components, components):
+        self.fig, self.axes = plt.subplots(1, components)
+        self.fig.suptitle(algorithm)
+        for component in range(0, components):
+            x_range = np.asarray(list(range(0, principal_components.shape[1])))
+            principal_component = principal_components[:, :, component]
+            cos_sim = cosine_similarity(principal_component)
+            print(f'Cosine similarities using {algorithm}-algorithm for component {component}: {cos_sim}')
+            self.axes[component].plot(x_range, principal_component.T)
+            self.axes[component].set_title(f'Component Nr {component + 1}')
+        plt.show()
+
+
 class ArrayPlotter(MyPlotter):
     def matrix_plot(self, matrix, title_prefix='', as_surface=''):
         """
@@ -271,26 +288,28 @@ class ArrayPlotter(MyPlotter):
         self.axes.set_title(title_prefix + ' Matrix')
         plt.show()
 
-    def plot_gauss2d(self, gauss_fitted, xdata, ydata, new_ydata, fit_method, title_prefix='',
+    def plot_gauss2d(self, xdata, ydata, new_ydata, gauss_fitted, fit_method, title_prefix='',
                      statistical_function=np.median):
         """
         Plot the data (ydata) in a range (xdata), the (fitted) gauss curve and a line (mean, median)
-        :param fit_method:
-        :param new_ydata:
-        :param gauss_fitted: A curve
         :param xdata: range of plotting
         :param ydata:
+        :param new_ydata:
+        :param gauss_fitted: A curve
+        :param fit_method:
         :param title_prefix:
         :param statistical_function:
         :return:
         """
         self.fig, self.axes = plt.subplots(1, 1)
-        self.axes.plot(xdata, ydata, 'o', label='original data')
         self.axes.plot(xdata, gauss_fitted, '-', label=f'fit {fit_method}')
+        self.axes.plot(xdata, ydata, '.', label='original data')
         statistical_value = np.full(xdata.shape, statistical_function(ydata))
-        function_label = 'mean' if 'mean' in str(statistical_function) else 'median'
+        function_label = str(statistical_function).split()[1]
         self.axes.plot(xdata, statistical_value, '-', label=function_label)
-        self.axes.plot(xdata, new_ydata, 'o', label='interpolated data')
+        self.axes.plot(xdata, new_ydata, '.', label='interpolated data')
+        self.axes.set_xlabel('matrix diagonal indexes')
+        self.axes.set_ylabel(f'{function_label}-ed correlation values')
         self.axes.legend()
         self.axes.set_title(title_prefix)
         # self.axes.set_ylim(-1, 1)

@@ -39,9 +39,3 @@ class TensorDR(MyModel):
         self.standardized_data = self.standardized_data.reshape(self.standardized_data.shape[0],
                                                                 self.standardized_data.shape[1] *
                                                                 self.standardized_data.shape[2])
-
-    @staticmethod
-    def standardize_data(tensor):
-        numerator = tensor - np.mean(tensor, axis=1)[:, np.newaxis, :]
-        denominator = np.std(tensor, axis=0)
-        return numerator / denominator

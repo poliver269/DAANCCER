@@ -3,8 +3,9 @@ from pathlib import Path
 import mdtraj as md
 import numpy as np
 import pyemma.coordinates as coor
+from sklearn.metrics.pairwise import cosine_similarity
 
-from plotter import ArrayPlotter, TrajectoryPlotter
+from plotter import ArrayPlotter, TrajectoryPlotter, MultiTrajectoryPlotter
 from utils.algorithms.pca import MyPCA, TruncatedPCA, KernelFromCovPCA
 from utils.algorithms.tensor_dim_reductions.pca import (TensorPCA, TensorPearsonCovPCA, TensorKernelOnPearsonCovPCA,
                                                         TensorKernelOnCovPCA, TensorKernelFromCovPCA,
@@ -38,7 +39,7 @@ class DataTrajectory(TrajectoryFile):
     def __init__(self, filename, topology_filename, folder_path='data/2f4k', params=None):
         super().__init__(filename, topology_filename, folder_path)
         try:
-            print("Loading trajectory...")
+            print(f"Loading trajectory {filename}...")
             self.traj = md.load(self.filepath, top=self.topology_path)
             self.dim = {TIME_FRAMES: self.traj.xyz.shape[0],
                         ATOMS: self.traj.xyz.shape[1],
@@ -114,6 +115,9 @@ class DataTrajectory(TrajectoryFile):
         return coordinates_dict[:, :, element_list]
 
     def get_model_and_projection(self, model_name, inp=None):
+        # TODO: This function is too long, and not good, rewrite models to more changeability with different parameters
+        #  get input, component_nr, matrix/tensor, kernel on/from covariance, kernel on/from pearson, pca/tica,
+        #  truncation, comad
         print(f'Running {model_name}...')
         if inp is None:
             inp = self.flattened_coordinates
@@ -130,6 +134,7 @@ class DataTrajectory(TrajectoryFile):
             pca = KernelFromCovPCA()
             return pca, [pca.fit_transform(inp, n_components=self.params[N_COMPONENTS])]
         elif model_name == 'tensor_pca':
+            # this and following tensor models works only for alpha carbon coordinates, not for angles -> TODO
             pca = TensorPCA()
             return pca, [pca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
         elif model_name == 'tensor_pearson_pca':
@@ -185,18 +190,20 @@ class DataTrajectory(TrajectoryFile):
     def compare(self, model_names):
         model_results = []
         for model_name in model_names:
-            if self.params[USE_ANGLES]:
-                flattened_angles = np.concatenate([self.phi[1], self.psi[1]], axis=1)
-                model, projection = self.get_model_and_projection(model_name, flattened_angles)
-                ex_var = explained_variance(model.eigenvalues, self.params[N_COMPONENTS])
-                model_results = model_results + [{MODEL: model, PROJECTION: projection,
-                                                  TITLE_PREFIX: f'Flattened Angles, Explained var: {ex_var}\n'}]
-            else:
-                model, projection = self.get_model_and_projection(model_name)
-                ex_var = explained_variance(model.eigenvalues, self.params[N_COMPONENTS])
-                model_results.append({MODEL: model, PROJECTION: projection,
-                                      TITLE_PREFIX: f'Explained var: {ex_var}\n'})
+            model_results.append(self.get_model_result(model_name))
         self.compare_with_plot(model_results)
+
+    def get_model_result(self, model_name):
+        if self.params[USE_ANGLES]:
+            flattened_angles = np.concatenate([self.phi[1], self.psi[1]], axis=1)
+            model, projection = self.get_model_and_projection(model_name, flattened_angles)
+            ex_var = explained_variance(model.eigenvalues, self.params[N_COMPONENTS])
+            return {MODEL: model, PROJECTION: projection, TITLE_PREFIX: 'Flattened Angles',
+                    EXPLAINED_VAR: f'\nExplained var: {ex_var}'}
+        else:
+            model, projection = self.get_model_and_projection(model_name)
+            ex_var = explained_variance(model.eigenvalues, self.params[N_COMPONENTS])
+            return {MODEL: model, PROJECTION: projection, EXPLAINED_VAR: f'\nExplained var: {ex_var}'}
 
     def compare_with_carbon_alpha_and_all_atoms(self, model_names):
         model_results = self.get_model_results_with_different_param(model_names, CARBON_ATOMS_ONLY)
@@ -257,7 +264,8 @@ class DataTrajectory(TrajectoryFile):
             raise ValueError('Invalid mode string was given')
 
         print('Fit Kernel on data...')
-        d_matrix = calculate_symmetrical_kernel_from_matrix(coefficient_mean, trajectory_name=self.params[TRAJECTORY_NAME])
+        d_matrix = calculate_symmetrical_kernel_from_matrix(coefficient_mean,
+                                                            trajectory_name=self.params[TRAJECTORY_NAME])
         weighted_alpha_coeff_matrix = coefficient_mean - d_matrix
 
         title_prefix = ('Angles' if self.params[USE_ANGLES] else 'Coordinates') + f'. Pearson Coefficient. {mode}'
@@ -280,3 +288,19 @@ class TopologyConverter(TrajectoryFile):
         universe = MDAnalysis.Universe(self.topology_path)
         with MDAnalysis.Writer(self.goal_filepath) as writer:
             writer.write(universe)
+
+
+class MultiTrajectory:
+    def __init__(self, kwargs_list, params):
+        self.trajectories = [DataTrajectory(**kwargs) for kwargs in kwargs_list]
+        self.params = params
+
+    def compare_pcs(self, algorithms):
+        for algorithm in algorithms:
+            principal_components = []
+            for trajectory in self.trajectories:
+                res = trajectory.get_model_result(algorithm)
+                principal_components.append(res['model'].eigenvectors)
+            pcs = np.asarray(principal_components)
+            MultiTrajectoryPlotter(interactive=False).plot_principal_components(algorithm, pcs,
+                                                                                self.params[N_COMPONENTS])

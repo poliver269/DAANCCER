@@ -2,7 +2,7 @@ from datetime import datetime
 
 from my_tsne import TrajectoryTSNE
 from plotter import TrajectoryPlotter
-from trajectory import DataTrajectory, TopologyConverter
+from trajectory import DataTrajectory, TopologyConverter, MultiTrajectory
 from utils.param_key import *
 
 
@@ -10,30 +10,40 @@ def main():
     print('Starting time: {}'.format(datetime.now()))
     # TODO: Argsparser for options
     run_option = 'compare'
-    trajectory_name = 'prot2'
+    trajectory_name = '2f4k'
+    file_element = 0
     params = {
         PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map'
         PLOT_TICS: True,  # True, False
         STANDARDIZED_PLOT: False,
         CARBON_ATOMS_ONLY: True,  # True, False
         INTERACTIVE: True,  # True, False
-        LAG_TIME: 100,
+        N_COMPONENTS: 2,
+        LAG_TIME: 10,
         TRUNCATION_VALUE: 9,
         BASIS_TRANSFORMATION: False,
         USE_ANGLES: False,
         TRAJECTORY_NAME: trajectory_name
     }
     if trajectory_name == '2f4k':
-        kwargs = {'filename': 'tr3_unfolded.xtc', 'topology_filename': '2f4k.pdb', 'folder_path': 'data/2f4k',
+        filename_list = ['tr3_unfolded.xtc', 'tr8_folded.xtc']
+        kwargs = {'filename': filename_list[file_element], 'topology_filename': '2f4k.pdb', 'folder_path': 'data/2f4k',
                   'params': params}
     elif trajectory_name == 'prot2':
+        filename_list = ['prod_r1_nojump_prot.xtc', 'prod_r2_nojump_prot.xtc', 'prod_r3_nojump_prot.xtc']
         kwargs = {'filename': 'prod_r1_nojump_prot.xtc', 'topology_filename': 'prod_r1_pbc_fit_prot_last.pdb',
                   'folder_path': 'data/ProtNo2', 'params': params}
     elif trajectory_name == 'savinase':
+        filename_list = ['savinase_1.xtc', 'savinase_2.xtc']
         kwargs = {'filename': 'savinase_1.xtc', 'topology_filename': 'savinase.pdb',
                   'folder_path': 'data/Savinase', 'params': params}
+    elif trajectory_name == '2wav':
+        filename_list = [f'2WAV-0-protein-{i:03d}' for i in range(0, 160)]
+        kwargs = {}
+
     else:
         raise ValueError(f'No data trajectory was found with the name `{trajectory_name}`.')
+    filename_list.pop(file_element)
 
     if run_option == 'covert_gro_to_pdb':
         kwargs = {'filename': 'tr3_unfolded.xtc', 'topology_filename': '2f4k.gro',
@@ -53,7 +63,7 @@ def main():
         # tr.compare(['pca', 'koPCA', 'tica', 'tensor_ko_tica'])  # best
         # tr.compare(['pca', 'koPCA'])
         # tr.compare(['pca', 'mypca', 'pca_kernel_only'])  # , 'mytica', 'trunc_tica'])
-        tr.compare(['pca', 'tensor_ko_pca', 'tica', 'tensor_tica'])  # , 'tica_kernel_only'])
+        tr.compare(['pca_kernel_only', 'tensor_ko_tica'])
     elif run_option == 'compare_with_carbon_alpha_atoms':
         tr = DataTrajectory(**kwargs)
         tr.compare_with_carbon_alpha_and_all_atoms('pca')
@@ -63,6 +73,14 @@ def main():
     elif run_option == 'calculate_pcc':
         tr = DataTrajectory(**kwargs)
         tr.calculate_pearson_correlation_coefficient()
+    elif run_option == 'multi_trajectory':
+        kwargs_list = [kwargs]
+        for filename in filename_list:
+            new_kwargs = kwargs.copy()
+            new_kwargs['filename'] = filename
+            kwargs_list.append(new_kwargs)
+        mtr = MultiTrajectory(kwargs_list, params)
+        mtr.compare_pcs(['pca', 'tica'])
 
     print('Finishing time: {}'.format(datetime.now()))
 

@@ -6,6 +6,7 @@ COORDINATES = 'coordinates'
 # Params
 PLOT_TYPE = 'plot_type'
 PLOT_TICS = 'plot_tics'
+STANDARDIZED_PLOT = 'standardized_plot'
 CARBON_ATOMS_ONLY = 'carbon_atoms_only'
 INTERACTIVE = 'interactive'
 N_COMPONENTS = 'n_components'
@@ -15,12 +16,12 @@ BASIS_TRANSFORMATION = 'basis_transformation'
 RANDOM_SEED = 'random_seed'
 USE_ANGLES = 'use_angles'
 TRAJECTORY_NAME = 'trajectory_name'
-STANDARDIZED_PLOT = 'standardized_plot'
 
 # Model Results
 MODEL = 'model'
 PROJECTION = 'projection'
 TITLE_PREFIX = 'title_prefix'
+EXPLAINED_VAR = 'explained_variance'
 
 # Plot Types
 HEAT_MAP = 'heat_map'

@@ -69,7 +69,16 @@ class TensorPearsonCovTICA(TensorTICA):
 
 
 class TensorKernelOnCovTICA(TensorTICA, TensorKernelOnCovPCA):
-    pass
+    def _update_cov(self):
+        averaged_cov = self.cov_statistical_function(self._covariance_matrix, axis=0)
+        d_matrix = calculate_symmetrical_kernel_from_matrix(averaged_cov, self.kernel_statistical_function, 'prot2')
+        if not is_matrix_symmetric(d_matrix):
+            if is_matrix_symmetric(d_matrix, rtol=1.e-3, atol=1.e-6):
+                d_matrix = 0.5 * (d_matrix + d_matrix.T)
+            else:
+                raise ValueError('Created Matrix is asymmetric.')
+        weighted_cov_matrix = averaged_cov - d_matrix
+        self._covariance_matrix = diagonal_block_expand(weighted_cov_matrix, self._covariance_matrix.shape[0])
 
 
 class TensorKernelOnPearsonCovTICA(TensorPearsonCovTICA, TensorKernelOnPearsonCovPCA):
@@ -79,7 +88,7 @@ class TensorKernelOnPearsonCovTICA(TensorPearsonCovTICA, TensorKernelOnPearsonCo
 class TensorKernelFromCovTICA(TensorTICA, TensorKernelFromCovPCA):
     def _update_cov(self):
         averaged_cov = self.cov_statistical_function(self._covariance_matrix, axis=0)
-        d_matrix = calculate_symmetrical_kernel_from_matrix(averaged_cov, self.kernel_statistical_function)
+        d_matrix = calculate_symmetrical_kernel_from_matrix(averaged_cov, self.kernel_statistical_function, '2f4k')
         if not is_matrix_symmetric(d_matrix):
             if is_matrix_symmetric(d_matrix, rtol=1.e-3, atol=1.e-6):
                 d_matrix = 0.5 * (d_matrix + d_matrix.T)
