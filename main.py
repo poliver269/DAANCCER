@@ -10,8 +10,8 @@ def main():
     print('Starting time: {}'.format(datetime.now()))
     # TODO: Argsparser for options
     run_option = 'compare'
-    trajectory_name = '2f4k'
-    file_element = 0
+    trajectory_name = '5i6x'
+    file_element = 1
     params = {
         PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map'
         PLOT_TICS: True,  # True, False
@@ -31,23 +31,28 @@ def main():
                   'params': params}
     elif trajectory_name == 'prot2':
         filename_list = ['prod_r1_nojump_prot.xtc', 'prod_r2_nojump_prot.xtc', 'prod_r3_nojump_prot.xtc']
-        kwargs = {'filename': 'prod_r1_nojump_prot.xtc', 'topology_filename': 'prod_r1_pbc_fit_prot_last.pdb',
+        kwargs = {'filename': filename_list[file_element], 'topology_filename': 'prod_r1_pbc_fit_prot_last.pdb',
                   'folder_path': 'data/ProtNo2', 'params': params}
     elif trajectory_name == 'savinase':
         filename_list = ['savinase_1.xtc', 'savinase_2.xtc']
-        kwargs = {'filename': 'savinase_1.xtc', 'topology_filename': 'savinase.pdb',
+        kwargs = {'filename': filename_list[file_element], 'topology_filename': 'savinase.pdb',
                   'folder_path': 'data/Savinase', 'params': params}
     elif trajectory_name == '2wav':
-        filename_list = [f'2WAV-0-protein-{i:03d}' for i in range(0, 160)]
-        kwargs = {}
+        filename_list = [f'2WAV-0-protein-{i:03d}.dcd' for i in range(0, 10)]
+        kwargs = {'filename': filename_list[file_element], 'topology_filename': '2wav.pdb',
+                  'folder_path': 'data/2WAV-0-protein', 'params': params}
+    elif trajectory_name == '5i6x':
+        filename_list = ['protein.xtc', 'system.xtc']
+        kwargs = {'filename': filename_list[file_element], 'topology_filename': 'system.pdb',
+                  'folder_path': 'data/ser-tr', 'params': params}
 
     else:
         raise ValueError(f'No data trajectory was found with the name `{trajectory_name}`.')
     filename_list.pop(file_element)
 
-    if run_option == 'covert_gro_to_pdb':
-        kwargs = {'filename': 'tr3_unfolded.xtc', 'topology_filename': '2f4k.gro',
-                  'goal_filename': '2f4k.pdb', 'folder_path': 'data/2f4k'}
+    if run_option == 'covert_to_pdb':
+        kwargs = {'filename': 'protein.xtc', 'topology_filename': 'protein.gro',
+                  'goal_filename': 'protein.pdb', 'folder_path': 'data/ser-tr'}
         tc = TopologyConverter(**kwargs)
         tc.convert()
     elif run_option == 'compare_with_tltsne':
@@ -63,7 +68,7 @@ def main():
         # tr.compare(['pca', 'koPCA', 'tica', 'tensor_ko_tica'])  # best
         # tr.compare(['pca', 'koPCA'])
         # tr.compare(['pca', 'mypca', 'pca_kernel_only'])  # , 'mytica', 'trunc_tica'])
-        tr.compare(['pca_kernel_only', 'tensor_ko_tica'])
+        tr.compare(['pca', 'tica', 'pca_kernel_only', 'tensor_ko_tica'])
     elif run_option == 'compare_with_carbon_alpha_atoms':
         tr = DataTrajectory(**kwargs)
         tr.compare_with_carbon_alpha_and_all_atoms('pca')

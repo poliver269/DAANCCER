@@ -39,7 +39,10 @@ class DataTrajectory(TrajectoryFile):
         super().__init__(filename, topology_filename, folder_path)
         try:
             print(f"Loading trajectory {filename}...")
-            self.traj = md.load(self.filepath, top=self.topology_path)
+            if str(self.filename).endswith('dcd'):
+                self.traj = md.load_dcd(self.filepath, top=self.topology_path, atom_indices=range(0, 710))
+            else:
+                self.traj = md.load(self.filepath, top=self.topology_path)
             self.dim = {TIME_FRAMES: self.traj.xyz.shape[0],
                         ATOMS: self.traj.xyz.shape[1],
                         COORDINATES: self.traj.xyz.shape[2]}
@@ -284,9 +287,19 @@ class TopologyConverter(TrajectoryFile):
 
     def convert(self):
         import MDAnalysis
-        universe = MDAnalysis.Universe(self.topology_path)
-        with MDAnalysis.Writer(self.goal_filepath) as writer:
-            writer.write(universe)
+        print(f'Convert Topology {self.topology_filename} to {self.goal_filename}...')
+        # noinspection PyProtectedMember
+        if self.topology_filename.split('.')[-1].upper() in MDAnalysis._PARSERS:
+            universe = MDAnalysis.Universe(self.topology_path)
+            with MDAnalysis.Writer(self.goal_filepath) as writer:
+                writer.write(universe)
+        else:
+            from pymol import cmd
+            cmd.load(self.filepath)
+            cmd.save(self.goal_filepath)
+            cmd.delete('*')
+            raise NotImplementedError(f'{self.topology_filename} cannot converted into {self.filename}')
+        print('Convert successful.')
 
 
 class MultiTrajectory:
