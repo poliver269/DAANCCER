@@ -7,11 +7,11 @@ from utils.param_key import *
 
 
 def main():
-    print('Starting time: {}'.format(datetime.now()))
+    print(f'Starting time: {datetime.now()}')
     # TODO: Argsparser for options
     run_option = 'compare'
-    trajectory_name = '5i6x'
-    file_element = 1
+    trajectory_name = '2f4k'
+    file_element = 0
     params = {
         PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map'
         PLOT_TICS: True,  # True, False
@@ -43,9 +43,8 @@ def main():
                   'folder_path': 'data/2WAV-0-protein', 'params': params}
     elif trajectory_name == '5i6x':
         filename_list = ['protein.xtc', 'system.xtc']
-        kwargs = {'filename': filename_list[file_element], 'topology_filename': 'system.pdb',
+        kwargs = {'filename': filename_list[file_element], 'topology_filename': '5i6x.pdb',
                   'folder_path': 'data/ser-tr', 'params': params}
-
     else:
         raise ValueError(f'No data trajectory was found with the name `{trajectory_name}`.')
     filename_list.pop(file_element)
@@ -68,7 +67,9 @@ def main():
         # tr.compare(['pca', 'koPCA', 'tica', 'tensor_ko_tica'])  # best
         # tr.compare(['pca', 'koPCA'])
         # tr.compare(['pca', 'mypca', 'pca_kernel_only'])  # , 'mytica', 'trunc_tica'])
-        tr.compare(['pca', 'tica', 'pca_kernel_only', 'tensor_ko_tica'])
+        tr.compare(['tica', 'mytica', 'kernel_only_tica', 'tensor_tica', 'tensor_kernel_tica', 'tensor_kp_tica',
+                     'tensor_ko_tica', 'tensor_comad_tica', 'tensor_comad_kernel_tica'])
+        # tr.compare(['mytica', 'kernel_only_tica'])
     elif run_option == 'compare_with_carbon_alpha_atoms':
         tr = DataTrajectory(**kwargs)
         tr.compare_with_carbon_alpha_and_all_atoms('pca')
@@ -85,9 +86,9 @@ def main():
             new_kwargs['filename'] = filename
             kwargs_list.append(new_kwargs)
         mtr = MultiTrajectory(kwargs_list, params)
-        mtr.compare_pcs(['pca', 'tica'])
+        mtr.compare_pcs(['tensor_ko_pca', 'tensor_ko_tica'])
 
-    print('Finishing time: {}'.format(datetime.now()))
+    print(f'Finishing time: {datetime.now()}')
 
 
 if __name__ == '__main__':

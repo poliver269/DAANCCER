@@ -21,7 +21,7 @@ class MyTICA(MyModel):
         if self.lag_time <= 0:
             return super().get_covariance_matrix()
         else:
-            return np.cov(self.standardized_data[:-self.lag_time].T)
+            return np.cov(self._standardized_data[:-self.lag_time].T)
 
     def get_correlation_matrix(self):
         """
@@ -31,8 +31,8 @@ class MyTICA(MyModel):
         if self.lag_time <= 0:
             return self.get_covariance_matrix()
         else:
-            corr = np.dot(self.standardized_data[:-self.lag_time].T,
-                          self.standardized_data[self.lag_time:]) / (self.n_samples - self.lag_time)
+            corr = np.dot(self._standardized_data[:-self.lag_time].T,
+                          self._standardized_data[self.lag_time:]) / (self.n_samples - self.lag_time)
             return 0.5 * (corr + corr.T)
 
     def get_eigenvectors(self):
@@ -41,7 +41,7 @@ class MyTICA(MyModel):
         eigenvalues, eigenvectors = scipy.linalg.eigh(correlation_matrix, b=self._covariance_matrix)
 
         # sort eigenvalues descending
-        sorted_eigenvalue_indexes = np.argsort(self.eigenvalues)[::-1]
+        sorted_eigenvalue_indexes = np.argsort(eigenvalues)[::-1]
         self.eigenvalues = eigenvalues[sorted_eigenvalue_indexes]
         return eigenvectors[:, sorted_eigenvalue_indexes]
 
@@ -59,24 +59,24 @@ class TruncatedTICA(MyTICA):
             return super().get_covariance_matrix()
         else:
             if self.lag_time <= 0:
-                return np.cov(self.standardized_data[:, :-self.truncation_value].T)
+                return np.cov(self._standardized_data[:, :-self.truncation_value].T)
             else:
-                return np.cov(self.standardized_data[:-self.lag_time, :-self.truncation_value].T)
+                return np.cov(self._standardized_data[:-self.lag_time, :-self.truncation_value].T)
 
     def get_correlation_matrix(self):
         if self.truncation_value <= 0:
             return super().get_covariance_matrix()
         else:
             if self.lag_time <= 0:
-                cov = np.dot(self.standardized_data[:, :-self.truncation_value].T,
-                             self.standardized_data[:, self.truncation_value:]) / self.n_samples
+                cov = np.dot(self._standardized_data[:, :-self.truncation_value].T,
+                             self._standardized_data[:, self.truncation_value:]) / self.n_samples
             else:
-                cov = np.dot(self.standardized_data[:-self.lag_time, :-self.truncation_value].T,
-                             self.standardized_data[self.lag_time:, self.truncation_value:]) / (
+                cov = np.dot(self._standardized_data[:-self.lag_time, :-self.truncation_value].T,
+                             self._standardized_data[self.lag_time:, self.truncation_value:]) / (
                              self.n_samples - self.lag_time)
             return 0.5 * (cov + cov.T)
 
-    def fit_transform(self, data_matrix, n_components=2):
+    def fit_transform(self, data_ndarray, n_components=2):
         raise NotImplementedError('Truncated eigenvalue matrix, has an other shape as the data matrix '
                                   'which should be transformed. '
                                   'Idea: truncate also the input by the truncation value.')

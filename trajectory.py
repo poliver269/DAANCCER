@@ -118,7 +118,7 @@ class DataTrajectory(TrajectoryFile):
 
     def get_model_and_projection(self, model_name, inp=None):
         # TODO: This function is too long, and not good, rewrite models to more changeability with different parameters
-        #  get input, component_nr, matrix/tensor, kernel on/from covariance, kernel on/from pearson, pca/tica,
+        #  get input, component_nr, matrix/tensor, kernel on/from covariance/pearson, pca/tica,
         #  truncation, comad
         print(f'Running {model_name}...')
         if inp is None:
@@ -192,7 +192,12 @@ class DataTrajectory(TrajectoryFile):
     def compare(self, model_names):
         model_results = []
         for model_name in model_names:
-            model_results.append(self.get_model_result(model_name))
+            try:
+                model_results.append(self.get_model_result(model_name))
+            except np.linalg.LinAlgError as e:
+                print(f'Eigenvalue decomposition for model `{model_name}` couldn\'t be calculated:\n {e}')
+            except AssertionError as e:
+                print(f'{e}')
         self.compare_with_plot(model_results)
 
     def get_model_result(self, model_name):

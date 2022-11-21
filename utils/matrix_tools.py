@@ -8,7 +8,7 @@ from utils.array_tools import interpolate_array, interpolate_center
 from utils.math import is_matrix_symmetric, exponential_2d, epanechnikov_2d, gaussian_2d
 
 
-def diagonal_indices(matrix):
+def diagonal_indices(matrix: np.ndarray):
     """
     Determines the (main and off) diagonal indices of a matrix
     :param matrix: array like
@@ -47,21 +47,27 @@ def matrix_diagonals_calculation(matrix: np.ndarray, func: callable = np.sum, fu
     # TODO: Other idea: map diagonals into indices difference (i-j)
 
 
-def expand_diagonals_to_matrix(matrix, array):
+def expand_diagonals_to_matrix(matrix: np.ndarray, array: np.ndarray):
     """
     Expand the values on the minor diagonals to its corresponding off-diagonal.
     Similar to: https://stackoverflow.com/questions/27875931/numpy-affect-diagonal-elements-of-matrix-prior-to-1-10
     :param matrix: ndarray
-        N-dimensional input image. Specifies the size and the off-diagonal indexes of the return matrix
+        2-array-dimensional input image. Specifies the size and the off-diagonal indexes of the return matrix
     :param array: ndarray
         Values on the minor diagonal which are going to expand by the function
     :return:
     """
+    if not matrix.ndim == 2:
+        raise ValueError(f'Input should be a matrix, but it\'s number of array dimension is: {matrix.ndim}')
+    if not array.ndim == 1:
+        raise ValueError(f'Input should be an array, but it\'s number of array dimension is: {array.ndim}')
+
     new_matrix = np.zeros_like(matrix)
     diag_indices = diagonal_indices(new_matrix)
 
     if len(diag_indices) != len(array):
-        raise ValueError("`matrix` should have as many diagonals as the `array` has.")
+        raise ValueError(f"Input matrix should have as many diagonals ({len(diag_indices)}) "
+                         f"as the length of the input array ({len(array)}).")
 
     i, j = np.indices(new_matrix.shape)
     for array_index, diagonal_index in enumerate(diag_indices):
@@ -70,7 +76,7 @@ def expand_diagonals_to_matrix(matrix, array):
     return new_matrix
 
 
-def calculate_pearson_correlations(matrix_list: list, func: callable = np.sum, func_kwargs=None):
+def calculate_pearson_correlations(matrix_list: list[np.ndarray], func: callable = np.sum, func_kwargs=None):
     """
     Calculates the Pearson product-moment correlation coefficients of all the matrix in the list and applies a function
     :param matrix_list: list of ndarray
@@ -104,12 +110,16 @@ def diagonal_block_expand(matrix, n_repeats):
     return np.einsum('ij,kl->ikjl', matrix, np.eye(n_repeats)).reshape(len(matrix) * n_repeats, -1)
 
 
-def calculate_symmetrical_kernel_from_matrix(matrix, stat_func=np.median, trajectory_name=None, flattened=False):
+def calculate_symmetrical_kernel_from_matrix(matrix: np.ndarray, stat_func: callable = np.median,
+                                             kernel_name: str = 'gaussian', trajectory_name: str = None,
+                                             flattened: bool = False):
     """
     Creates a symmetrical kernel matrix out of a symmetrical matrix.
     :param matrix: ndarray (symmetrical)
     :param stat_func: Numpy statistical function: np.median (default), np.mean, np.min, ... (See link below)
         https://www.tutorialspoint.com/numpy/numpy_statistical_functions.htm
+    :param kernel_name: str
+        (my_)gaussian, (my_)exponential, (my_)epanechnikov
     :param trajectory_name: str
         If the name of the trajectory is given than a plot of the gauss curve will be plotted with the given
     :param flattened: bool
@@ -119,7 +129,6 @@ def calculate_symmetrical_kernel_from_matrix(matrix, stat_func=np.median, trajec
     if not is_matrix_symmetric(matrix):
         raise ValueError('Input matrix to calculate the gaussian kernel has to be symmetric.')
 
-    kernel_name = 'my_exponential'  # gaussian, exponential, epanechnikov
     xdata = diagonal_indices(matrix)
     original_ydata = matrix_diagonals_calculation(matrix, np.mean)
     if flattened:

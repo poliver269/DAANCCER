@@ -9,10 +9,9 @@ class MyModel:
     https://www.askpython.com/python/examples/principal-component-analysis
     """
     def __init__(self):
-        self.standardize = None
         self.eigenvalues = None
         self.eigenvectors = None
-        self.standardized_data = None
+        self._standardized_data = None
         self.n_components = None
         self.n_samples = None
         self._covariance_matrix = None
@@ -20,16 +19,19 @@ class MyModel:
     def __str__(self):
         return f'{self.__class__.__name__}:\ncomponents={self.n_components}'
 
-    def fit_transform(self, data_matrix, n_components=2):
+    def fit_transform(self, data_ndarray, n_components=2):
+        self.fit(data_ndarray)
+        return self.transform(self._standardized_data, n_components)
+
+    def fit(self, data_matrix):
         self.n_samples = data_matrix.shape[0]
-        self.n_components = n_components
-        self.standardized_data = self.standardize_data(data_matrix)
+        self._standardized_data = self._standardize_data(data_matrix)
         self._covariance_matrix = self.get_covariance_matrix()
         self.eigenvectors = self.get_eigenvectors()
-        return self.transform(self.standardized_data)
+        return self
 
     @staticmethod
-    def standardize_data(matrix):
+    def _standardize_data(matrix):
         """
         Subtract mean and divide by standard deviation column-wise.
         Doing this proves to be very helpful when calculating the covariance matrix.
@@ -47,14 +49,15 @@ class MyModel:
         Calculate covariance matrix with standardized matrix A
         :return: Covariance Matrix
         """
-        return np.cov(self.standardized_data.T)
+        return np.cov(self._standardized_data.T)
 
     def get_eigenvectors(self):
         pass
 
-    def transform(self, data_matrix):
+    def transform(self, data_matrix, n_components):
         """
         Project the data to the lower dimension with the help of the eigenvectors.
         :return: Data reduced to lower dimensions from higher dimensions
         """
+        self.n_components = n_components
         return np.dot(data_matrix, self.eigenvectors[:, :self.n_components])

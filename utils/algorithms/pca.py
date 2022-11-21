@@ -28,10 +28,10 @@ class TruncatedPCA(MyPCA):
         Calculates covariance matrix, with some kind of ´truncation-lag´ (2nd dimension).
         :return:
         """
-        return np.dot(self.standardized_data[:, :-self.truncation_value].T,
-                      self.standardized_data[:, self.truncation_value:]) / self.n_samples
+        return np.dot(self._standardized_data[:, :-self.truncation_value].T,
+                      self._standardized_data[:, self.truncation_value:]) / self.n_samples
 
-    def fit_transform(self, data_matrix, n_components=2):
+    def fit_transform(self, data_ndarray, n_components=2):
         raise NotImplementedError('Truncated eigenvalue matrix, has an other shape as the data matrix '
                                   'which should be transformed.')
 
