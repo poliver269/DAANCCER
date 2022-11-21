@@ -6,6 +6,7 @@ import pyemma.coordinates as coor
 
 from plotter import ArrayPlotter, TrajectoryPlotter, MultiTrajectoryPlotter
 from utils.algorithms.pca import MyPCA, TruncatedPCA, KernelFromCovPCA
+from utils.algorithms.tensor_dim_reductions import ParameterModel
 from utils.algorithms.tensor_dim_reductions.pca import (TensorPCA, TensorPearsonCovPCA, TensorKernelOnPearsonCovPCA,
                                                         TensorKernelOnCovPCA, TensorKernelFromCovPCA,
                                                         TensorKernelFromComadPCA)
@@ -67,7 +68,7 @@ class DataTrajectory(TrajectoryFile):
             BASIS_TRANSFORMATION: params.get(BASIS_TRANSFORMATION, False),
             RANDOM_SEED: params.get(RANDOM_SEED, 30),
             USE_ANGLES: params.get(USE_ANGLES, True),
-            TRAJECTORY_NAME: params.get(TRAJECTORY_NAME, 'Not Found')  # TODO: Should raise Error?
+            TRAJECTORY_NAME: params.get(TRAJECTORY_NAME, 'Not Found')
         }
 
         self.x_coordinates = self.filter_coordinates_by_coordinates(0)
@@ -116,13 +117,10 @@ class DataTrajectory(TrajectoryFile):
         coordinates_dict = self.alpha_carbon_coordinates if ac_only else self.atom_coordinates
         return coordinates_dict[:, :, element_list]
 
-    def get_model_and_projection(self, model_name, inp=None):
-        # TODO: This function is too long, and not good, rewrite models to more changeability with different parameters
-        #  get input, component_nr, matrix/tensor, kernel on/from covariance/pearson, pca/tica,
-        #  truncation, comad
-        print(f'Running {model_name}...')
+    def get_model_and_projection_by_name(self, model_name, inp=None):
+        # TODO: deprecated
         if inp is None:
-            inp = self.flattened_coordinates
+            inp = self._determine_input(model_name)
         if model_name == 'pca':
             pca = coor.pca(data=inp, dim=self.params[N_COMPONENTS])
             return pca, pca.get_output()
@@ -185,49 +183,75 @@ class DataTrajectory(TrajectoryFile):
         elif model_name == 'tensor_comad_kernel_tica':
             tica = TensorKernelOnCoMadTICA(lag_time=self.params[LAG_TIME])
             return tica, [tica.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
-
         else:
             raise ValueError(f'Model with name \"{model_name}\" does not exists.')
 
-    def compare(self, model_names):
+    def get_model_and_projection(self, model_parameters, inp=None):
+        print(f'Running {model_parameters}...')
+        if inp is None:
+            inp = self._determine_input(model_parameters)
+        if model_parameters[ALGORITHM_NAME] == 'original_pca':
+            pca = coor.pca(data=inp, dim=self.params[N_COMPONENTS])
+            return pca, pca.get_output()
+        elif model_parameters[ALGORITHM_NAME] == 'original_tica':
+            tica = coor.tica(data=inp, lag=self.params[LAG_TIME], dim=self.params[N_COMPONENTS])
+            return tica, tica.get_output()
+        else:
+            model = ParameterModel(model_parameters)
+            return model, [model.fit_transform(inp, n_components=self.params[N_COMPONENTS])]
+
+    def compare(self, model_parameter_list):
         model_results = []
-        for model_name in model_names:
+        for model_parameters in model_parameter_list:
             try:
-                model_results.append(self.get_model_result(model_name))
+                model_results.append(self.get_model_result(model_parameters))
             except np.linalg.LinAlgError as e:
-                print(f'Eigenvalue decomposition for model `{model_name}` couldn\'t be calculated:\n {e}')
+                print(f'Eigenvalue decomposition for model `{model_parameters}` couldn\'t be calculated:\n {e}')
             except AssertionError as e:
                 print(f'{e}')
         self.compare_with_plot(model_results)
 
-    def get_model_result(self, model_name):
-        if self.params[USE_ANGLES]:
-            flattened_angles = np.concatenate([self.phi[1], self.psi[1]], axis=1)
-            model, projection = self.get_model_and_projection(model_name, flattened_angles)
-            ex_var = explained_variance(model.eigenvalues, self.params[N_COMPONENTS])
-            return {MODEL: model, PROJECTION: projection, TITLE_PREFIX: 'Flattened Angles',
-                    EXPLAINED_VAR: f'\nExplained var: {ex_var}'}
+    def get_model_result(self, model_parameters):
+        if isinstance(model_parameters, str):
+            model, projection = self.get_model_and_projection_by_name(model_parameters)
         else:
-            model, projection = self.get_model_and_projection(model_name)
-            ex_var = explained_variance(model.eigenvalues, self.params[N_COMPONENTS])
-            return {MODEL: model, PROJECTION: projection, EXPLAINED_VAR: f'\nExplained var: {ex_var}'}
+            model, projection = self.get_model_and_projection(model_parameters)
+        ex_var = explained_variance(model.eigenvalues, self.params[N_COMPONENTS])
+        # TODO Add explained variance to the models, and if they don't have a parameter, than calculate here
+        return {MODEL: model, PROJECTION: projection, EXPLAINED_VAR: f'\nExplained var: {ex_var}'}
+
+    def _determine_input(self, model_parameters):
+        n_dim = MATRIX_NDIM if isinstance(model_parameters, str) else model_parameters['ndim']
+        if self.params[USE_ANGLES]:
+            if n_dim == MATRIX_NDIM:
+                return np.concatenate([self.phi[DIHEDRAL_ANGEL_VALUES], self.psi[DIHEDRAL_ANGEL_VALUES]], axis=1)
+            else:
+                return np.asarray([self.phi[DIHEDRAL_ANGEL_VALUES], self.psi[DIHEDRAL_ANGEL_VALUES]])
+        else:
+            if n_dim == MATRIX_NDIM:
+                return self.flattened_coordinates
+            else:
+                if self.params[CARBON_ATOMS_ONLY]:
+                    return self.alpha_carbon_coordinates
+                else:
+                    return self.atom_coordinates
 
     def compare_with_carbon_alpha_and_all_atoms(self, model_names):
         model_results = self.get_model_results_with_different_param(model_names, CARBON_ATOMS_ONLY)
         self.compare_with_plot(model_results)
 
-    def compare_with_basis_transformation(self, model_names):
-        model_results = self.get_model_results_with_different_param(model_names, BASIS_TRANSFORMATION)
+    def compare_with_basis_transformation(self, model_params_list):
+        model_results = self.get_model_results_with_different_param(model_params_list, BASIS_TRANSFORMATION)
         self.compare_with_plot(model_results)
 
     def get_model_results_with_different_param(self, model_names, parameter):
         model_results = []
         for model_name in model_names:
-            model, projection = self.get_model_and_projection(model_name)
+            model, projection = self.get_model_and_projection_by_name(model_name)
             model_results.append({MODEL: model, PROJECTION: projection,
                                   TITLE_PREFIX: f'{parameter}: {self.params[parameter]}\n'})
             self.params[parameter] = not self.params[parameter]
-            model, projection = self.get_model_and_projection(model_name)
+            model, projection = self.get_model_and_projection_by_name(model_name)
             model_results.append({MODEL: model, PROJECTION: projection,
                                   TITLE_PREFIX: f'{parameter}: {self.params[parameter]}\n'})
             self.params[parameter] = not self.params[parameter]
@@ -262,9 +286,6 @@ class DataTrajectory(TrajectoryFile):
             else:
                 input_list = [self.filter_coordinates_by_coordinates(c, ac_only=self.params[CARBON_ATOMS_ONLY])
                               for c in range(len(self.dim))]
-                # input_list = list(
-                #     map(lambda c: self.filter_coordinates_by_coordinates(c, ac_only=self.params[CARBON_ATOMS_ONLY]),
-                #         range(len(self.dim))))
             print('Calculate correlation coefficient...')
             coefficient_mean = calculate_pearson_correlations(input_list, np.mean)
         else:

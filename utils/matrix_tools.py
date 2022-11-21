@@ -6,6 +6,7 @@ from sklearn.neighbors import KernelDensity
 from plotter import ArrayPlotter
 from utils.array_tools import interpolate_array, interpolate_center
 from utils.math import is_matrix_symmetric, exponential_2d, epanechnikov_2d, gaussian_2d
+from utils.param_key import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL
 
 
 def diagonal_indices(matrix: np.ndarray):
@@ -137,9 +138,9 @@ def calculate_symmetrical_kernel_from_matrix(matrix: np.ndarray, stat_func: call
     else:
         interpolated_ydata = interpolate_center(original_ydata, stat_func)
 
-    kernel_funcs = {'my_exponential': exponential_2d, 'my_epanechnikov': epanechnikov_2d, 'my_gaussian': gaussian_2d}
+    kernel_funcs = {MY_EXPONENTIAL: exponential_2d, MY_EPANECHNIKOV: epanechnikov_2d, MY_GAUSSIAN: gaussian_2d}
     if kernel_name in kernel_funcs.keys():
-        if kernel_name == 'my_epanechnikov':
+        if kernel_name == MY_EPANECHNIKOV:
             non_zero_i = np.argmax(interpolated_ydata > 0)
             fit_parameters, _ = curve_fit(epanechnikov_2d, xdata[non_zero_i:-non_zero_i],
                                           interpolated_ydata[non_zero_i:-non_zero_i])

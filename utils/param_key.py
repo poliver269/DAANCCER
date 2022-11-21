@@ -37,3 +37,29 @@ Z = 'z'
 # Angel Tuple Index
 ANGEL_INDICES = 0
 DIHEDRAL_ANGEL_VALUES = 1
+
+# Model Parameters
+COV_STAT_FUNC = 'cov_stat_func'
+KERNEL_STAT_FUNC = 'kernel_stat_func'
+ALGORITHM_NAME = 'algorithm_name'
+NDIM = 'ndim'
+KERNEL = 'kernel'
+KERNEL_TYPE = 'kernel_type'
+COV_FUNCTION = 'cov_function'
+
+# Kernel functions
+GAUSSIAN = 'gaussian'
+EPANECHNIKOV = 'epanechnikov'
+EXPONENTIAL = 'exponential'
+MY_GAUSSIAN = 'my_gaussian'
+MY_EPANECHNIKOV = 'my_epanechnikov'
+MY_EXPONENTIAL = 'my_exponential'
+
+# Kernel Mappings:
+KERNEL_ONLY = 'only'
+KERNEL_DIFFERENCE = 'diff'
+KERNEL_MULTIPLICATION = 'multi'
+
+ARRAY_NDIM = 1
+MATRIX_NDIM = 2
+TENSOR_NDIM = 3

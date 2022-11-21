@@ -41,8 +41,8 @@ class TrajectoryTSNE(DataTrajectory):
             raise ValueError("Lag time higher than the number of frames.")
 
     def start_all_and_save(self, out_filename):
-        projs_pca = self.get_model_and_projection('pca')[1]
-        projs_tica = self.get_model_and_projection('tica')[1]
+        projs_pca = self.get_model_and_projection_by_name('pca')[1]
+        projs_tica = self.get_model_and_projection_by_name('tica')[1]
         x_emb_tsne = self.get_embedded('tsne')[1]
         x_emb_tltsne = self.get_embedded('time-lagged_tsne')[1]
 
@@ -97,7 +97,7 @@ class TrajectoryTSNE(DataTrajectory):
             model, embedding = self.get_embedded(model_name1)
             projection = [embedding]
         else:  # tica / pca
-            model, projection = self.get_model_and_projection(model_name1)
+            model, projection = self.get_model_and_projection_by_name(model_name1)
         tl_tsne, embedding = self.get_embedded('time-lagged_tsne')
         print(model, tl_tsne, sep='\n')
         self.compare_with_plot([{'model': model, 'projection': projection},

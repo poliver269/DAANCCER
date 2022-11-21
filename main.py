@@ -20,7 +20,7 @@ def main():
         INTERACTIVE: True,  # True, False
         N_COMPONENTS: 2,
         LAG_TIME: 10,
-        TRUNCATION_VALUE: 9,
+        TRUNCATION_VALUE: 0,
         BASIS_TRANSFORMATION: False,
         USE_ANGLES: False,
         TRAJECTORY_NAME: trajectory_name
@@ -62,14 +62,10 @@ def main():
         TrajectoryPlotter(tr).original_data_with_timestep_slider(min_max=None)  # [0, 1000]
     elif run_option == 'compare':
         tr = DataTrajectory(**kwargs)
-        # tr.compare(['tensorPCA', 'mytica', 'tensor_tica', 'tensor_kernel_tica',
-        #           'tensor_kp_tica', 'tensor_ko_tica', 'tensor_comad_tica'])
-        # tr.compare(['pca', 'koPCA', 'tica', 'tensor_ko_tica'])  # best
-        # tr.compare(['pca', 'koPCA'])
-        # tr.compare(['pca', 'mypca', 'pca_kernel_only'])  # , 'mytica', 'trunc_tica'])
-        tr.compare(['tica', 'mytica', 'kernel_only_tica', 'tensor_tica', 'tensor_kernel_tica', 'tensor_kp_tica',
-                     'tensor_ko_tica', 'tensor_comad_tica', 'tensor_comad_kernel_tica'])
-        # tr.compare(['mytica', 'kernel_only_tica'])
+        # tr.compare(['tica', 'mytica', 'kernel_only_tica', 'tensor_tica', 'tensor_kernel_tica', 'tensor_kp_tica',
+        #             'tensor_ko_tica', 'tensor_comad_tica', 'tensor_comad_kernel_tica'])
+        model_params_list = ['tensor_tica', {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME]}]
+        tr.compare(model_params_list)
     elif run_option == 'compare_with_carbon_alpha_atoms':
         tr = DataTrajectory(**kwargs)
         tr.compare_with_carbon_alpha_and_all_atoms('pca')
