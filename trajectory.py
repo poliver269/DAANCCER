@@ -1,8 +1,12 @@
+import warnings
+from itertools import combinations
+from operator import itemgetter
 from pathlib import Path
 
 import mdtraj as md
 import numpy as np
 import pyemma.coordinates as coor
+from sklearn.metrics.pairwise import cosine_similarity
 
 from plotter import ArrayPlotter, TrajectoryPlotter, MultiTrajectoryPlotter
 from utils.algorithms.pca import MyPCA, TruncatedPCA, KernelFromCovPCA
@@ -41,7 +45,7 @@ class DataTrajectory(TrajectoryFile):
         try:
             print(f"Loading trajectory {filename}...")
             if str(self.filename).endswith('dcd'):
-                self.traj = md.load_dcd(self.filepath, top=self.topology_path, atom_indices=range(0, 710))
+                self.traj = md.load_dcd(self.filepath, top=self.topology_path)
             else:
                 self.traj = md.load(self.filepath, top=self.topology_path)
             self.dim = {TIME_FRAMES: self.traj.xyz.shape[0],
@@ -71,9 +75,9 @@ class DataTrajectory(TrajectoryFile):
             TRAJECTORY_NAME: params.get(TRAJECTORY_NAME, 'Not Found')
         }
 
-        self.x_coordinates = self.filter_coordinates_by_coordinates(0)
-        self.y_coordinates = self.filter_coordinates_by_coordinates(1)
-        self.z_coordinates = self.filter_coordinates_by_coordinates(2)
+        self.x_coordinates = self._filter_coordinates_by_coordinates(0)
+        self.y_coordinates = self._filter_coordinates_by_coordinates(1)
+        self.z_coordinates = self._filter_coordinates_by_coordinates(2)
         self.coordinate_mins = {X: self.x_coordinates.min(), Y: self.y_coordinates.min(), Z: self.z_coordinates.min()}
         self.coordinate_maxs = {X: self.x_coordinates.max(), Y: self.y_coordinates.max(), Z: self.z_coordinates.max()}
 
@@ -98,26 +102,26 @@ class DataTrajectory(TrajectoryFile):
 
     @property
     def alpha_carbon_coordinates(self):
-        return self.filter_coordinates_by_atom_index(self.carbon_alpha_indexes)
+        return self._filter_coordinates_by_atom_index(self.carbon_alpha_indexes)
 
     @property
     def basis_transformed_coordinates(self):
         np.random.seed(self.params[RANDOM_SEED])
         return basis_transform(self.traj.xyz, self.dim[COORDINATES])
 
-    def filter_coordinates_by_time_frames(self, element_list, ac_only=False):
+    def _filter_coordinates_by_time_frames(self, element_list, ac_only=False):
         coordinates_dict = self.alpha_carbon_coordinates if ac_only else self.atom_coordinates
         return coordinates_dict[element_list, :, :]
 
-    def filter_coordinates_by_atom_index(self, element_list, ac_only=False):
+    def _filter_coordinates_by_atom_index(self, element_list, ac_only=False):
         coordinates_dict = self.alpha_carbon_coordinates if ac_only else self.atom_coordinates
         return coordinates_dict[:, element_list, :]
 
-    def filter_coordinates_by_coordinates(self, element_list, ac_only=False):
+    def _filter_coordinates_by_coordinates(self, element_list, ac_only=False):
         coordinates_dict = self.alpha_carbon_coordinates if ac_only else self.atom_coordinates
         return coordinates_dict[:, :, element_list]
 
-    def get_model_and_projection_by_name(self, model_name, inp=None):
+    def get_model_and_projection_by_name(self, model_name: str, inp: np.ndarray = None):
         # TODO: deprecated
         if inp is None:
             inp = self._determine_input(model_name)
@@ -186,7 +190,7 @@ class DataTrajectory(TrajectoryFile):
         else:
             raise ValueError(f'Model with name \"{model_name}\" does not exists.')
 
-    def get_model_and_projection(self, model_parameters, inp=None):
+    def get_model_and_projection(self, model_parameters: dict, inp: np.ndarray = None):
         print(f'Running {model_parameters}...')
         if inp is None:
             inp = self._determine_input(model_parameters)
@@ -200,18 +204,18 @@ class DataTrajectory(TrajectoryFile):
             model = ParameterModel(model_parameters)
             return model, [model.fit_transform(inp, n_components=self.params[N_COMPONENTS])]
 
-    def compare(self, model_parameter_list):
+    def compare(self, model_parameter_list: list[dict]):
         model_results = []
         for model_parameters in model_parameter_list:
             try:
                 model_results.append(self.get_model_result(model_parameters))
             except np.linalg.LinAlgError as e:
-                print(f'Eigenvalue decomposition for model `{model_parameters}` couldn\'t be calculated:\n {e}')
+                warnings.warn(f'Eigenvalue decomposition for model `{model_parameters}` could not be calculated:\n {e}')
             except AssertionError as e:
-                print(f'{e}')
+                warnings.warn(f'{e}')
         self.compare_with_plot(model_results)
 
-    def get_model_result(self, model_parameters):
+    def get_model_result(self, model_parameters: [str, dict]) -> dict:
         if isinstance(model_parameters, str):
             model, projection = self.get_model_and_projection_by_name(model_parameters)
         else:
@@ -220,7 +224,7 @@ class DataTrajectory(TrajectoryFile):
         # TODO Add explained variance to the models, and if they don't have a parameter, than calculate here
         return {MODEL: model, PROJECTION: projection, EXPLAINED_VAR: f'\nExplained var: {ex_var}'}
 
-    def _determine_input(self, model_parameters):
+    def _determine_input(self, model_parameters: [str, dict]) -> np.ndarray:
         n_dim = MATRIX_NDIM if isinstance(model_parameters, str) else model_parameters['ndim']
         if self.params[USE_ANGLES]:
             if n_dim == MATRIX_NDIM:
@@ -284,7 +288,7 @@ class DataTrajectory(TrajectoryFile):
             if self.params[USE_ANGLES]:
                 input_list = [self.phi[DIHEDRAL_ANGEL_VALUES], self.psi[DIHEDRAL_ANGEL_VALUES]]
             else:
-                input_list = [self.filter_coordinates_by_coordinates(c, ac_only=self.params[CARBON_ATOMS_ONLY])
+                input_list = [self._filter_coordinates_by_coordinates(c, ac_only=self.params[CARBON_ATOMS_ONLY])
                               for c in range(len(self.dim))]
             print('Calculate correlation coefficient...')
             coefficient_mean = calculate_pearson_correlations(input_list, np.mean)
@@ -299,6 +303,7 @@ class DataTrajectory(TrajectoryFile):
         title_prefix = ('Angles' if self.params[USE_ANGLES] else 'Coordinates') + f'. Pearson Coefficient. {mode}'
         ArrayPlotter().matrix_plot(weighted_alpha_coeff_matrix,
                                    title_prefix=title_prefix,
+                                   xy_label='number of correlations',
                                    as_surface=self.params[PLOT_TYPE])
 
 
@@ -330,7 +335,7 @@ class TopologyConverter(TrajectoryFile):
 
 class MultiTrajectory:
     def __init__(self, kwargs_list, params):
-        self.trajectories = [DataTrajectory(**kwargs) for kwargs in kwargs_list]
+        self.trajectories: list[DataTrajectory] = [DataTrajectory(**kwargs) for kwargs in kwargs_list]
         self.params = params
 
     def compare_pcs(self, algorithms):
@@ -342,3 +347,48 @@ class MultiTrajectory:
             pcs = np.asarray(principal_components)
             MultiTrajectoryPlotter(interactive=False).plot_principal_components(algorithm, pcs,
                                                                                 self.params[N_COMPONENTS])
+
+    def compare_similarity_of_pcs(self, traj_nrs: [list[int], None], model_params_list: list[dict], pc_nr_list,
+                                  cosine_only=True):
+        if traj_nrs is None:  # take all the trajectories
+            trajectories = self.trajectories
+        else:
+            trajectories = list(itemgetter(*traj_nrs)(self.trajectories))
+
+        for model_params in model_params_list:
+            traj_results = []
+            for trajectory in trajectories:
+                res = trajectory.get_model_result(model_params)
+                res.update({'trajectory_name': trajectory.filename})
+                traj_results.append(res)
+            result_combs = list(combinations(traj_results, 2))
+
+            all_similarities = []
+            for combi in result_combs:
+                pc0 = combi[0]['model'].eigenvectors.T
+                pc1 = combi[1]['model'].eigenvectors.T
+                cos_matrix = cosine_similarity(pc0, pc1)
+                sorted_similarity_indexes = np.argmax(np.abs(cos_matrix), axis=1)
+                sorted_cos_matrix = cos_matrix[:, sorted_similarity_indexes]
+                sim_all_pcs = np.diag(sorted_cos_matrix)
+                similarity_value_all = np.mean(np.abs(sim_all_pcs))
+                sim_vals = {nr_of_pcs: np.mean(np.abs(sim_all_pcs[:nr_of_pcs])) if len(sim_all_pcs) > nr_of_pcs else -1
+                            for nr_of_pcs in pc_nr_list}
+                print(f'Similarity values: All: {similarity_value_all}, {sim_vals}')
+                if cosine_only:
+                    ArrayPlotter(interactive=False).matrix_plot(
+                        cos_matrix, title_prefix=f'{model_params}\n'
+                                                 f'{combi[0]["trajectory_name"]} & {combi[1]["trajectory_name"]}\n'
+                                                 f'PC Similarity',
+                        xy_label='Principal Component Number')
+                else:
+                    all_similarities.append(list(sim_vals.values()))
+
+            if not cosine_only:
+                all_sim_matrix = np.asarray(all_similarities)
+                for i in range(all_sim_matrix.shape[1]):
+                    tria = np.zeros((len(trajectories), len(trajectories)))
+                    tria[np.triu_indices(len(trajectories), 1)] = all_sim_matrix[:, i]
+                    ArrayPlotter(interactive=False).matrix_plot(
+                        tria, title_prefix=f'Trajectory Similarities for {pc_nr_list[i]}-Components',
+                        xy_label='Trajectory number')

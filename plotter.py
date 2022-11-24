@@ -6,6 +6,7 @@ from matplotlib.widgets import Slider
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.metrics.pairwise import cosine_similarity
 
+from utils import function_name
 from utils.param_key import *
 
 
@@ -171,7 +172,7 @@ class TrajectoryPlotter(MyPlotter):
         """
         ax.cla()
         ax.set_title(projection.get(TITLE_PREFIX, '') + str(projection[MODEL]) + projection.get(EXPLAINED_VAR, ''),
-                     fontsize=10)
+                     fontsize=10, wrap=True)
         ax.set_xlabel('1st component')
         ax.set_ylabel('2nd component')
         data_list = projection[PROJECTION]
@@ -264,12 +265,16 @@ class MultiTrajectoryPlotter(MyPlotter):
 
 
 class ArrayPlotter(MyPlotter):
-    def matrix_plot(self, matrix, title_prefix='', as_surface=''):
+    def matrix_plot(self, matrix, title_prefix='', xy_label='', as_surface=''):
         """
         Plots the values of a matrix on a 2d or a 3d axes
-        :param matrix: ndarray matrix, which should be plotted
+        :param matrix: ndarray (2-ndim)
+            matrix, which should be plotted
         :param title_prefix: str
-        :param as_surface: Plot as a 3d-surface if value PLOT_3D_MAP else 2d-axes
+        :param xy_label: str
+            The description on the x and y label
+        :param as_surface: str
+            Plot as a 3d-surface if value PLOT_3D_MAP else 2d-axes
         """
         c_map = plt.cm.viridis
         if as_surface == PLOT_3D_MAP:
@@ -283,29 +288,38 @@ class ArrayPlotter(MyPlotter):
             self.fig, self.axes = plt.subplots(1, 1)
             im = self.axes.matshow(matrix, cmap=c_map)
         self.fig.colorbar(im, ax=self.axes)
-        self.axes.set_xlabel('number of correlations')
-        self.axes.set_ylabel('number of correlations')
-        self.axes.set_title(title_prefix + ' Matrix')
+        self.axes.set_xlabel(xy_label)
+        self.axes.set_ylabel(xy_label)
+        self.axes.set_title(title_prefix + ' Matrix', fontsize=10)
+        # print(f'{title_prefix}: {matrix}')
+        self.fig.tight_layout()
         plt.show()
 
-    def plot_gauss2d(self, xdata, ydata, new_ydata, gauss_fitted, fit_method, title_prefix='',
-                     statistical_function=np.median):
+    def plot_gauss2d(self, xdata: np.ndarray, ydata: np.ndarray, new_ydata: np.ndarray, gauss_fitted: np.ndarray,
+                     fit_method: str, title_prefix: str = '', statistical_function: callable = np.median):
         """
         Plot the data (ydata) in a range (xdata), the (fitted) gauss curve and a line (mean, median)
-        :param xdata: range of plotting
-        :param ydata:
-        :param new_ydata:
-        :param gauss_fitted: A curve
-        :param fit_method:
-        :param title_prefix:
-        :param statistical_function:
+        :param xdata: ndarray (1-ndim)
+            range of plotting
+        :param ydata: ndarray (1-ndim)
+            original data
+        :param new_ydata: ndarray (1-ndim)
+            the changed new data
+        :param gauss_fitted: ndarray (1-ndim)
+            the fitted curve on the new data
+        :param fit_method: str
+            the name of the fitting method
+        :param title_prefix: str
+            title of the plot
+        :param statistical_function: callable
+            Some statistical numpy function
         :return:
         """
         self.fig, self.axes = plt.subplots(1, 1)
         self.axes.plot(xdata, gauss_fitted, '-', label=f'fit {fit_method}')
         self.axes.plot(xdata, ydata, '.', label='original data')
         statistical_value = np.full(xdata.shape, statistical_function(ydata))
-        function_label = str(statistical_function).split()[1]
+        function_label = function_name(statistical_function)
         self.axes.plot(xdata, statistical_value, '-', label=function_label)
         self.axes.plot(xdata, new_ydata, '.', label='interpolated data')
         self.axes.set_xlabel('matrix diagonal indexes')

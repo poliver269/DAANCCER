@@ -1,5 +1,6 @@
 import scipy
 
+from utils import function_name
 from utils.algorithms import MyModel
 from utils.math import is_matrix_symmetric
 from utils.matrix_tools import diagonal_block_expand, co_mad, calculate_symmetrical_kernel_from_matrix
@@ -58,16 +59,17 @@ class ParameterModel(TensorDR):
             ALGORITHM_NAME: model_parameters.get(ALGORITHM_NAME, 'pca'),  # pc, tica
             NDIM: model_parameters.get(NDIM, 3),  # 3: tensor, 2: matrix  # TODO implement for 2-ndim
             KERNEL: model_parameters.get(KERNEL, None),  # diff, multi, only, None
-            KERNEL_TYPE: model_parameters.get(KERNEL_TYPE, 'my_gaussian'),
-            # my_gaussian, my_exponential, my_epanechnikov
+            KERNEL_TYPE: model_parameters.get(KERNEL_TYPE, MY_GAUSSIAN),
             COV_FUNCTION: model_parameters.get(COV_FUNCTION, np.cov),  # np.cov, np.corrcoef, co_mad
-            # covariance, pearson_correlation, comMAD
             PLOT_2D_GAUSS: model_parameters.get(PLOT_2D_GAUSS, False),
             LAG_TIME: model_parameters.get(LAG_TIME, 0)
         })
 
     def __str__(self):
-        return f'{super().__str__()}{self.params.items()}'
+        return (f'{"Tensor" if self.params[NDIM] == 3 else "Matrix"}-{self.params[ALGORITHM_NAME]}, '
+                f'{self.params[KERNEL_TYPE] if self.params[KERNEL] is not None else ""}'
+                f'{self.params[LAG_TIME] if self.params[LAG_TIME] > 0 else ""}'
+                f'{function_name(self.params[COV_FUNCTION])}')
 
     def fit_transform(self, data_tensor, n_components=2):
         return super().fit_transform(data_tensor, n_components)
@@ -86,12 +88,12 @@ class ParameterModel(TensorDR):
         return diagonal_block_expand(cov, tensor_cov.shape[0])
 
     def _get_tensor_covariance(self):
-        if self.params[LAG_TIME] <= 0:
+        if self.params[ALGORITHM_NAME] in ['pca'] or self.params[LAG_TIME] <= 0:
             return np.asarray(list(
                 map(lambda index: self.params[COV_FUNCTION](self._standardized_data[:, :, index].T),
                     range(self._standardized_data.shape[2]))
             ))
-        else:
+        else:  # 'tica'
             return np.asarray(list(
                 map(lambda index: self.params[COV_FUNCTION](
                     self._standardized_data[:-self.params[LAG_TIME], :, index].T),
@@ -112,7 +114,7 @@ class ParameterModel(TensorDR):
 
     def get_eigenvectors(self):
         # calculate eigenvalues & eigenvectors of covariance matrix
-        assert is_matrix_symmetric(self._covariance_matrix), 'Covariance-Matrix should be symmetric.'
+        # assert is_matrix_symmetric(self._covariance_matrix), 'Covariance-Matrix should be symmetric.'
         if self.params[ALGORITHM_NAME] in ['tica']:
             correlation_matrix = self._get_correlations_matrix()
             assert is_matrix_symmetric(correlation_matrix), 'Correlation-Matrix should be symmetric.'

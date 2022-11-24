@@ -9,7 +9,7 @@ from utils.param_key import *
 def main():
     print(f'Starting time: {datetime.now()}')
     # TODO: Argsparser for options
-    run_option = 'compare'
+    run_option = 'multi_2_pcs'
     trajectory_name = '2f4k'
     file_element = 0
     params = {
@@ -26,7 +26,7 @@ def main():
         TRAJECTORY_NAME: trajectory_name
     }
     if trajectory_name == '2f4k':
-        filename_list = ['tr3_unfolded.xtc', 'tr8_folded.xtc']
+        filename_list = ['tr3_unfolded.xtc', 'tr8_folded.xtc'] + [f'2F4K-0-protein-{i:03d}.dcd' for i in range(0, 6)]
         kwargs = {'filename': filename_list[file_element], 'topology_filename': '2f4k.pdb', 'folder_path': 'data/2f4k',
                   'params': params}
     elif trajectory_name == 'prot2':
@@ -64,7 +64,13 @@ def main():
         tr = DataTrajectory(**kwargs)
         # tr.compare(['tica', 'mytica', 'kernel_only_tica', 'tensor_tica', 'tensor_kernel_tica', 'tensor_kp_tica',
         #             'tensor_ko_tica', 'tensor_comad_tica', 'tensor_comad_kernel_tica'])
-        model_params_list = ['tensor_tica', {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME]}]
+        model_params_list = [
+            {ALGORITHM_NAME: 'pca', NDIM: 3},
+            {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME]},
+            {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_MULTIPLICATION,
+             KERNEL_TYPE: MY_LINEAR},
+            {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_LINEAR},
+        ]
         tr.compare(model_params_list)
     elif run_option == 'compare_with_carbon_alpha_atoms':
         tr = DataTrajectory(**kwargs)
@@ -75,14 +81,33 @@ def main():
     elif run_option == 'calculate_pcc':
         tr = DataTrajectory(**kwargs)
         tr.calculate_pearson_correlation_coefficient()
-    elif run_option == 'multi_trajectory':
+    elif run_option.startswith('multi'):
         kwargs_list = [kwargs]
         for filename in filename_list:
             new_kwargs = kwargs.copy()
             new_kwargs['filename'] = filename
             kwargs_list.append(new_kwargs)
-        mtr = MultiTrajectory(kwargs_list, params)
-        mtr.compare_pcs(['tensor_ko_pca', 'tensor_ko_tica'])
+        if run_option == 'multi_trajectory':
+            mtr = MultiTrajectory(kwargs_list, params)
+            mtr.compare_pcs(['tensor_ko_pca', 'tensor_ko_tica'])
+        elif run_option == 'multi_2_pcs':
+            mtr = MultiTrajectory(kwargs_list, params)
+            model_params_list = [
+                # {ALGORITHM_NAME: 'original_pca', NDIM: 2},
+                # {ALGORITHM_NAME: 'pca', NDIM: 3},
+                {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_GAUSSIAN},
+                # {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_LINEAR},
+                # {ALGORITHM_NAME: 'original_tica', NDIM: 2, LAG_TIME: params[LAG_TIME]},
+                # {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME]},
+                # {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME],
+                #  KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_GAUSSIAN}
+            ]
+            # mtr.compare_similarity_of_pcs(traj_nrs=None, model_params_list=model_params_list,
+            # pc_nr_list=[2, 9, 30], cosine_only=False)
+            mtr.compare_similarity_of_pcs(traj_nrs=[0, 1], model_params_list=model_params_list,
+                                          pc_nr_list=[2, 9, 30], cosine_only=True)
+
+            pass
 
     print(f'Finishing time: {datetime.now()}')
 

@@ -54,6 +54,7 @@ EXPONENTIAL = 'exponential'
 MY_GAUSSIAN = 'my_gaussian'
 MY_EPANECHNIKOV = 'my_epanechnikov'
 MY_EXPONENTIAL = 'my_exponential'
+MY_LINEAR = 'my_linear'
 
 # Kernel Mappings:
 KERNEL_ONLY = 'only'

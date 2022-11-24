@@ -6,7 +6,7 @@ from sklearn.neighbors import KernelDensity
 from plotter import ArrayPlotter
 from utils.array_tools import interpolate_array, interpolate_center
 from utils.math import is_matrix_symmetric, exponential_2d, epanechnikov_2d, gaussian_2d
-from utils.param_key import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL
+from utils.param_key import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL, MY_LINEAR
 
 
 def diagonal_indices(matrix: np.ndarray):
@@ -120,7 +120,7 @@ def calculate_symmetrical_kernel_from_matrix(matrix: np.ndarray, stat_func: call
     :param stat_func: Numpy statistical function: np.median (default), np.mean, np.min, ... (See link below)
         https://www.tutorialspoint.com/numpy/numpy_statistical_functions.htm
     :param kernel_name: str
-        (my_)gaussian, (my_)exponential, (my_)epanechnikov
+        (my_)gaussian, (my_)exponential, (my_)epanechnikov, (my_)linear
     :param trajectory_name: str
         If the name of the trajectory is given than a plot of the gauss curve will be plotted with the given
     :param flattened: bool
@@ -137,7 +137,6 @@ def calculate_symmetrical_kernel_from_matrix(matrix: np.ndarray, stat_func: call
         interpolated_ydata = interpolate_array(original_ydata, stat_func)
     else:
         interpolated_ydata = interpolate_center(original_ydata, stat_func)
-
     kernel_funcs = {MY_EXPONENTIAL: exponential_2d, MY_EPANECHNIKOV: epanechnikov_2d, MY_GAUSSIAN: gaussian_2d}
     if kernel_name in kernel_funcs.keys():
         if kernel_name == MY_EPANECHNIKOV:
@@ -151,6 +150,8 @@ def calculate_symmetrical_kernel_from_matrix(matrix: np.ndarray, stat_func: call
         else:
             fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata, interpolated_ydata)
             fit_y = kernel_funcs[kernel_name](xdata, *fit_parameters)
+    elif kernel_name == MY_LINEAR:
+        fit_y = np.abs(xdata)
     else:  # Try to use an implemented kernel from sklearn
         xdata = xdata[:, np.newaxis]
         interpolated_ydata = interpolated_ydata[:, np.newaxis]
