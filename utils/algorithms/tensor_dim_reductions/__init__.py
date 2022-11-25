@@ -1,11 +1,9 @@
+import numpy as np
 import scipy
 
-from utils import function_name
 from utils.algorithms import MyModel
 from utils.math import is_matrix_symmetric
-from utils.matrix_tools import diagonal_block_expand, co_mad, calculate_symmetrical_kernel_from_matrix
-import numpy as np
-
+from utils.matrix_tools import diagonal_block_expand, calculate_symmetrical_kernel_from_matrix
 from utils.param_key import *
 
 
@@ -57,19 +55,21 @@ class ParameterModel(TensorDR):
         super().__init__(model_parameters)
         self.params.update({
             ALGORITHM_NAME: model_parameters.get(ALGORITHM_NAME, 'pca'),  # pc, tica
-            NDIM: model_parameters.get(NDIM, 3),  # 3: tensor, 2: matrix  # TODO implement for 2-ndim
+            NDIM: model_parameters.get(NDIM, TENSOR_NDIM),  # 3: tensor, 2: matrix  # TODO implement for 2-ndim
             KERNEL: model_parameters.get(KERNEL, None),  # diff, multi, only, None
             KERNEL_TYPE: model_parameters.get(KERNEL_TYPE, MY_GAUSSIAN),
             COV_FUNCTION: model_parameters.get(COV_FUNCTION, np.cov),  # np.cov, np.corrcoef, co_mad
             PLOT_2D_GAUSS: model_parameters.get(PLOT_2D_GAUSS, False),
-            LAG_TIME: model_parameters.get(LAG_TIME, 0)
+            LAG_TIME: model_parameters.get(LAG_TIME, 0),
+            USE_STD: model_parameters.get(USE_STD, False),
+            CENTER_OVER_TIME: model_parameters.get(CENTER_OVER_TIME, True)
         })
 
     def __str__(self):
-        return (f'{"Tensor" if self.params[NDIM] == 3 else "Matrix"}-{self.params[ALGORITHM_NAME]}, '
-                f'{self.params[KERNEL_TYPE] if self.params[KERNEL] is not None else ""}'
-                f'{self.params[LAG_TIME] if self.params[LAG_TIME] > 0 else ""}'
-                f'{function_name(self.params[COV_FUNCTION])}')
+        return (f'{"Tensor" if self.params[NDIM] == 3 else "Matrix"}-{self.params[ALGORITHM_NAME]}'
+                f'{f", {self.params[KERNEL_TYPE]}-{self.params[KERNEL]}" if self.params[KERNEL] is not None else ""}'
+                f'{f", lag-time={self.params[LAG_TIME]}" if self.params[LAG_TIME] > 0 else ""}')
+        # f'{function_name(self.params[COV_FUNCTION])}'
 
     def fit_transform(self, data_tensor, n_components=2):
         return super().fit_transform(data_tensor, n_components)
@@ -79,6 +79,18 @@ class ParameterModel(TensorDR):
         self._standardized_data = self._standardize_data(data_tensor)
         self._covariance_matrix = self.get_covariance_matrix()
         self.eigenvectors = self.get_eigenvectors()
+
+    def _standardize_data(self, tensor):
+        if self.params[CENTER_OVER_TIME]:
+            numerator = tensor - np.mean(tensor, axis=1)[:, np.newaxis, :]
+        else:
+            numerator = tensor - np.mean(tensor, axis=0)
+
+        if self.params[USE_STD]:
+            denominator = np.std(tensor, axis=0)
+            return numerator / denominator
+        else:
+            return numerator
 
     def get_covariance_matrix(self):
         tensor_cov = self._get_tensor_covariance()

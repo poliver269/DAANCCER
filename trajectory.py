@@ -359,28 +359,32 @@ class MultiTrajectory:
             traj_results = []
             for trajectory in trajectories:
                 res = trajectory.get_model_result(model_params)
-                res.update({'trajectory_name': trajectory.filename})
+                res.update({'traj': trajectory})
                 traj_results.append(res)
             result_combs = list(combinations(traj_results, 2))
 
             all_similarities = []
             for combi in result_combs:
-                pc0 = combi[0]['model'].eigenvectors.T
-                pc1 = combi[1]['model'].eigenvectors.T
-                cos_matrix = cosine_similarity(pc0, pc1)
+                pc_0_matrix = combi[0]['model'].eigenvectors.T
+                pc_1_matrix = combi[1]['model'].eigenvectors.T
+                cos_matrix = cosine_similarity(pc_0_matrix, pc_1_matrix)
                 sorted_similarity_indexes = np.argmax(np.abs(cos_matrix), axis=1)
                 sorted_cos_matrix = cos_matrix[:, sorted_similarity_indexes]
                 sim_all_pcs = np.diag(sorted_cos_matrix)
                 similarity_value_all = np.mean(np.abs(sim_all_pcs))
                 sim_vals = {nr_of_pcs: np.mean(np.abs(sim_all_pcs[:nr_of_pcs])) if len(sim_all_pcs) > nr_of_pcs else -1
                             for nr_of_pcs in pc_nr_list}
-                print(f'Similarity values: All: {similarity_value_all}, {sim_vals}')
                 if cosine_only:
+                    sim_text = f'Similarity values: All: {similarity_value_all},\n{sim_vals}'
+                    print(sim_text)
                     ArrayPlotter(interactive=False).matrix_plot(
-                        cos_matrix, title_prefix=f'{model_params}\n'
-                                                 f'{combi[0]["trajectory_name"]} & {combi[1]["trajectory_name"]}\n'
-                                                 f'PC Similarity',
-                        xy_label='Principal Component Number')
+                        cos_matrix,
+                        title_prefix=f'{model_params}\n'
+                                     f'{combi[0]["traj"].filename} & {combi[1]["traj"].filename}\n'
+                                     f'PC Similarity',
+                        bottom_text=sim_text,
+                        xy_label='Principal Component Number'
+                    )
                 else:
                     all_similarities.append(list(sim_vals.values()))
 
@@ -388,7 +392,14 @@ class MultiTrajectory:
                 all_sim_matrix = np.asarray(all_similarities)
                 for i in range(all_sim_matrix.shape[1]):
                     tria = np.zeros((len(trajectories), len(trajectories)))
+                    sim_text = f'Similarity of all {np.mean(all_sim_matrix[:, i])}'
+                    print(sim_text)
                     tria[np.triu_indices(len(trajectories), 1)] = all_sim_matrix[:, i]
+                    tria = tria + tria.T
                     ArrayPlotter(interactive=False).matrix_plot(
-                        tria, title_prefix=f'Trajectory Similarities for {pc_nr_list[i]}-Components',
-                        xy_label='Trajectory number')
+                        tria,
+                        title_prefix=f'{self.params[TRAJECTORY_NAME]}\n{model_params}\n'
+                                     f'Trajectory Similarities for {pc_nr_list[i]}-Components',
+                        bottom_text=sim_text,
+                        xy_label='Trajectory number'
+                    )

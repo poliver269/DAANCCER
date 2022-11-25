@@ -86,7 +86,9 @@ class TrajectoryPlotter(MyPlotter):
                 data_tensor = self.data_trajectory.traj.xyz
 
             if self.data_trajectory.params[STANDARDIZED_PLOT]:
-                numerator = data_tensor - np.mean(data_tensor, axis=1)[:, np.newaxis, :]
+                # numerator = data_tensor - np.mean(data_tensor, axis=0)[np.newaxis, :, :]  # PCA - center by atoms
+                numerator = data_tensor - np.mean(data_tensor, axis=1)[:, np.newaxis, :]  # correct: center over time
+                # numerator = data_tensor - np.mean(data_tensor, axis=2)[:, :, np.newaxis]  # Raumdiagonale gleich
                 denominator = np.std(data_tensor, axis=0)
                 data_tensor = numerator / denominator
                 coordinate_mins = {X: data_tensor[:, :, 0].min(), Y: data_tensor[:, :, 1].min(),
@@ -180,7 +182,7 @@ class TrajectoryPlotter(MyPlotter):
             if color_map == COLOR_MAP:
                 color_array = np.arange(data_list[element].shape[0])
                 c_map = plt.cm.viridis
-                im = ax.scatter(data_list[element][:, 0][::-1], data_list[element][:, 1][::-1], c=color_array,
+                im = ax.scatter(data_list[element][:, 0], data_list[element][:, 1], c=color_array,
                                 cmap=c_map, marker='.')
                 if index == 0:
                     self.fig.colorbar(im, ax=ax)
@@ -265,7 +267,7 @@ class MultiTrajectoryPlotter(MyPlotter):
 
 
 class ArrayPlotter(MyPlotter):
-    def matrix_plot(self, matrix, title_prefix='', xy_label='', as_surface=''):
+    def matrix_plot(self, matrix, title_prefix='', xy_label='', as_surface='2d', bottom_text=None):
         """
         Plots the values of a matrix on a 2d or a 3d axes
         :param matrix: ndarray (2-ndim)
@@ -275,6 +277,8 @@ class ArrayPlotter(MyPlotter):
             The description on the x and y label
         :param as_surface: str
             Plot as a 3d-surface if value PLOT_3D_MAP else 2d-axes
+        :param bottom_text: str
+            Text to plot on the bottom of the figure
         """
         c_map = plt.cm.viridis
         if as_surface == PLOT_3D_MAP:
@@ -292,7 +296,12 @@ class ArrayPlotter(MyPlotter):
         self.axes.set_ylabel(xy_label)
         self.axes.set_title(title_prefix + ' Matrix', fontsize=10)
         # print(f'{title_prefix}: {matrix}')
-        self.fig.tight_layout()
+        if bottom_text is not None:
+            self.fig.text(0.01, 0.01, bottom_text, fontsize=10)
+            self.fig.tight_layout()
+            self.fig.subplots_adjust(bottom=(bottom_text.count('\n') + 1) * 0.1)
+        else:
+            self.fig.tight_layout()
         plt.show()
 
     def plot_gauss2d(self, xdata: np.ndarray, ydata: np.ndarray, new_ydata: np.ndarray, gauss_fitted: np.ndarray,

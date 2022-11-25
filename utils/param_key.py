@@ -46,6 +46,8 @@ NDIM = 'ndim'
 KERNEL = 'kernel'
 KERNEL_TYPE = 'kernel_type'
 COV_FUNCTION = 'cov_function'
+USE_STD = 'use_std'
+CENTER_OVER_TIME = 'center_over_time'
 
 # Kernel functions
 GAUSSIAN = 'gaussian'
