@@ -57,6 +57,7 @@ class ParameterModel(TensorDR):
             ALGORITHM_NAME: model_parameters.get(ALGORITHM_NAME, 'pca'),  # pc, tica
             NDIM: model_parameters.get(NDIM, TENSOR_NDIM),  # 3: tensor, 2: matrix  # TODO implement for 2-ndim
             KERNEL: model_parameters.get(KERNEL, None),  # diff, multi, only, None
+            CORR_KERNEL: model_parameters.get(CORR_KERNEL, None),  # diff, multi, only, None
             KERNEL_TYPE: model_parameters.get(KERNEL_TYPE, MY_GAUSSIAN),
             COV_FUNCTION: model_parameters.get(COV_FUNCTION, np.cov),  # np.cov, np.corrcoef, co_mad
             PLOT_2D_GAUSS: model_parameters.get(PLOT_2D_GAUSS, False),
@@ -129,19 +130,19 @@ class ParameterModel(TensorDR):
         # assert is_matrix_symmetric(self._covariance_matrix), 'Covariance-Matrix should be symmetric.'
         if self.params[ALGORITHM_NAME] in ['tica']:
             correlation_matrix = self._get_correlations_matrix()
-            assert is_matrix_symmetric(correlation_matrix), 'Correlation-Matrix should be symmetric.'
-            eigenvalues, eigenvectors = scipy.linalg.eigh(correlation_matrix, b=self._covariance_matrix)
+            # assert is_matrix_symmetric(correlation_matrix), 'Correlation-Matrix should be symmetric.'
+            eigenvalues, eigenvectors = scipy.linalg.eig(correlation_matrix, b=self._covariance_matrix)
         else:
             eigenvalues, eigenvectors = np.linalg.eigh(self._covariance_matrix)
 
         # sort eigenvalues descending
         sorted_eigenvalue_indexes = np.argsort(eigenvalues)[::-1]
-        self.eigenvalues = eigenvalues[sorted_eigenvalue_indexes]
-        return eigenvectors[:, sorted_eigenvalue_indexes]
+        self.eigenvalues = np.real_if_close(eigenvalues[sorted_eigenvalue_indexes])
+        return np.real_if_close(eigenvectors[:, sorted_eigenvalue_indexes])
 
     def _get_correlations_matrix(self):
         if self.params[LAG_TIME] <= 0:
-            corr = self._get_tensor_covariance()
+            tensor_corr = self._get_tensor_covariance()
         else:
             temp_list = []
             for index in range(self._standardized_data.shape[2]):
@@ -150,9 +151,11 @@ class ParameterModel(TensorDR):
                                 self.n_samples - self.params[LAG_TIME])
                 sym_i = 0.5 * (dot_i + dot_i.T)
                 temp_list.append(sym_i)
-            corr = np.asarray(temp_list)
-        stat_corr = self.params[COV_STAT_FUNC](corr, axis=0)
-        return diagonal_block_expand(stat_corr, corr.shape[0])
+            tensor_corr = np.asarray(temp_list)
+        corr = self.params[COV_STAT_FUNC](tensor_corr, axis=0)
+        if self.params[CORR_KERNEL] is not None:
+            corr = self._map_kernel(corr)
+        return diagonal_block_expand(corr, tensor_corr.shape[0])
 
     def transform(self, data_tensor, n_components):
         return super().transform(data_tensor, n_components)

@@ -90,7 +90,7 @@ class TrajectoryPlotter(MyPlotter):
                 numerator = data_tensor - np.mean(data_tensor, axis=1)[:, np.newaxis, :]  # correct: center over time
                 # numerator = data_tensor - np.mean(data_tensor, axis=2)[:, :, np.newaxis]  # Raumdiagonale gleich
                 denominator = np.std(data_tensor, axis=0)
-                data_tensor = numerator / denominator
+                data_tensor = numerator  # / denominator
                 coordinate_mins = {X: data_tensor[:, :, 0].min(), Y: data_tensor[:, :, 1].min(),
                                    Z: data_tensor[:, :, 2].min()}
                 coordinate_maxs = {X: data_tensor[:, :, 0].max(), Y: data_tensor[:, :, 1].max(),
@@ -336,4 +336,12 @@ class ArrayPlotter(MyPlotter):
         self.axes.legend()
         self.axes.set_title(title_prefix)
         # self.axes.set_ylim(-1, 1)
+        plt.show()
+
+    def plot_2d(self, ndarray_data, title_prefix, xlabel='', ylabel=''):
+        self.fig, self.axes = plt.subplots(1, 1)
+        self.axes.plot(ndarray_data, '-')
+        self.axes.set_xlabel(xlabel)
+        self.axes.set_ylabel(ylabel)
+        self.axes.set_title(title_prefix)
         plt.show()
