@@ -1,6 +1,7 @@
 import numpy as np
 import scipy
 
+from plotter import ArrayPlotter
 from utils.algorithms import MyModel
 from utils.math import is_matrix_symmetric
 from utils.matrix_tools import diagonal_block_expand, calculate_symmetrical_kernel_from_matrix

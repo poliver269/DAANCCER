@@ -205,7 +205,7 @@ class DataTrajectory(TrajectoryFile):
             model = ParameterModel(model_parameters)
             return model, [model.fit_transform(inp, n_components=self.params[N_COMPONENTS])]
 
-    def compare(self, model_parameter_list: list[dict]):
+    def compare(self, model_parameter_list: list[str, dict]):
         model_results = []
         for model_parameters in model_parameter_list:
             try:

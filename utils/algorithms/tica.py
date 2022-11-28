@@ -1,6 +1,7 @@
 import numpy as np
 import scipy
 
+from plotter import ArrayPlotter
 from utils.algorithms import MyModel
 from utils.matrix_tools import calculate_symmetrical_kernel_from_matrix
 
@@ -85,4 +86,8 @@ class TruncatedTICA(MyTICA):
 class KernelFromCovTICA(MyTICA):
     def get_covariance_matrix(self):
         super_cov = super().get_covariance_matrix()
-        return calculate_symmetrical_kernel_from_matrix(super_cov, flattened=True)
+        ArrayPlotter(False).matrix_plot(super_cov)
+        stat_cov = calculate_symmetrical_kernel_from_matrix(super_cov, flattened=True, trajectory_name='kernel diff')
+        ArrayPlotter(False).matrix_plot(super_cov - stat_cov)
+        return stat_cov
+
