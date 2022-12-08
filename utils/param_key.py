@@ -1,9 +1,12 @@
-# Dimensions
+# Trajectory Dimensions
 TIME_FRAMES = 'time_frames'
+TIME_DIM = 0
 ATOMS = 'atoms'
+ATOM_DIM = 1
 COORDINATES = 'coordinates'
+COORDINATE_DIM = 2
 
-# Params
+# Trajectory Params
 PLOT_TYPE = 'plot_type'
 PLOT_TICS = 'plot_tics'
 STANDARDIZED_PLOT = 'standardized_plot'
@@ -27,7 +30,7 @@ EXPLAINED_VAR = 'explained_variance'
 HEAT_MAP = 'heat_map'
 COLOR_MAP = 'color_map'
 PLOT_3D_MAP = '3d_map'
-PLOT_2D_GAUSS = 'plot_2d_gauss'
+PLOT_2D = 'plot_2d'
 
 # Coordinates
 X = 'x'
@@ -49,6 +52,8 @@ KERNEL_TYPE = 'kernel_type'
 COV_FUNCTION = 'cov_function'
 USE_STD = 'use_std'
 CENTER_OVER_TIME = 'center_over_time'
+NTH_EIGENVECTOR = 'nth_eigenvector'
+ONES_ON_KERNEL_DIAG = 'ones_on_kernel_diagonal'
 
 # Kernel functions
 GAUSSIAN = 'gaussian'

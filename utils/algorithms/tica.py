@@ -66,7 +66,7 @@ class TruncatedTICA(MyTICA):
 
     def get_correlation_matrix(self):
         if self.truncation_value <= 0:
-            return super().get_covariance_matrix()
+            return super().get_correlation_matrix()
         else:
             if self.lag_time <= 0:
                 cov = np.dot(self._standardized_data[:, :-self.truncation_value].T,

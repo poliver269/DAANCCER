@@ -48,6 +48,7 @@ class DataTrajectory(TrajectoryFile):
                 self.traj = md.load_dcd(self.filepath, top=self.topology_path)
             else:
                 self.traj = md.load(self.filepath, top=self.topology_path)
+            self.traj = self.traj.superpose(self.traj).center_coordinates(mass_weighted=True)
             self.dim = {TIME_FRAMES: self.traj.xyz.shape[0],
                         ATOMS: self.traj.xyz.shape[1],
                         COORDINATES: self.traj.xyz.shape[2]}
@@ -205,7 +206,7 @@ class DataTrajectory(TrajectoryFile):
             model = ParameterModel(model_parameters)
             return model, [model.fit_transform(inp, n_components=self.params[N_COMPONENTS])]
 
-    def compare(self, model_parameter_list: list[str, dict]):
+    def compare(self, model_parameter_list: list[dict, str]):
         model_results = []
         for model_parameters in model_parameter_list:
             try:
@@ -404,7 +405,15 @@ class MultiTrajectory:
             result_combos = self.get_trajectory_combos(trajectories, model_params)
             all_sim_matrix = self.get_all_similarities_from_combos(result_combos)
 
-            if pc_nr_list is not None:
+            if pc_nr_list is None:
+                ArrayPlotter(interactive=False).plot_2d(
+                    np.mean(all_sim_matrix, axis=0),
+                    title_prefix=f'{self.params[TRAJECTORY_NAME]}\n{model_params}\n'
+                                 'Similarity value of all trajectories',
+                    xlabel='Principal component number',
+                    ylabel='Similarity value',
+                )
+            else:
                 for pc_index in pc_nr_list:
                     tria = np.zeros((len(trajectories), len(trajectories)))
                     sim_text = f'Similarity of all {np.mean(all_sim_matrix[:, pc_index])}'
@@ -418,14 +427,6 @@ class MultiTrajectory:
                         bottom_text=sim_text,
                         xy_label='Trajectory number'
                     )
-            else:
-                ArrayPlotter(interactive=False).plot_2d(
-                    np.mean(all_sim_matrix, axis=0),
-                    title_prefix=f'{self.params[TRAJECTORY_NAME]}\n{model_params}\n'
-                                 'Similarity value of all trajectories',
-                    xlabel='Principal component number',
-                    ylabel='Similarity value',
-                )
 
     def compare_trajectory_combos(self, traj_nrs, model_params_list, pc_nr_list):
         trajectories = self.get_trajectories_by_index(traj_nrs)

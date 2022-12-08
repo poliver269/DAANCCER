@@ -1,9 +1,11 @@
 name: villum_project
 channels:
   - conda-forge
+  - bioconda
 dependencies:
   - python=3.9
   - mdtraj
   - sklearn
   - pyemma
   - mdanalysis
+  - gromacs_py

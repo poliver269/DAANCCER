@@ -13,6 +13,7 @@ PLOT_WITH_SLIDER = 'plot_with_slider'
 COMPARE_WITH_CA_ATOMS = 'compare_with_carbon_alpha_atoms'
 BASE_TRANSFORMATION = 'base_transformation'
 CALCULATE_PEARSON_CORRELATION_COEFFICIENT = 'calculate_pcc'
+GROMACS_PRODUCTION = 'gromacs_production'
 
 
 def main():
@@ -24,7 +25,7 @@ def main():
     params = {
         PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map'
         PLOT_TICS: True,  # True, False
-        STANDARDIZED_PLOT: True,
+        STANDARDIZED_PLOT: False,   # True, False
         CARBON_ATOMS_ONLY: True,  # True, False
         INTERACTIVE: True,  # True, False
         N_COMPONENTS: 2,
@@ -77,15 +78,20 @@ def main():
         #             'tensor_ko_tica', 'tensor_comad_tica', 'tensor_comad_kernel_tica'])
         model_params_list = [
             # {ALGORITHM_NAME: 'original_pca', NDIM: 2},
-            'kernel_only_tica',
+            # 'kernel_only_pca',
             # {ALGORITHM_NAME: 'pca', NDIM: 3},
             # {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_GAUSSIAN},
             # {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_GAUSSIAN},
-            # {ALGORITHM_NAME: 'original_tica', NDIM: 2, LAG_TIME: params[LAG_TIME]},
-            # {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME], PLOT_2D_GAUSS: True},
+            {ALGORITHM_NAME: 'original_tica', NDIM: 2, LAG_TIME: params[LAG_TIME]},
+            {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME]},
+            # {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_DIFFERENCE},
+            # {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_DIFFERENCE,
+            #  CORR_KERNEL: True},
             # {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_ONLY},
-            # {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_ONLY},
-            # {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_LINEAR},
+            # {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_MULTIPLICATION,
+            #  KERNEL_TYPE: MY_LINEAR},
+            # {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_MULTIPLICATION,
+            #  CORR_KERNEL: True, KERNEL_TYPE: MY_LINEAR},
         ]
         tr.compare(model_params_list)
     elif run_option == COMPARE_WITH_CA_ATOMS:
@@ -104,26 +110,29 @@ def main():
             new_kwargs['filename'] = filename
             kwargs_list.append(new_kwargs)
         model_params_list = [
-            # {ALGORITHM_NAME: 'original_pca', NDIM: MATRIX_NDIM},
-            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM},
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: False, CENTER_OVER_TIME: False},
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_DIFFERENCE, USE_STD: True,
-            #  CENTER_OVER_TIME: False},
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_DIFFERENCE, USE_STD: False,
-            #  CENTER_OVER_TIME: False},
+            # {ALGORITHM_NAME: 'original_pca', NDIM: 2},
+            'kernel_only_tica',
+            {ALGORITHM_NAME: 'pca', NDIM: 3},
+            # {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_GAUSSIAN},
+            # {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_GAUSSIAN},
             # {ALGORITHM_NAME: 'original_tica', NDIM: 2, LAG_TIME: params[LAG_TIME]},
             # {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME]},
             # {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_DIFFERENCE},
+            # {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_DIFFERENCE,
+            #  CORR_KERNEL: True},
             # {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_ONLY},
             # {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_MULTIPLICATION,
-            #  KERNEL_TYPE: MY_LINEAR},
+            # KERNEL_TYPE: MY_LINEAR},
+            # {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_MULTIPLICATION,
+            #  CORR_KERNEL: True, KERNEL_TYPE: MY_LINEAR},
         ]
         if run_option == 'multi_trajectory':
             mtr = MultiTrajectory(kwargs_list, params)
             mtr.compare_pcs(['tensor_ko_pca', 'tensor_ko_tica'])
         elif run_option == MULTI_COMPARE_COMBO_PCS:
             mtr = MultiTrajectory(kwargs_list, params)
-            mtr.compare_trajectory_combos(traj_nrs=[63, 64], model_params_list=model_params_list, pc_nr_list=[2, 9, 30])
+            mtr.compare_trajectory_combos(traj_nrs=[3, 8, 63, 64], model_params_list=model_params_list,
+                                          pc_nr_list=[2, 9, 30])
         elif run_option == MULTI_COMPARE_ALL_PCS:
             mtr = MultiTrajectory(kwargs_list, params)
             mtr.compare_all_trajectories(traj_nrs=None, model_params_list=model_params_list,

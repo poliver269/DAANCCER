@@ -111,9 +111,12 @@ def diagonal_block_expand(matrix, n_repeats):
     return np.einsum('ij,kl->ikjl', matrix, np.eye(n_repeats)).reshape(len(matrix) * n_repeats, -1)
 
 
-def calculate_symmetrical_kernel_from_matrix(matrix: np.ndarray, stat_func: callable = np.median,
-                                             kernel_name: str = 'gaussian', trajectory_name: str = None,
-                                             flattened: bool = False):
+def calculate_symmetrical_kernel_from_matrix(
+        matrix: np.ndarray,
+        stat_func: callable = np.median,
+        kernel_name: str = 'gaussian',
+        trajectory_name: str = None,
+        flattened: bool = False) -> np.ndarray:
     """
     Creates a symmetrical kernel matrix out of a symmetrical matrix.
     :param matrix: ndarray (symmetrical)
@@ -125,7 +128,8 @@ def calculate_symmetrical_kernel_from_matrix(matrix: np.ndarray, stat_func: call
         If the name of the trajectory is given than a plot of the gauss curve will be plotted with the given
     :param flattened: bool
         If True: runs the calculation in a way, where discontinuous input values are permitted.
-    :return: The gaussian kernel matrix
+    :return: ndarray (ndim=2)
+        The gaussian kernel matrix
     """
     if not is_matrix_symmetric(matrix):
         raise ValueError('Input matrix to calculate the gaussian kernel has to be symmetric.')
