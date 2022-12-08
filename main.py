@@ -1,5 +1,7 @@
 from datetime import datetime
 
+import numpy as np
+
 from my_tsne import TrajectoryTSNE
 from plotter import TrajectoryPlotter
 from trajectory import DataTrajectory, TopologyConverter, MultiTrajectory
@@ -61,6 +63,41 @@ def main():
         raise ValueError(f'No data trajectory was found with the name `{trajectory_name}`.')
     filename_list.pop(file_element)
 
+    model_params_list = [
+        # Old Class-algorithms with parameters, not strings: USE_STD: True, CENTER_OVER_TIME: False
+
+        # Original Algorithms
+        {ALGORITHM_NAME: 'original_pca', NDIM: MATRIX_NDIM},
+        {ALGORITHM_NAME: 'original_tica', NDIM: MATRIX_NDIM},
+
+        # raw MATRIX models
+        # {ALGORITHM_NAME: 'pca', NDIM: MATRIX_NDIM},
+        # {ALGORITHM_NAME: 'tica', NDIM: MATRIX_NDIM, LAG_TIME: params[LAG_TIME]},
+
+        # raw TENSOR models
+        # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM},
+        # {ALGORITHM_NAME: 'tica', NDIM: TENSOR_NDIM, LAG_TIME: params[LAG_TIME]},
+
+        # Parameters
+        # KERNEL: KERNEL_ONLY, KERNEL_DIFFERENCE, KERNEL_MULTIPLICATION
+        # KERNEL_TYPE: MY_GAUSSIAN, MY_EXPONENTIAL, MY_LINEAR, MY_EPANECHNIKOV, (GAUSSIAN, EXPONENTIAL, ...)
+        # COV_FUNCTION: np.cov, np.corrcoef, utils.matrix_tools.co_mad
+        # NTH_EIGENVECTOR: int
+        # LAG_TIME: int
+
+        # Boolean Parameters:
+        # CORR_KERNEL, ONES_ON_KERNEL_DIAG, USE_STD, CENTER_OVER_TIME
+
+        # {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_GAUSSIAN},
+        # {ALGORITHM_NAME: 'original_tica', NDIM: 2, LAG_TIME: params[LAG_TIME]},
+        # {ALGORITHM_NAME: 'pca', NDIM: 2},
+        # {ALGORITHM_NAME: 'tica', NDIM: 2, LAG_TIME: params[LAG_TIME]},
+        # {ALGORITHM_NAME: 'pca', NDIM: 2, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_DIFFERENCE},
+        # {ALGORITHM_NAME: 'pca', NDIM: 2, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_DIFFERENCE,
+        #  CORR_KERNEL: True},
+        # {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_ONLY},},
+    ]
+
     if run_option == 'covert_to_pdb':
         kwargs = {'filename': 'protein.xtc', 'topology_filename': 'protein.gro',
                   'goal_filename': 'protein.pdb', 'folder_path': 'data/ser-tr'}
@@ -74,25 +111,6 @@ def main():
         TrajectoryPlotter(tr).original_data_with_timestep_slider(min_max=None)  # [0, 1000]
     elif run_option == COMPARE:
         tr = DataTrajectory(**kwargs)
-        # tr.compare(['tica', 'mytica', 'kernel_only_tica', 'tensor_tica', 'tensor_kernel_tica', 'tensor_kp_tica',
-        #             'tensor_ko_tica', 'tensor_comad_tica', 'tensor_comad_kernel_tica'])
-        model_params_list = [
-            # {ALGORITHM_NAME: 'original_pca', NDIM: 2},
-            # 'kernel_only_pca',
-            # {ALGORITHM_NAME: 'pca', NDIM: 3},
-            # {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_GAUSSIAN},
-            # {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_GAUSSIAN},
-            {ALGORITHM_NAME: 'original_tica', NDIM: 2, LAG_TIME: params[LAG_TIME]},
-            {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME]},
-            # {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_DIFFERENCE},
-            # {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_DIFFERENCE,
-            #  CORR_KERNEL: True},
-            # {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_ONLY},
-            # {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_MULTIPLICATION,
-            #  KERNEL_TYPE: MY_LINEAR},
-            # {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_MULTIPLICATION,
-            #  CORR_KERNEL: True, KERNEL_TYPE: MY_LINEAR},
-        ]
         tr.compare(model_params_list)
     elif run_option == COMPARE_WITH_CA_ATOMS:
         tr = DataTrajectory(**kwargs)
@@ -109,23 +127,6 @@ def main():
             new_kwargs = kwargs.copy()
             new_kwargs['filename'] = filename
             kwargs_list.append(new_kwargs)
-        model_params_list = [
-            # {ALGORITHM_NAME: 'original_pca', NDIM: 2},
-            'kernel_only_tica',
-            {ALGORITHM_NAME: 'pca', NDIM: 3},
-            # {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_GAUSSIAN},
-            # {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_GAUSSIAN},
-            # {ALGORITHM_NAME: 'original_tica', NDIM: 2, LAG_TIME: params[LAG_TIME]},
-            # {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME]},
-            # {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_DIFFERENCE},
-            # {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_DIFFERENCE,
-            #  CORR_KERNEL: True},
-            # {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_ONLY},
-            # {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_MULTIPLICATION,
-            # KERNEL_TYPE: MY_LINEAR},
-            # {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_MULTIPLICATION,
-            #  CORR_KERNEL: True, KERNEL_TYPE: MY_LINEAR},
-        ]
         if run_option == 'multi_trajectory':
             mtr = MultiTrajectory(kwargs_list, params)
             mtr.compare_pcs(['tensor_ko_pca', 'tensor_ko_tica'])

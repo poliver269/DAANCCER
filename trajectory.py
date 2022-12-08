@@ -139,7 +139,6 @@ class DataTrajectory(TrajectoryFile):
             pca = KernelFromCovPCA()
             return pca, [pca.fit_transform(inp, n_components=self.params[N_COMPONENTS])]
         elif model_name == 'tensor_pca':
-            # this and following tensor models works only for alpha carbon coordinates, not for angles -> TODO
             pca = TensorPCA()
             return pca, [pca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
         elif model_name == 'tensor_pearson_pca':
@@ -195,13 +194,19 @@ class DataTrajectory(TrajectoryFile):
         print(f'Running {model_parameters}...')
         if inp is None:
             inp = self._determine_input(model_parameters)
-        if model_parameters[ALGORITHM_NAME] == 'original_pca':
-            pca = coor.pca(data=inp, dim=self.params[N_COMPONENTS])
-            return pca, pca.get_output()
-        elif model_parameters[ALGORITHM_NAME] == 'original_tica':
-
-            tica = coor.tica(data=inp, lag=self.params[LAG_TIME], dim=self.params[N_COMPONENTS])
-            return tica, tica.get_output()
+        if model_parameters[ALGORITHM_NAME].startswith('original'):
+            try:
+                if model_parameters[ALGORITHM_NAME] == 'original_pca':
+                    pca = coor.pca(data=inp, dim=self.params[N_COMPONENTS])
+                    return pca, pca.get_output()
+                elif model_parameters[ALGORITHM_NAME] == 'original_tica':
+                    tica = coor.tica(data=inp, lag=self.params[LAG_TIME], dim=self.params[N_COMPONENTS])
+                    return tica, tica.get_output()
+                else:
+                    warnings.warn(f'No original algorithm was found with name: {model_parameters[ALGORITHM_NAME]}')
+            except TypeError:
+                raise TypeError(f'Input data of the function is not correct. '
+                                f'Original algorithms take only 2-n-dimensional ndarray')
         else:
             model = ParameterModel(model_parameters)
             return model, [model.fit_transform(inp, n_components=self.params[N_COMPONENTS])]
@@ -227,7 +232,11 @@ class DataTrajectory(TrajectoryFile):
         return {MODEL: model, PROJECTION: projection, EXPLAINED_VAR: f'\nExplained var: {ex_var}'}
 
     def _determine_input(self, model_parameters: [str, dict]) -> np.ndarray:
-        n_dim = MATRIX_NDIM if isinstance(model_parameters, str) else model_parameters['ndim']
+        try:
+            n_dim = MATRIX_NDIM if isinstance(model_parameters, str) else model_parameters['ndim']
+        except KeyError as e:
+            raise KeyError(f'Model-parameter-dict needs the key: {e}. Set to ´2´ or ´3´.')
+
         if self.params[USE_ANGLES]:
             if n_dim == MATRIX_NDIM:
                 return np.concatenate([self.phi[DIHEDRAL_ANGEL_VALUES], self.psi[DIHEDRAL_ANGEL_VALUES]], axis=1)

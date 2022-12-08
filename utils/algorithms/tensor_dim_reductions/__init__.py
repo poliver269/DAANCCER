@@ -57,7 +57,7 @@ class ParameterModel(TensorDR):
         super().__init__(model_parameters)
         self.params.update({
             ALGORITHM_NAME: model_parameters.get(ALGORITHM_NAME, 'pca'),  # pca, tica
-            NDIM: model_parameters.get(NDIM, TENSOR_NDIM),  # 3: tensor, 2: matrix  # TODO implement for 2-ndim
+            NDIM: model_parameters.get(NDIM, TENSOR_NDIM),  # 3: tensor, 2: matrix
 
             KERNEL: model_parameters.get(KERNEL, None),  # diff, multi, only, None
             CORR_KERNEL: model_parameters.get(CORR_KERNEL, False),  # True, False
@@ -121,21 +121,21 @@ class ParameterModel(TensorDR):
             return diagonal_block_expand(cov, tensor_cov.shape[0])
 
     def _get_matrix_covariance(self):
-        if self.params[ALGORITHM_NAME] in ['pca'] or self.params[LAG_TIME] <= 0:
-            return super().get_covariance_matrix()
-        else:
+        if self.params[ALGORITHM_NAME] in ['tica'] and self.params[LAG_TIME] > 0:
             return np.cov(self._standardized_data[:-self.params[LAG_TIME]].T)
+        else:
+            return super().get_covariance_matrix()
 
     def _get_tensor_covariance(self):
-        if self.params[ALGORITHM_NAME] in ['pca'] or self.params[LAG_TIME] <= 0:
-            return np.asarray(list(
-                map(lambda index: self.params[COV_FUNCTION](self._standardized_data[:, :, index].T),
-                    range(self._standardized_data.shape[2]))
-            ))
-        else:  # 'tica'
+        if self.params[ALGORITHM_NAME] in ['tica'] and self.params[LAG_TIME] > 0:
             return np.asarray(list(
                 map(lambda index: self.params[COV_FUNCTION](
                     self._standardized_data[:-self.params[LAG_TIME], :, index].T),
+                    range(self._standardized_data.shape[2]))
+            ))
+        else:
+            return np.asarray(list(
+                map(lambda index: self.params[COV_FUNCTION](self._standardized_data[:, :, index].T),
                     range(self._standardized_data.shape[2]))
             ))
 

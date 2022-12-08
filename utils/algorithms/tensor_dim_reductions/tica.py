@@ -66,7 +66,7 @@ class TensorPearsonCovTICA(TensorTICA):
         return np.asarray(list(
             map(lambda index: np.corrcoef(self._standardized_data[:-self.lag_time, :, index].T),
                 range(self._standardized_data.shape[2]))
-        ))  # TODO: Think of the approach: calculate the corrcoef for the correlation matrix too?
+        ))
 
 
 class TensorKernelOnCovTICA(TensorTICA, TensorKernelOnCovPCA):
