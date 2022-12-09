@@ -27,7 +27,7 @@ def main():
     params = {
         PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map'
         PLOT_TICS: True,  # True, False
-        STANDARDIZED_PLOT: False,   # True, False
+        STANDARDIZED_PLOT: False,  # True, False
         CARBON_ATOMS_ONLY: True,  # True, False
         INTERACTIVE: True,  # True, False
         N_COMPONENTS: 2,
@@ -67,8 +67,8 @@ def main():
         # Old Class-algorithms with parameters, not strings: USE_STD: True, CENTER_OVER_TIME: False
 
         # Original Algorithms
-        {ALGORITHM_NAME: 'original_pca', NDIM: MATRIX_NDIM},
-        {ALGORITHM_NAME: 'original_tica', NDIM: MATRIX_NDIM},
+        # {ALGORITHM_NAME: 'original_pca', NDIM: MATRIX_NDIM},
+        # {ALGORITHM_NAME: 'original_tica', NDIM: MATRIX_NDIM},
 
         # raw MATRIX models
         # {ALGORITHM_NAME: 'pca', NDIM: MATRIX_NDIM},
@@ -78,17 +78,18 @@ def main():
         # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM},
         # {ALGORITHM_NAME: 'tica', NDIM: TENSOR_NDIM, LAG_TIME: params[LAG_TIME]},
 
-        # Parameters
+        # *** Parameters
         # KERNEL: KERNEL_ONLY, KERNEL_DIFFERENCE, KERNEL_MULTIPLICATION
         # KERNEL_TYPE: MY_GAUSSIAN, MY_EXPONENTIAL, MY_LINEAR, MY_EPANECHNIKOV, (GAUSSIAN, EXPONENTIAL, ...)
         # COV_FUNCTION: np.cov, np.corrcoef, utils.matrix_tools.co_mad
         # NTH_EIGENVECTOR: int
         # LAG_TIME: int
-
-        # Boolean Parameters:
+        # *** Boolean Parameters:
         # CORR_KERNEL, ONES_ON_KERNEL_DIAG, USE_STD, CENTER_OVER_TIME
 
-        # {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_GAUSSIAN},
+        {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_NORM_LINEAR, PLOT_2D: True},
+        {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_LINEAR, PLOT_2D: True},
+        {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_ONLY, KERNEL_TYPE: 'linear', PLOT_2D: True},
         # {ALGORITHM_NAME: 'original_tica', NDIM: 2, LAG_TIME: params[LAG_TIME]},
         # {ALGORITHM_NAME: 'pca', NDIM: 2},
         # {ALGORITHM_NAME: 'tica', NDIM: 2, LAG_TIME: params[LAG_TIME]},

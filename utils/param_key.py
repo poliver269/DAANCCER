@@ -59,10 +59,12 @@ ONES_ON_KERNEL_DIAG = 'ones_on_kernel_diagonal'
 GAUSSIAN = 'gaussian'
 EPANECHNIKOV = 'epanechnikov'
 EXPONENTIAL = 'exponential'
+LINEAR = 'linear'
 MY_GAUSSIAN = 'my_gaussian'
 MY_EPANECHNIKOV = 'my_epanechnikov'
 MY_EXPONENTIAL = 'my_exponential'
 MY_LINEAR = 'my_linear'
+MY_NORM_LINEAR = 'my_normalized_linear'
 
 # Kernel Mappings:
 KERNEL_ONLY = 'only'

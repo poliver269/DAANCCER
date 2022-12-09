@@ -6,7 +6,7 @@ from sklearn.neighbors import KernelDensity
 from plotter import ArrayPlotter
 from utils.array_tools import interpolate_array, interpolate_center
 from utils.math import is_matrix_symmetric, exponential_2d, epanechnikov_2d, gaussian_2d
-from utils.param_key import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL, MY_LINEAR
+from utils.param_key import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL, MY_LINEAR, MY_NORM_LINEAR
 
 
 def diagonal_indices(matrix: np.ndarray):
@@ -145,8 +145,12 @@ def calculate_symmetrical_kernel_from_matrix(
     if kernel_name in kernel_funcs.keys():
         if kernel_name == MY_EPANECHNIKOV:
             non_zero_i = np.argmax(interpolated_ydata > 0)
-            fit_parameters, _ = curve_fit(epanechnikov_2d, xdata[non_zero_i:-non_zero_i],
-                                          interpolated_ydata[non_zero_i:-non_zero_i])
+            if non_zero_i == 0:  # TODO: Correcting for flattened data
+                fit_parameters, _ = curve_fit(epanechnikov_2d, xdata,
+                                              interpolated_ydata)
+            else:
+                fit_parameters, _ = curve_fit(epanechnikov_2d, xdata[non_zero_i:-non_zero_i],
+                                              interpolated_ydata[non_zero_i:-non_zero_i])
             center_fit_y = epanechnikov_2d(xdata[non_zero_i:-non_zero_i], *fit_parameters)
             center_fit_y = np.where(center_fit_y < 0, 0, center_fit_y)
             fit_y = interpolated_ydata.copy()
@@ -154,8 +158,11 @@ def calculate_symmetrical_kernel_from_matrix(
         else:
             fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata, interpolated_ydata)
             fit_y = kernel_funcs[kernel_name](xdata, *fit_parameters)
-    elif kernel_name == MY_LINEAR:
-        fit_y = np.abs(xdata)
+    elif kernel_name in [MY_LINEAR, MY_NORM_LINEAR]:
+        if kernel_name == MY_NORM_LINEAR:
+            fit_y = np.concatenate((np.linspace(0, 1, len(matrix)), np.linspace(1, 0, len(matrix))[1:]))
+        else:
+            fit_y = np.abs(xdata)
     else:  # Try to use an implemented kernel from sklearn
         xdata = xdata[:, np.newaxis]
         interpolated_ydata = interpolated_ydata[:, np.newaxis]

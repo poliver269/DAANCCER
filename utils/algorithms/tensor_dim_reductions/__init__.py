@@ -140,7 +140,7 @@ class ParameterModel(TensorDR):
             ))
 
     def _map_kernel(self, matrix):
-        trajectory_name = 'trajectory_name' if self.params[PLOT_2D] else None
+        trajectory_name = 'Not Model Related' if self.params[PLOT_2D] else None
         kernel_matrix = calculate_symmetrical_kernel_from_matrix(
             matrix, self.params[KERNEL_STAT_FUNC], self.params[KERNEL_TYPE],
             trajectory_name, flattened=self.__is_matrix_model)
