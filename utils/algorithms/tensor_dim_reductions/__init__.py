@@ -4,7 +4,7 @@ import scipy
 from plotter import ArrayPlotter
 from utils.algorithms import MyModel
 from utils.math import is_matrix_symmetric
-from utils.matrix_tools import diagonal_block_expand, calculate_symmetrical_kernel_from_matrix
+from utils.matrix_tools import diagonal_block_expand, calculate_symmetrical_kernel_from_matrix, ensure_matrix_symmetry
 from utils.param_key import *
 
 
@@ -201,7 +201,7 @@ class ParameterModel(TensorDR):
         else:
             corr = np.dot(self._standardized_data[:-self.params[LAG_TIME]].T,
                           self._standardized_data[self.params[LAG_TIME]:]) / (self.n_samples - self.params[LAG_TIME])
-            return 0.5 * (corr + corr.T)
+            return ensure_matrix_symmetry(corr)
 
     def _get_tensor_correlation(self):
         if self.params[LAG_TIME] <= 0:
@@ -212,7 +212,7 @@ class ParameterModel(TensorDR):
                 dot_i = np.dot(self._standardized_data[:-self.params[LAG_TIME], :, index].T,
                                self._standardized_data[self.params[LAG_TIME]:, :, index]) / (
                                 self.n_samples - self.params[LAG_TIME])
-                sym_i = 0.5 * (dot_i + dot_i.T)
+                sym_i = ensure_matrix_symmetry(dot_i)
                 temp_list.append(sym_i)
             return np.asarray(temp_list)
 

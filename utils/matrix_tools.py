@@ -201,3 +201,7 @@ def co_mad(matrix):
     """
     matrix_sub = matrix - np.median(matrix, axis=1)[:, np.newaxis]
     return np.median(matrix_sub[np.newaxis, :, :] * matrix_sub[:, np.newaxis, :], axis=2)
+
+
+def ensure_matrix_symmetry(matrix):
+    return 0.5 * (matrix + matrix.T)
