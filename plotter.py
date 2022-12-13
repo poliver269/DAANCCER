@@ -347,4 +347,5 @@ class ArrayPlotter(MyPlotter):
         self.axes.set_xlabel(xlabel)
         self.axes.set_ylabel(ylabel)
         self.axes.set_title(title_prefix)
+        self.fig.tight_layout()
         plt.show()

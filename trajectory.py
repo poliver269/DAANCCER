@@ -229,6 +229,13 @@ class DataTrajectory(TrajectoryFile):
             model, projection = self.get_model_and_projection(model_parameters)
         ex_var = explained_variance(model.eigenvalues, self.params[N_COMPONENTS])
         # TODO Add explained variance to the models, and if they don't have a parameter, than calculate here
+        if self.params[PLOT_TYPE] == EXPL_VAR_PLOT:
+            ArrayPlotter(interactive=False).plot_2d(
+                ndarray_data=model.eigenvalues,
+                title_prefix=f'Eigenvalues of\n{model}',
+                xlabel='ComponentNr',
+                ylabel='Eigenvalue'
+            )
         return {MODEL: model, PROJECTION: projection, EXPLAINED_VAR: ex_var}
 
     def _determine_input(self, model_parameters: [str, dict]) -> np.ndarray:

@@ -31,6 +31,7 @@ HEAT_MAP = 'heat_map'
 COLOR_MAP = 'color_map'
 PLOT_3D_MAP = '3d_map'
 PLOT_2D = 'plot_2d'
+EXPL_VAR_PLOT = 'explained_variance_plot'
 
 # Coordinates
 X = 'x'
