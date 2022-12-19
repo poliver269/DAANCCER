@@ -25,7 +25,7 @@ def main():
     trajectory_name = '2f4k'
     file_element = 64
     params = {
-        PLOT_TYPE: EXPL_VAR_PLOT,  # 'heat_map', 'color_map', '3d_map'
+        PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map', 'explained_var_plot'
         PLOT_TICS: True,  # True, False
         STANDARDIZED_PLOT: False,  # True, False
         CARBON_ATOMS_ONLY: True,  # True, False
@@ -67,16 +67,16 @@ def main():
         # Old Class-algorithms with parameters, not strings: USE_STD: True, CENTER_OVER_TIME: False
 
         # Original Algorithms
-        # {ALGORITHM_NAME: 'original_pca', NDIM: MATRIX_NDIM},
-        {ALGORITHM_NAME: 'original_tica', NDIM: MATRIX_NDIM},
+        {ALGORITHM_NAME: 'original_pca', NDIM: MATRIX_NDIM},
+        # {ALGORITHM_NAME: 'original_tica', NDIM: MATRIX_NDIM},
 
         # raw MATRIX models
         # {ALGORITHM_NAME: 'pca', NDIM: MATRIX_NDIM},
-        {ALGORITHM_NAME: 'tica', NDIM: MATRIX_NDIM, LAG_TIME: params[LAG_TIME]},
+        # {ALGORITHM_NAME: 'tica', NDIM: MATRIX_NDIM, LAG_TIME: params[LAG_TIME]},
 
         # raw TENSOR models
         # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM},
-        {ALGORITHM_NAME: 'tica', NDIM: TENSOR_NDIM, LAG_TIME: params[LAG_TIME]},
+        # {ALGORITHM_NAME: 'tica', NDIM: TENSOR_NDIM, LAG_TIME: params[LAG_TIME]},
 
         # *** Parameters
         # KERNEL: KERNEL_ONLY, KERNEL_DIFFERENCE, KERNEL_MULTIPLICATION
@@ -87,9 +87,16 @@ def main():
         # *** Boolean Parameters:
         # CORR_KERNEL, ONES_ON_KERNEL_DIAG, USE_STD, CENTER_OVER_TIME
 
-        # {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_NORM_LINEAR, PLOT_2D: True},
-        # {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_LINEAR, PLOT_2D: True},
-        # {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_ONLY, KERNEL_TYPE: 'linear', PLOT_2D: True},
+        # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, EXTRA_DR_LAYER: False},
+        # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, EXTRA_DR_LAYER: False, NTH_EIGENVECTOR: 3},
+        # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, EXTRA_DR_LAYER: True},
+        {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_NORM_LINEAR, EXTRA_DR_LAYER: True},
+        # {ALGORITHM_NAME: 'tica', NDIM: TENSOR_NDIM, LAG_TIME: params[LAG_TIME], EXTRA_DR_LAYER: True},
+        {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_NORM_LINEAR},
+        {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_LINEAR},
+        {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_LINEAR, EXTRA_DR_LAYER: True},
+        # {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_ONLY, KERNEL_TYPE: LINEAR},
+        # {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_ONLY, KERNEL_TYPE: LINEAR, ABS_EVAL_SORT: True},
         # {ALGORITHM_NAME: 'original_tica', NDIM: 2, LAG_TIME: params[LAG_TIME]},
         # {ALGORITHM_NAME: 'pca', NDIM: 2},
         # {ALGORITHM_NAME: 'tica', NDIM: 2, LAG_TIME: params[LAG_TIME]},
@@ -136,7 +143,6 @@ def main():
             mtr.compare_trajectory_combos(traj_nrs=[3, 8, 63, 64], model_params_list=model_params_list,
                                           pc_nr_list=[2, 9, 30])
         elif run_option == MULTI_COMPARE_ALL_PCS:
-
             mtr = MultiTrajectory(kwargs_list, params)
             mtr.compare_all_trajectories(traj_nrs=None, model_params_list=model_params_list,
                                          pc_nr_list=None)

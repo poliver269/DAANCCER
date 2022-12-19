@@ -3,6 +3,7 @@ import scipy
 
 from plotter import ArrayPlotter
 from utils.algorithms import MyModel
+import pyemma.coordinates as coor
 from utils.math import is_matrix_symmetric
 from utils.matrix_tools import diagonal_block_expand, calculate_symmetrical_kernel_from_matrix, ensure_matrix_symmetry
 from utils.param_key import *
@@ -60,13 +61,15 @@ class ParameterModel(TensorDR):
             NDIM: model_parameters.get(NDIM, TENSOR_NDIM),  # 3: tensor, 2: matrix
 
             KERNEL: model_parameters.get(KERNEL, None),  # diff, multi, only, None
-            CORR_KERNEL: model_parameters.get(CORR_KERNEL, False),  # True, False
+            CORR_KERNEL: model_parameters.get(CORR_KERNEL, False),  # only for tica: True, False
             KERNEL_TYPE: model_parameters.get(KERNEL_TYPE, MY_GAUSSIAN),
             ONES_ON_KERNEL_DIAG: model_parameters.get(ONES_ON_KERNEL_DIAG, False),
 
             COV_FUNCTION: model_parameters.get(COV_FUNCTION, np.cov),  # np.cov, np.corrcoef, co_mad
             LAG_TIME: model_parameters.get(LAG_TIME, 0),
             NTH_EIGENVECTOR: model_parameters.get(NTH_EIGENVECTOR, 1),
+            EXTRA_DR_LAYER: model_parameters.get(EXTRA_DR_LAYER, False),
+            ABS_EVAL_SORT: model_parameters.get(ABS_EVAL_SORT, False),
 
             PLOT_2D: model_parameters.get(PLOT_2D, False),
             USE_STD: model_parameters.get(USE_STD, False),
@@ -74,16 +77,22 @@ class ParameterModel(TensorDR):
         })
 
     def __str__(self):
-        sb = f'{"Matrix" if self.__is_matrix_model else "Tensor"}-{self.params[ALGORITHM_NAME]}'
+        sb = f'{"Matrix" if self._is_matrix_model else "Tensor"}-{self.params[ALGORITHM_NAME]}'
         if self.params[KERNEL] is not None:
-            sb += f', {self.params[KERNEL_TYPE]}-{self.params[KERNEL]}{f"-onCorr2" if self.params[CORR_KERNEL] else ""}'
-        sb += f'{f", lag-time={self.params[LAG_TIME]}" if self.params[LAG_TIME] > 0 else ""}'
+            sb += (f', {self.params[KERNEL_TYPE]}-{self.params[KERNEL]}' +
+                   f'{f"-onCorr2" if self.params[CORR_KERNEL] else ""}\n')
+        sb += f'lag-time={self.params[LAG_TIME]}' if self.params[LAG_TIME] > 0 else ''
+        sb += f', abs_ev={self.params[ABS_EVAL_SORT]}'
         return sb
         # f'{function_name(self.params[COV_FUNCTION])}'
 
     @property
-    def __is_matrix_model(self) -> bool:
+    def _is_matrix_model(self) -> bool:
         return self.params[NDIM] == 2
+
+    @property
+    def _combine_dim(self) -> int:
+        return self._standardized_data.shape[2]
 
     def fit_transform(self, data_tensor, n_components=2):
         return super().fit_transform(data_tensor, n_components)
@@ -96,7 +105,7 @@ class ParameterModel(TensorDR):
         return self
 
     def _standardize_data(self, tensor):
-        if self.__is_matrix_model or not self.params[CENTER_OVER_TIME]:
+        if self._is_matrix_model or not self.params[CENTER_OVER_TIME]:
             numerator = tensor - np.mean(tensor, axis=0)
         else:
             numerator = tensor - np.mean(tensor, axis=1)[:, np.newaxis, :]
@@ -108,7 +117,7 @@ class ParameterModel(TensorDR):
             return numerator
 
     def get_covariance_matrix(self):
-        if self.__is_matrix_model:
+        if self._is_matrix_model:
             cov = self._get_matrix_covariance()
             if self.params[KERNEL] is not None:
                 cov = self._map_kernel(cov)
@@ -131,19 +140,19 @@ class ParameterModel(TensorDR):
             return np.asarray(list(
                 map(lambda index: self.params[COV_FUNCTION](
                     self._standardized_data[:-self.params[LAG_TIME], :, index].T),
-                    range(self._standardized_data.shape[2]))
+                    range(self._combine_dim))
             ))
         else:
             return np.asarray(list(
                 map(lambda index: self.params[COV_FUNCTION](self._standardized_data[:, :, index].T),
-                    range(self._standardized_data.shape[2]))
+                    range(self._combine_dim))
             ))
 
     def _map_kernel(self, matrix):
         trajectory_name = 'Not Model Related' if self.params[PLOT_2D] else None
         kernel_matrix = calculate_symmetrical_kernel_from_matrix(
             matrix, self.params[KERNEL_STAT_FUNC], self.params[KERNEL_TYPE],
-            trajectory_name, flattened=self.__is_matrix_model)
+            trajectory_name, flattened=self._is_matrix_model)
         if self.params[KERNEL] == KERNEL_ONLY:
             matrix = kernel_matrix
         elif self.params[KERNEL] == KERNEL_DIFFERENCE:
@@ -166,6 +175,9 @@ class ParameterModel(TensorDR):
         else:
             eigenvalues, eigenvectors = np.linalg.eigh(self._covariance_matrix)
 
+        if self.params[ABS_EVAL_SORT]:
+            eigenvalues = np.abs(eigenvalues)
+
         # sort eigenvalues descending
         sorted_eigenvalue_indexes = np.argsort(eigenvalues)[::-1]
         self.eigenvalues = np.real_if_close(eigenvalues[sorted_eigenvalue_indexes])
@@ -174,7 +186,7 @@ class ParameterModel(TensorDR):
         return np.real_if_close(eigenvectors[:, sorted_eigenvalue_indexes])
 
     def _get_correlations_matrix(self):
-        if self.__is_matrix_model:
+        if self._is_matrix_model:
             corr = self._get_matrix_correlation()
 
             if self.params[CORR_KERNEL]:
@@ -217,16 +229,26 @@ class ParameterModel(TensorDR):
             return np.asarray(temp_list)
 
     def transform(self, data_tensor, n_components):
-        if self.__is_matrix_model:
+        if self._is_matrix_model:
             data_matrix = data_tensor
         else:
             data_matrix = self._update_data_tensor(data_tensor)
 
         self.n_components = n_components
         if self.params[NTH_EIGENVECTOR] < 1:
-            self.params[NTH_EIGENVECTOR] = data_tensor.shape[2]
+            self.params[NTH_EIGENVECTOR] = self._combine_dim
 
-        return np.dot(
-            data_matrix,
-            self.eigenvectors[:, :self.n_components * self.params[NTH_EIGENVECTOR]:self.params[NTH_EIGENVECTOR]]
-        )
+        if self.params[EXTRA_DR_LAYER]:
+            proj1 = np.dot(data_matrix, self.eigenvectors)
+            proj2 = []
+            for component in range(n_components):
+                vector_from = component * self._combine_dim
+                vector_to = (component + 1) * self._combine_dim
+                model = coor.pca(data=proj1[:, vector_from:vector_to], dim=1)
+                proj2.append(np.squeeze(model.get_output()[0]))
+            return np.asarray(proj2).T
+        else:
+            return np.dot(
+                data_matrix,
+                self.eigenvectors[:, :self.n_components * self.params[NTH_EIGENVECTOR]:self.params[NTH_EIGENVECTOR]]
+            )
