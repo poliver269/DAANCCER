@@ -6,7 +6,7 @@ from sklearn.neighbors import KernelDensity
 from plotter import ArrayPlotter
 from utils.array_tools import interpolate_array, interpolate_center
 from utils.math import is_matrix_symmetric, exponential_2d, epanechnikov_2d, gaussian_2d
-from utils.param_key import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL, MY_LINEAR, MY_NORM_LINEAR
+from utils.param_key import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL, MY_LINEAR, MY_NORM_LINEAR, MY_LINEAR_P1
 
 
 def diagonal_indices(matrix: np.ndarray):
@@ -158,11 +158,14 @@ def calculate_symmetrical_kernel_from_matrix(
         else:
             fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata, interpolated_ydata)
             fit_y = kernel_funcs[kernel_name](xdata, *fit_parameters)
-    elif kernel_name in [MY_LINEAR, MY_NORM_LINEAR]:
+    elif kernel_name in [MY_LINEAR, MY_NORM_LINEAR, MY_LINEAR_P1]:
         if kernel_name == MY_NORM_LINEAR:
             fit_y = np.concatenate((np.linspace(0, 1, len(matrix)), np.linspace(1, 0, len(matrix))[1:]))
         else:
             fit_y = np.abs(xdata)
+            if kernel_name == MY_LINEAR_P1:
+                fit_y -= 1
+                fit_y = np.where(fit_y < 0, 1, fit_y)
     else:  # Try to use an implemented kernel from sklearn
         xdata = xdata[:, np.newaxis]
         interpolated_ydata = interpolated_ydata[:, np.newaxis]

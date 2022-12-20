@@ -1,6 +1,5 @@
+import json
 from datetime import datetime
-
-import numpy as np
 
 from my_tsne import TrajectoryTSNE
 from plotter import TrajectoryPlotter
@@ -21,6 +20,7 @@ GROMACS_PRODUCTION = 'gromacs_production'
 def main():
     print(f'Starting time: {datetime.now()}')
     # TODO: Argsparser for options
+    load_json = True
     run_option = COMPARE
     trajectory_name = '2f4k'
     file_element = 64
@@ -63,48 +63,51 @@ def main():
         raise ValueError(f'No data trajectory was found with the name `{trajectory_name}`.')
     filename_list.pop(file_element)
 
-    model_params_list = [
-        # Old Class-algorithms with parameters, not strings: USE_STD: True, CENTER_OVER_TIME: False
+    if load_json:
+        model_params_list = json.load(open('algorithm_parameters_list.json'))
+    else:
+        model_params_list = [
+            # Old Class-algorithms with parameters, not strings: USE_STD: True, CENTER_OVER_TIME: False
 
-        # Original Algorithms
-        {ALGORITHM_NAME: 'original_pca', NDIM: MATRIX_NDIM},
-        # {ALGORITHM_NAME: 'original_tica', NDIM: MATRIX_NDIM},
+            # Original Algorithms
+            {ALGORITHM_NAME: 'original_pca', NDIM: MATRIX_NDIM},
+            # {ALGORITHM_NAME: 'original_tica', NDIM: MATRIX_NDIM},
 
-        # raw MATRIX models
-        # {ALGORITHM_NAME: 'pca', NDIM: MATRIX_NDIM},
-        # {ALGORITHM_NAME: 'tica', NDIM: MATRIX_NDIM, LAG_TIME: params[LAG_TIME]},
+            # raw MATRIX models
+            # {ALGORITHM_NAME: 'pca', NDIM: MATRIX_NDIM},
+            # {ALGORITHM_NAME: 'tica', NDIM: MATRIX_NDIM, LAG_TIME: params[LAG_TIME]},
 
-        # raw TENSOR models
-        # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM},
-        # {ALGORITHM_NAME: 'tica', NDIM: TENSOR_NDIM, LAG_TIME: params[LAG_TIME]},
+            # raw TENSOR models
+            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM},
+            # {ALGORITHM_NAME: 'tica', NDIM: TENSOR_NDIM, LAG_TIME: params[LAG_TIME]},
 
-        # *** Parameters
-        # KERNEL: KERNEL_ONLY, KERNEL_DIFFERENCE, KERNEL_MULTIPLICATION
-        # KERNEL_TYPE: MY_GAUSSIAN, MY_EXPONENTIAL, MY_LINEAR, MY_EPANECHNIKOV, (GAUSSIAN, EXPONENTIAL, ...)
-        # COV_FUNCTION: np.cov, np.corrcoef, utils.matrix_tools.co_mad
-        # NTH_EIGENVECTOR: int
-        # LAG_TIME: int
-        # *** Boolean Parameters:
-        # CORR_KERNEL, ONES_ON_KERNEL_DIAG, USE_STD, CENTER_OVER_TIME
+            # *** Parameters
+            # KERNEL: KERNEL_ONLY, KERNEL_DIFFERENCE, KERNEL_MULTIPLICATION
+            # KERNEL_TYPE: MY_GAUSSIAN, MY_EXPONENTIAL, MY_LINEAR, MY_EPANECHNIKOV, (GAUSSIAN, EXPONENTIAL, ...)
+            # COV_FUNCTION: np.cov, np.corrcoef, utils.matrix_tools.co_mad
+            # NTH_EIGENVECTOR: int
+            # LAG_TIME: int
+            # *** Boolean Parameters:
+            # CORR_KERNEL, ONES_ON_KERNEL_DIAG, USE_STD, CENTER_OVER_TIME
 
-        # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, EXTRA_DR_LAYER: False},
-        # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, EXTRA_DR_LAYER: False, NTH_EIGENVECTOR: 3},
-        # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, EXTRA_DR_LAYER: True},
-        {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_NORM_LINEAR, EXTRA_DR_LAYER: True},
-        # {ALGORITHM_NAME: 'tica', NDIM: TENSOR_NDIM, LAG_TIME: params[LAG_TIME], EXTRA_DR_LAYER: True},
-        {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_NORM_LINEAR},
-        {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_LINEAR},
-        {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_LINEAR, EXTRA_DR_LAYER: True},
-        # {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_ONLY, KERNEL_TYPE: LINEAR},
-        # {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_ONLY, KERNEL_TYPE: LINEAR, ABS_EVAL_SORT: True},
-        # {ALGORITHM_NAME: 'original_tica', NDIM: 2, LAG_TIME: params[LAG_TIME]},
-        # {ALGORITHM_NAME: 'pca', NDIM: 2},
-        # {ALGORITHM_NAME: 'tica', NDIM: 2, LAG_TIME: params[LAG_TIME]},
-        # {ALGORITHM_NAME: 'pca', NDIM: 2, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_DIFFERENCE},
-        # {ALGORITHM_NAME: 'pca', NDIM: 2, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_DIFFERENCE,
-        #  CORR_KERNEL: True},
-        # {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_ONLY},},
-    ]
+            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, EXTRA_DR_LAYER: False},
+            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, EXTRA_DR_LAYER: False, NTH_EIGENVECTOR: 3},
+            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, EXTRA_DR_LAYER: True},
+            {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_LINEAR_P1, EXTRA_DR_LAYER: True},
+            # {ALGORITHM_NAME: 'tica', NDIM: TENSOR_NDIM, LAG_TIME: params[LAG_TIME], EXTRA_DR_LAYER: True},
+            {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_NORM_LINEAR},
+            {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_LINEAR},
+            {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_LINEAR, EXTRA_DR_LAYER: True},
+            # {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_ONLY, KERNEL_TYPE: LINEAR},
+            # {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_ONLY, KERNEL_TYPE: LINEAR, ABS_EVAL_SORT: True},
+            # {ALGORITHM_NAME: 'original_tica', NDIM: 2, LAG_TIME: params[LAG_TIME]},
+            # {ALGORITHM_NAME: 'pca', NDIM: 2},
+            # {ALGORITHM_NAME: 'tica', NDIM: 2, LAG_TIME: params[LAG_TIME]},
+            # {ALGORITHM_NAME: 'pca', NDIM: 2, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_DIFFERENCE},
+            # {ALGORITHM_NAME: 'pca', NDIM: 2, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_DIFFERENCE,
+            #  CORR_KERNEL: True},
+            # {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_ONLY},},
+        ]
 
     if run_option == 'covert_to_pdb':
         kwargs = {'filename': 'protein.xtc', 'topology_filename': 'protein.gro',

@@ -67,6 +67,7 @@ MY_GAUSSIAN = 'my_gaussian'
 MY_EPANECHNIKOV = 'my_epanechnikov'
 MY_EXPONENTIAL = 'my_exponential'
 MY_LINEAR = 'my_linear'
+MY_LINEAR_P1 = 'my_linear+1'
 MY_NORM_LINEAR = 'my_normalized_linear'
 
 # Kernel Mappings:
