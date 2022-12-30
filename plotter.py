@@ -27,7 +27,8 @@ class TrajectoryPlotter(MyPlotter):
         self.data_trajectory = trajectory
 
     def _set_figure_title(self):
-        self.fig.suptitle(f'Trajectory: {self.data_trajectory.params[TRAJECTORY_NAME]}')
+        self.fig.suptitle(f'Trajectory: {self.data_trajectory.params[TRAJECTORY_NAME]}-'
+                          f'{self.data_trajectory.filename}')
 
     def plot_trajectory_at(self, timestep: int):
         """

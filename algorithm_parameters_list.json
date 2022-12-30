@@ -1,8 +1,31 @@
 [
-  {"algorithm_name": "original_pca", "ndim": 2},
-  {"algorithm_name": "pca", "ndim": 2},
-  {"algorithm_name": "tica", "ndim": 2, "lag_time": 10},
-  {"algorithm_name": "pca", "ndim": 3, "extra_dimension_reduction_layer": false},
-  {"algorithm_name": "pca", "ndim": 3, "extra_dimension_reduction_layer": false, "nth_eigenvector": 3},
-  {"algorithm_name": "pca", "ndim": 3, "extra_dimension_reduction_layer": true}
+  {
+    "algorithm_name": "original_pca",
+    "ndim": 2
+  },
+  {
+    "algorithm_name": "pca",
+    "ndim": 2
+  },
+  {
+    "algorithm_name": "tica",
+    "ndim": 2,
+    "lag_time": 10
+  },
+  {
+    "algorithm_name": "pca",
+    "ndim": 3,
+    "extra_dimension_reduction_layer": false
+  },
+  {
+    "algorithm_name": "pca",
+    "ndim": 3,
+    "extra_dimension_reduction_layer": false,
+    "nth_eigenvector": 3
+  },
+  {
+    "algorithm_name": "pca",
+    "ndim": 3,
+    "extra_dimension_reduction_layer": true
+  }
 ]

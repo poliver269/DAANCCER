@@ -49,9 +49,9 @@ class DataTrajectory(TrajectoryFile):
             else:
                 self.traj = md.load(self.filepath, top=self.topology_path)
             self.traj = self.traj.superpose(self.traj).center_coordinates(mass_weighted=True)
-            self.dim = {TIME_FRAMES: self.traj.xyz.shape[0],
-                        ATOMS: self.traj.xyz.shape[1],
-                        COORDINATES: self.traj.xyz.shape[2]}
+            self.dim = {TIME_FRAMES: self.traj.xyz.shape[TIME_DIM],
+                        ATOMS: self.traj.xyz.shape[ATOM_DIM],
+                        COORDINATES: self.traj.xyz.shape[COORDINATE_DIM]}
             self.phi = md.compute_phi(self.traj)
             self.psi = md.compute_psi(self.traj)
         except IOError:
