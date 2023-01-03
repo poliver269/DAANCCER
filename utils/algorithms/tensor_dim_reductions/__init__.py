@@ -190,11 +190,12 @@ class ParameterModel(TensorDR):
         if self.params[ABS_EVAL_SORT]:
             eigenvalues = np.abs(eigenvalues)
 
+        if np.any(np.iscomplex(eigenvalues)):
+            eigenvalues = np.abs(eigenvalues)
+
         # sort eigenvalues descending
         sorted_eigenvalue_indexes = np.argsort(eigenvalues)[::-1]
         self.eigenvalues = np.real_if_close(eigenvalues[sorted_eigenvalue_indexes])
-        if np.any(np.iscomplex(self.eigenvalues)):
-            self.eigenvalues = np.abs(self.eigenvalues)
         return np.real_if_close(eigenvectors[:, sorted_eigenvalue_indexes])
 
     def _get_correlations_matrix(self):
