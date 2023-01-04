@@ -390,10 +390,12 @@ class MultiTrajectory:
             pc_1_matrix = combi[1]['model'].eigenvectors.T
             cos_matrix = cosine_similarity(np.real(pc_0_matrix), np.real(pc_1_matrix))
             sorted_similarity_indexes = np.argmax(np.abs(cos_matrix), axis=1)
+            assert len(sorted_similarity_indexes) == len(
+                set(sorted_similarity_indexes)), "Not all eigenvectors have a unique most similar eigenvector pair."
             sorted_cos_matrix = cos_matrix[:, sorted_similarity_indexes]
             combo_pc_similarity = np.diag(sorted_cos_matrix)
             combo_sim_of_n_pcs = np.asarray([np.mean(np.abs(combo_pc_similarity[:nr_of_pcs]))
-                                            for nr_of_pcs in range(len(combo_pc_similarity))])
+                                             for nr_of_pcs in range(len(combo_pc_similarity))])
             if plot:
                 sorted_pc_nr_list = sorted(i for i in pc_nr_list if i < len(combo_sim_of_n_pcs))
                 selected_sim_vals = {

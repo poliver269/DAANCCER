@@ -261,7 +261,7 @@ class ParameterModel(TensorDR):
     def transform_with_extra_layer(self, data_matrix):
         proj1 = np.dot(data_matrix, self.eigenvectors)
         proj2 = []
-        for component in range(self.n_components):
+        for component in range(self.n_components):  # TODO iterate over nr. atoms
             vector_from = component * self._combine_dim
             vector_to = (component + 1) * self._combine_dim
             model = coor.pca(data=proj1[:, vector_from:vector_to], dim=1)
