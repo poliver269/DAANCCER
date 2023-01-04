@@ -6,6 +6,7 @@ from pathlib import Path
 import mdtraj as md
 import numpy as np
 import pyemma.coordinates as coor
+from mdtraj.utils import deprecated
 from sklearn.metrics.pairwise import cosine_similarity
 
 from plotter import ArrayPlotter, TrajectoryPlotter, MultiTrajectoryPlotter
@@ -122,8 +123,8 @@ class DataTrajectory(TrajectoryFile):
         coordinates_dict = self.alpha_carbon_coordinates if ac_only else self.atom_coordinates
         return coordinates_dict[:, :, element_list]
 
+    @deprecated
     def get_model_and_projection_by_name(self, model_name: str, inp: np.ndarray = None):
-        # TODO: deprecated
         if inp is None:
             inp = self._determine_input(model_name)
         if model_name == 'pca':
