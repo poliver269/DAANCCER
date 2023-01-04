@@ -22,8 +22,8 @@ def main():
     # TODO: Argsparser for options
     load_json = False
     run_option = COMPARE
-    trajectory_name = 'prot2'
-    file_element = 0
+    trajectory_name = '2f4k'
+    file_element = 64
     params = {
         PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map', 'explained_var_plot'
         PLOT_TICS: True,  # True, False
@@ -71,11 +71,11 @@ def main():
 
             # Original Algorithms
             # {ALGORITHM_NAME: 'original_pca', NDIM: MATRIX_NDIM},
-            {ALGORITHM_NAME: 'original_tica', NDIM: MATRIX_NDIM},
+            # {ALGORITHM_NAME: 'original_tica', NDIM: MATRIX_NDIM},
 
             # raw MATRIX models
             # {ALGORITHM_NAME: 'pca', NDIM: MATRIX_NDIM},
-            {ALGORITHM_NAME: 'tica', NDIM: MATRIX_NDIM, LAG_TIME: params[LAG_TIME]},
+            # {ALGORITHM_NAME: 'tica', NDIM: MATRIX_NDIM, LAG_TIME: params[LAG_TIME]},
 
             # raw TENSOR models
             # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM},
@@ -93,8 +93,10 @@ def main():
             # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, EXTRA_DR_LAYER: False},
             # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, EXTRA_DR_LAYER: False, NTH_EIGENVECTOR: 3},
             # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, EXTRA_DR_LAYER: True},
-            {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_LINEAR_P1, EXTRA_DR_LAYER: False},
-            {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_LINEAR_P1, EXTRA_DR_LAYER: True},
+            {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_GAUSSIAN, EXTRA_DR_LAYER: False},
+            {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_GAUSSIAN, EXTRA_DR_LAYER: False, NTH_EIGENVECTOR: 3},
+            {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_GAUSSIAN, EXTRA_DR_LAYER: True},
+            {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_GAUSSIAN, EXTRA_DR_LAYER: True, EXTRA_LAYER_ON_PROJECTION: False},
             # {ALGORITHM_NAME: 'tica', NDIM: TENSOR_NDIM, LAG_TIME: params[LAG_TIME], EXTRA_DR_LAYER: True},
             # {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_NORM_LINEAR},
             # {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_LINEAR},

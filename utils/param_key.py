@@ -56,6 +56,7 @@ CENTER_OVER_TIME = 'center_over_time'
 NTH_EIGENVECTOR = 'nth_eigenvector'
 ONES_ON_KERNEL_DIAG = 'ones_on_kernel_diagonal'
 EXTRA_DR_LAYER = 'extra_dimension_reduction_layer'
+EXTRA_LAYER_ON_PROJECTION = 'extra_layer_on_projection'
 ABS_EVAL_SORT = 'absolute_eigenvalue_sorting'
 
 # Kernel functions

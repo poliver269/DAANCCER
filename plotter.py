@@ -174,11 +174,11 @@ class TrajectoryPlotter(MyPlotter):
             String value of the plot mapping type
         """
         ax.cla()
-        ex_var = projection.get(EXPLAINED_VAR, 0)
+        ex_var = projection.get(EXPLAINED_VAR, None)
         ax.set_title(projection.get(TITLE_PREFIX, '') +
                      str(projection[MODEL]) +
-                     (f'\nExplained var: {ex_var:.4f}' if ex_var > 0 else ''),
-                     fontsize=10, wrap=True)
+                     (f'\nExplained var: {ex_var:.4f}' if ex_var is not None else ''),
+                     fontsize=8, wrap=True)
         ax.set_xlabel('1st component')
         ax.set_ylabel('2nd component')
         data_list = projection[PROJECTION]

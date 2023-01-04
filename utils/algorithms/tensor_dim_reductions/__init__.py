@@ -69,6 +69,7 @@ class ParameterModel(TensorDR):
             LAG_TIME: model_parameters.get(LAG_TIME, 0),
             NTH_EIGENVECTOR: model_parameters.get(NTH_EIGENVECTOR, 1),
             EXTRA_DR_LAYER: model_parameters.get(EXTRA_DR_LAYER, False),
+            EXTRA_LAYER_ON_PROJECTION: model_parameters.get(EXTRA_LAYER_ON_PROJECTION, True),
             ABS_EVAL_SORT: model_parameters.get(ABS_EVAL_SORT, False),
 
             PLOT_2D: model_parameters.get(PLOT_2D, False),
@@ -85,12 +86,13 @@ class ParameterModel(TensorDR):
         sb += f'lag-time={self.params[LAG_TIME]}, ' if self.params[LAG_TIME] > 0 else ''
         sb += f'abs_ew_sorting={self.params[ABS_EVAL_SORT]}, '
         sb += f'2nd_layer={self.params[EXTRA_DR_LAYER]}' if self.params[EXTRA_DR_LAYER] else ''
+        sb += f'\nn-th_ev={self.params[NTH_EIGENVECTOR]}' if self.params[NTH_EIGENVECTOR] > 1 else ''
         return sb
         # f'{function_name(self.params[COV_FUNCTION])}'
 
     @property
     def _is_matrix_model(self) -> bool:
-        return self.params[NDIM] == 2
+        return self.params[NDIM] == MATRIX_NDIM
 
     def _is_time_lagged_algorithm(self) -> bool:
         return self.params[ALGORITHM_NAME] in ['tica']
@@ -103,13 +105,17 @@ class ParameterModel(TensorDR):
 
     @property
     def _combine_dim(self) -> int:
-        return self._standardized_data.shape[2]
+        return self._standardized_data.shape[COORDINATE_DIM]
+
+    @property
+    def _atom_dim(self) -> int:
+        return self._standardized_data.shape[ATOM_DIM]
 
     def fit_transform(self, data_tensor, **fit_params):
         return super().fit_transform(data_tensor, fit_params)
 
     def fit(self, data_tensor, **fit_params):
-        self.n_samples = data_tensor.shape[0]
+        self.n_samples = data_tensor.shape[TIME_DIM]
         self.n_components = fit_params.get(N_COMPONENTS, 2)
         self._standardized_data = self._standardize_data(data_tensor)
         self._covariance_matrix = self.get_covariance_matrix()
@@ -259,11 +265,31 @@ class ParameterModel(TensorDR):
             )
 
     def transform_with_extra_layer(self, data_matrix):
-        proj1 = np.dot(data_matrix, self.eigenvectors)
+        if self.params[EXTRA_LAYER_ON_PROJECTION]:
+            proj1 = np.dot(data_matrix, self.eigenvectors)
+        else:
+            proj1 = self.eigenvectors
         proj2 = []
-        for component in range(self.n_components):  # TODO iterate over nr. atoms
+        eigenvalues2 = []
+        eigenvectors2 = []
+        for component in range(self._atom_dim):
             vector_from = component * self._combine_dim
             vector_to = (component + 1) * self._combine_dim
             model = coor.pca(data=proj1[:, vector_from:vector_to], dim=1)
+
             proj2.append(np.squeeze(model.get_output()[0]))
-        return np.asarray(proj2).T
+
+            ew2 = model.eigenvalues[0]
+            eigenvalues2.append(np.mean(self.eigenvalues[vector_from:vector_to] * ew2))
+
+            ev2 = model.eigenvectors[0]
+            ev = np.dot(self.eigenvectors[:, vector_from:vector_to], ev2)
+            eigenvectors2.append(ev)
+
+        self.eigenvalues = np.asarray(eigenvalues2).T
+        self.eigenvectors = np.asarray(eigenvectors2).T
+
+        if self.params[EXTRA_LAYER_ON_PROJECTION]:
+            return np.asarray(proj2[:self.n_components]).T
+        else:
+            return np.dot(data_matrix, self.eigenvectors[:, :self.n_components])
