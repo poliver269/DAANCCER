@@ -15,6 +15,7 @@ COMPARE_WITH_CA_ATOMS = 'compare_with_carbon_alpha_atoms'
 BASE_TRANSFORMATION = 'base_transformation'
 CALCULATE_PEARSON_CORRELATION_COEFFICIENT = 'calculate_pcc'
 GROMACS_PRODUCTION = 'gromacs_production'
+PARAMETER_GRID_SEARCH = 'parameter_grid_search'
 
 
 def main():
@@ -38,6 +39,13 @@ def main():
         TRAJECTORY_NAME: trajectory_name
     }
 
+    filename_list, kwargs = get_files_and_kwargs(trajectory_name, file_element, params)
+    model_params_list = get_model_params_list(load_json)
+    run(run_option, kwargs, params, model_params_list, filename_list)
+    print(f'Finishing time: {datetime.now()}')
+
+
+def get_files_and_kwargs(trajectory_name, file_element, params):
     if trajectory_name == '2f4k':
         filename_list = [f'2F4K-0-protein-{i:03d}.dcd' for i in range(0, 62 + 1)] + ['tr3_unfolded.xtc',
                                                                                      'tr8_folded.xtc']
@@ -62,11 +70,14 @@ def main():
     else:
         raise ValueError(f'No data trajectory was found with the name `{trajectory_name}`.')
     filename_list.pop(file_element)
+    return filename_list, kwargs
 
+
+def get_model_params_list(load_json):
     if load_json:
-        model_params_list = json.load(open('algorithm_parameters_list.json'))
+        return json.load(open('algorithm_parameters_list.json'))
     else:
-        model_params_list = [
+        return [
             # Old Class-algorithms with parameters, not strings: USE_STD: True, CENTER_OVER_TIME: False
 
             # Original Algorithms
@@ -112,6 +123,8 @@ def main():
             # {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_ONLY},},
         ]
 
+
+def run(run_option, kwargs, params, model_params_list, filename_list):
     if run_option == 'covert_to_pdb':
         kwargs = {'filename': 'protein.xtc', 'topology_filename': 'protein.gro',
                   'goal_filename': 'protein.pdb', 'folder_path': 'data/ser-tr'}
@@ -152,8 +165,6 @@ def main():
             mtr = MultiTrajectory(kwargs_list, params)
             mtr.compare_all_trajectories(traj_nrs=None, model_params_list=model_params_list,
                                          pc_nr_list=None)
-
-    print(f'Finishing time: {datetime.now()}')
 
 
 if __name__ == '__main__':
