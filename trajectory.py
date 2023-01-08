@@ -209,7 +209,7 @@ class DataTrajectory(TrajectoryFile):
                 raise TypeError(f'Input data of the function is not correct. '
                                 f'Original algorithms take only 2-n-dimensional ndarray')
         else:
-            model = ParameterModel(model_parameters)
+            model = ParameterModel(**model_parameters)
             return model, [model.fit_transform(inp, n_components=self.params[N_COMPONENTS])]
 
     def compare(self, model_parameter_list: list[dict, str]):

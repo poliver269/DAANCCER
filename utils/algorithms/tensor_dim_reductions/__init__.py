@@ -9,15 +9,11 @@ from utils.param_key import *
 
 
 class TensorDR(MyModel):
-    def __init__(self, model_parameters=None):
+    def __init__(self, cov_stat_func=np.mean, kernel_stat_func=np.median):
         super().__init__()
-        if model_parameters is None:
-            model_parameters = {}
 
-        self.params = {
-            COV_STAT_FUNC: model_parameters.get(COV_STAT_FUNC, np.mean),
-            KERNEL_STAT_FUNC: model_parameters.get(KERNEL_STAT_FUNC, np.median)
-        }
+        self.cov_stat_func = cov_stat_func
+        self.kernel_stat_func = kernel_stat_func
 
     def fit(self, data_tensor, **fit_params):
         self.n_samples = data_tensor.shape[0]
@@ -32,7 +28,7 @@ class TensorDR(MyModel):
         return super().get_covariance_matrix()
 
     def _update_cov(self):
-        averaged_cov = self.params[COV_STAT_FUNC](self._covariance_matrix, axis=0)
+        averaged_cov = self.cov_stat_func(self._covariance_matrix, axis=0)
         self._covariance_matrix = diagonal_block_expand(averaged_cov, self._covariance_matrix.shape[0])
 
     def get_eigenvectors(self):
@@ -54,51 +50,69 @@ class TensorDR(MyModel):
 
 
 class ParameterModel(TensorDR):
-    def __init__(self, model_parameters):
-        super().__init__(model_parameters)
-        self.params.update({
-            ALGORITHM_NAME: model_parameters.get(ALGORITHM_NAME, 'pca'),  # pca, tica, kica
-            NDIM: model_parameters.get(NDIM, TENSOR_NDIM),  # 3: tensor, 2: matrix
+    def __init__(self,
+                 cov_stat_func=np.mean,
+                 kernel_stat_func=np.median,
+                 algorithm_name='pca',  # pca, tica, kica<
+                 ndim=TENSOR_NDIM,  # 3: tensor, 2: matrix
+                 kernel=None,  # diff, multi, only, None
+                 corr_kernel=False,  # only for tica: True, False
+                 kernel_type=MY_GAUSSIAN,
+                 ones_on_kernel_diag=False,
+                 cov_function=np.cov,  # np.cov, np.corrcoef, co_mad
+                 lag_time=0,
+                 nth_eigenvector=1,
+                 extra_dr_layer=False,
+                 extra_layer_on_projection=True,
+                 abs_eigenvalue_sorting=True,
+                 plot_2d=False,
+                 use_std=False,
+                 center_over_time=True
+                 ):
+        super().__init__(cov_stat_func, kernel_stat_func)
 
-            KERNEL: model_parameters.get(KERNEL, None),  # diff, multi, only, None
-            CORR_KERNEL: model_parameters.get(CORR_KERNEL, False),  # only for tica: True, False
-            KERNEL_TYPE: model_parameters.get(KERNEL_TYPE, MY_GAUSSIAN),
-            ONES_ON_KERNEL_DIAG: model_parameters.get(ONES_ON_KERNEL_DIAG, False),
+        self.algorithm_name = algorithm_name
+        self.ndim = ndim
 
-            COV_FUNCTION: model_parameters.get(COV_FUNCTION, np.cov),  # np.cov, np.corrcoef, co_mad
-            LAG_TIME: model_parameters.get(LAG_TIME, 0),
-            NTH_EIGENVECTOR: model_parameters.get(NTH_EIGENVECTOR, 1),
-            EXTRA_DR_LAYER: model_parameters.get(EXTRA_DR_LAYER, False),
-            EXTRA_LAYER_ON_PROJECTION: model_parameters.get(EXTRA_LAYER_ON_PROJECTION, True),
-            ABS_EVAL_SORT: model_parameters.get(ABS_EVAL_SORT, True),
+        self.kernel = kernel
+        self.kernel_type = kernel_type
+        self.corr_kernel = corr_kernel
+        self.ones_on_kernel_diag = ones_on_kernel_diag
 
-            PLOT_2D: model_parameters.get(PLOT_2D, False),
-            USE_STD: model_parameters.get(USE_STD, False),
-            CENTER_OVER_TIME: model_parameters.get(CENTER_OVER_TIME, True),
-        })
+        self.cov_function = cov_function
+        self.lag_time = lag_time
+
+        self.nth_eigenvector = nth_eigenvector
+        self.extra_dr_layer = extra_dr_layer
+        self.extra_layer_on_projection = extra_layer_on_projection
+
+        self.abs_eigenvalue_sorting = abs_eigenvalue_sorting
+        self.plot_2d = plot_2d
+        self.use_std = use_std
+        self.center_over_time = center_over_time
 
     def __str__(self):
-        sb = f'{"Matrix" if self._is_matrix_model else "Tensor"}-{self.params[ALGORITHM_NAME]}'
-        if self.params[KERNEL] is not None:
-            sb += (f', {self.params[KERNEL_TYPE]}-{self.params[KERNEL]}' +
-                   f'{f"-onCorr2" if self.params[CORR_KERNEL] else ""}')
+        sb = f'{"Matrix" if self._is_matrix_model else "Tensor"}-{self.algorithm_name}'
+        if self.kernel is not None:
+            sb += (f', {self.kernel_type}-{self.kernel}' +
+                   f'{f"-onCorr2" if self.corr_kernel else ""}')
         sb += '\n'
-        sb += f'lag-time={self.params[LAG_TIME]}, ' if self.params[LAG_TIME] > 0 else ''
-        sb += f'abs_ew_sorting={self.params[ABS_EVAL_SORT]}, '
-        sb += f'2nd_layer={self.params[EXTRA_DR_LAYER]}' if self.params[EXTRA_DR_LAYER] else ''
-        sb += f'\nn-th_ev={self.params[NTH_EIGENVECTOR]}' if self.params[NTH_EIGENVECTOR] > 1 else ''
+        sb += f'lag-time={self.lag_time}, ' if self.lag_time > 0 else ''
+        sb += f'abs_ew_sorting={self.abs_eigenvalue_sorting}, '
+        sb += f'2nd_layer={self.extra_dr_layer}' if self.extra_dr_layer else ''
+        sb += f'\nn-th_ev={self.nth_eigenvector}' if self.nth_eigenvector > 1 else ''
         return sb
-        # f'{function_name(self.params[COV_FUNCTION])}'
+        # f'{function_name(self.cov_function)}'
 
     @property
     def _is_matrix_model(self) -> bool:
-        return self.params[NDIM] == MATRIX_NDIM
+        return self.ndim == MATRIX_NDIM
 
     def _is_time_lagged_algorithm(self) -> bool:
-        return self.params[ALGORITHM_NAME] in ['tica']
+        return self.algorithm_name in ['tica']
 
     def _use_kernel_as_correlations_matrix(self) -> bool:
-        return self.params[ALGORITHM_NAME] in ['kica']
+        return self.algorithm_name in ['kica']
 
     def _use_correlations_matrix(self) -> bool:
         return self._use_kernel_as_correlations_matrix() or self._is_time_lagged_algorithm()
@@ -123,12 +137,12 @@ class ParameterModel(TensorDR):
         return self
 
     def _standardize_data(self, tensor):
-        if self._is_matrix_model or not self.params[CENTER_OVER_TIME]:
+        if self._is_matrix_model or not self.center_over_time:
             numerator = tensor - np.mean(tensor, axis=0)
         else:
             numerator = tensor - np.mean(tensor, axis=1)[:, np.newaxis, :]
 
-        if self.params[USE_STD]:
+        if self.use_std:
             denominator = np.std(tensor, axis=0)
             return numerator / denominator
         else:
@@ -137,48 +151,48 @@ class ParameterModel(TensorDR):
     def get_covariance_matrix(self):
         if self._is_matrix_model:
             cov = self._get_matrix_covariance()
-            if self.params[KERNEL] is not None and not self._use_kernel_as_correlations_matrix():
+            if self.kernel is not None and not self._use_kernel_as_correlations_matrix():
                 cov = self._map_kernel(cov)
             return cov
         else:
             tensor_cov = self._get_tensor_covariance()
-            cov = self.params[COV_STAT_FUNC](tensor_cov, axis=0)
-            if self.params[KERNEL] is not None and not self._use_kernel_as_correlations_matrix():
+            cov = self.cov_stat_func(tensor_cov, axis=0)
+            if self.kernel is not None and not self._use_kernel_as_correlations_matrix():
                 cov = self._map_kernel(cov)
             return diagonal_block_expand(cov, tensor_cov.shape[0])
 
     def _get_matrix_covariance(self):
-        if self._is_time_lagged_algorithm() and self.params[LAG_TIME] > 0:
-            return np.cov(self._standardized_data[:-self.params[LAG_TIME]].T)
+        if self._is_time_lagged_algorithm() and self.lag_time > 0:
+            return np.cov(self._standardized_data[:-self.lag_time].T)
         else:
             return super().get_covariance_matrix()
 
     def _get_tensor_covariance(self):
-        if self._is_time_lagged_algorithm() and self.params[LAG_TIME] > 0:
+        if self._is_time_lagged_algorithm() and self.lag_time > 0:
             return np.asarray(list(
-                map(lambda index: self.params[COV_FUNCTION](
-                    self._standardized_data[:-self.params[LAG_TIME], :, index].T),
+                map(lambda index: self.cov_function(
+                    self._standardized_data[:-self.lag_time, :, index].T),
                     range(self._combine_dim))
             ))
         else:
             return np.asarray(list(
-                map(lambda index: self.params[COV_FUNCTION](self._standardized_data[:, :, index].T),
+                map(lambda index: self.cov_function(self._standardized_data[:, :, index].T),
                     range(self._combine_dim))
             ))
 
     def _map_kernel(self, matrix):
-        trajectory_name = 'Not Model Related' if self.params[PLOT_2D] else None
+        trajectory_name = 'Not Model Related' if self.plot_2d else None
         kernel_matrix = calculate_symmetrical_kernel_from_matrix(
-            matrix, self.params[KERNEL_STAT_FUNC], self.params[KERNEL_TYPE],
+            matrix, self.kernel_stat_func, self.kernel_type,
             trajectory_name, flattened=self._is_matrix_model)
-        if self.params[KERNEL] == KERNEL_ONLY:
+        if self.kernel == KERNEL_ONLY:
             matrix = kernel_matrix
-        elif self.params[KERNEL] == KERNEL_DIFFERENCE:
+        elif self.kernel == KERNEL_DIFFERENCE:
             matrix -= kernel_matrix
-        elif self.params[KERNEL] == KERNEL_MULTIPLICATION:
+        elif self.kernel == KERNEL_MULTIPLICATION:
             matrix *= kernel_matrix
 
-        if self.params[ONES_ON_KERNEL_DIAG]:
+        if self.ones_on_kernel_diag:
             np.fill_diagonal(matrix, 1.0)
 
         return matrix
@@ -186,14 +200,14 @@ class ParameterModel(TensorDR):
     def get_eigenvectors(self):
         # calculate eigenvalues & eigenvectors of covariance matrix
         # assert is_matrix_symmetric(self._covariance_matrix), 'Covariance-Matrix should be symmetric.'
-        if self.params[ALGORITHM_NAME] in ['tica', 'kica']:
+        if self.algorithm_name in ['tica', 'kica']:
             correlation_matrix = self._get_correlations_matrix()
             # assert is_matrix_symmetric(correlation_matrix), 'Correlation-Matrix should be symmetric.'
             eigenvalues, eigenvectors = scipy.linalg.eig(correlation_matrix, b=self._covariance_matrix)
         else:
             eigenvalues, eigenvectors = np.linalg.eigh(self._covariance_matrix)
 
-        if self.params[ABS_EVAL_SORT]:
+        if self.abs_eigenvalue_sorting:
             eigenvalues = np.abs(eigenvalues)
 
         if np.any(np.iscomplex(eigenvalues)):
@@ -208,41 +222,41 @@ class ParameterModel(TensorDR):
         if self._is_matrix_model:
             corr = self._get_matrix_correlation()
 
-            if self.params[CORR_KERNEL] or self._use_kernel_as_correlations_matrix():
+            if self.corr_kernel or self._use_kernel_as_correlations_matrix():
                 corr = self._map_kernel(corr)
 
             return corr
         else:
             tensor_corr = self._get_tensor_correlation()
-            corr = self.params[COV_STAT_FUNC](tensor_corr, axis=0)
+            corr = self.cov_stat_func(tensor_corr, axis=0)
 
-            if self.params[PLOT_2D]:
+            if self.plot_2d:
                 for i in range(tensor_corr.shape[0]):
                     ArrayPlotter(False).matrix_plot(tensor_corr[i])
                 ArrayPlotter(False).matrix_plot(corr)
 
-            if self.params[CORR_KERNEL] or self._use_kernel_as_correlations_matrix():
+            if self.corr_kernel or self._use_kernel_as_correlations_matrix():
                 corr = self._map_kernel(corr)
 
             return diagonal_block_expand(corr, tensor_corr.shape[0])
 
     def _get_matrix_correlation(self):
-        if self.params[LAG_TIME] <= 0:
+        if self.lag_time <= 0:
             return self._get_matrix_covariance()
         else:
-            corr = np.dot(self._standardized_data[:-self.params[LAG_TIME]].T,
-                          self._standardized_data[self.params[LAG_TIME]:]) / (self.n_samples - self.params[LAG_TIME])
+            corr = np.dot(self._standardized_data[:-self.lag_time].T,
+                          self._standardized_data[self.lag_time:]) / (self.n_samples - self.lag_time)
             return ensure_matrix_symmetry(corr)
 
     def _get_tensor_correlation(self):
-        if self._use_kernel_as_correlations_matrix() or self.params[LAG_TIME] <= 0:
+        if self._use_kernel_as_correlations_matrix() or self.lag_time <= 0:
             return self._get_tensor_covariance()
         else:
             temp_list = []
             for index in range(self._standardized_data.shape[COORDINATE_DIM]):
-                dot_i = np.dot(self._standardized_data[:-self.params[LAG_TIME], :, index].T,
-                               self._standardized_data[self.params[LAG_TIME]:, :, index]) / (
-                                self.n_samples - self.params[LAG_TIME])
+                dot_i = np.dot(self._standardized_data[:-self.lag_time, :, index].T,
+                               self._standardized_data[self.lag_time:, :, index]) / (
+                                self.n_samples - self.lag_time)
                 sym_i = ensure_matrix_symmetry(dot_i)
                 temp_list.append(sym_i)
             return np.asarray(temp_list)
@@ -253,19 +267,19 @@ class ParameterModel(TensorDR):
         else:
             data_matrix = self._update_data_tensor(data_tensor)
 
-        if self.params[NTH_EIGENVECTOR] < 1:
-            self.params[NTH_EIGENVECTOR] = self._combine_dim
+        if self.nth_eigenvector < 1:
+            self.nth_eigenvector = self._combine_dim
 
-        if self.params[EXTRA_DR_LAYER]:
+        if self.extra_dr_layer:
             return self.transform_with_extra_layer(data_matrix)
         else:
             return np.dot(
                 data_matrix,
-                self.eigenvectors[:, :self.n_components * self.params[NTH_EIGENVECTOR]:self.params[NTH_EIGENVECTOR]]
+                self.eigenvectors[:, :self.n_components * self.nth_eigenvector:self.nth_eigenvector]
             )
 
     def transform_with_extra_layer(self, data_matrix):
-        if self.params[EXTRA_LAYER_ON_PROJECTION]:
+        if self.extra_layer_on_projection:
             proj1 = np.dot(data_matrix, self.eigenvectors)
         else:
             proj1 = self.eigenvectors
@@ -289,7 +303,7 @@ class ParameterModel(TensorDR):
         self.eigenvalues = np.asarray(eigenvalues2).T
         self.eigenvectors = np.asarray(eigenvectors2).T
 
-        if self.params[EXTRA_LAYER_ON_PROJECTION]:
+        if self.extra_layer_on_projection:
             return np.asarray(proj2[:self.n_components]).T
         else:
             return np.dot(data_matrix, self.eigenvectors[:, :self.n_components])

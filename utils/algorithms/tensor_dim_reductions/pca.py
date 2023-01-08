@@ -22,7 +22,7 @@ class TensorPearsonCovPCA(TensorDR):
 
 class TensorKernelOnCovPCA(TensorPCA):
     def _update_cov(self):
-        statistical_cov = self.params['cov_stat_func'](self._covariance_matrix, axis=0)
+        statistical_cov = self.cov_stat_func(self._covariance_matrix, axis=0)
         d_matrix = calculate_symmetrical_kernel_from_matrix(statistical_cov)
         weighted_cov_matrix = statistical_cov - d_matrix
         self._covariance_matrix = diagonal_block_expand(weighted_cov_matrix, self._covariance_matrix.shape[0])
@@ -30,16 +30,16 @@ class TensorKernelOnCovPCA(TensorPCA):
 
 class TensorKernelOnPearsonCovPCA(TensorPearsonCovPCA):
     def _update_cov(self):
-        averaged_cov = self.params['cov_stat_func'](self._covariance_matrix, axis=0)
-        d_matrix = calculate_symmetrical_kernel_from_matrix(averaged_cov, self.params['kernel_stat_func'])
+        averaged_cov = self.cov_stat_func(self._covariance_matrix, axis=0)
+        d_matrix = calculate_symmetrical_kernel_from_matrix(averaged_cov, self.kernel_stat_func)
         weighted_alpha_coeff_matrix = averaged_cov - d_matrix
         self._covariance_matrix = diagonal_block_expand(weighted_alpha_coeff_matrix, self._covariance_matrix.shape[0])
 
 
 class TensorKernelFromCovPCA(TensorPCA):
     def _update_cov(self):
-        averaged_cov = self.params['cov_stat_func'](self._covariance_matrix, axis=0)
-        d_matrix = calculate_symmetrical_kernel_from_matrix(averaged_cov, self.params['kernel_stat_func'])
+        averaged_cov = self.cov_stat_func(self._covariance_matrix, axis=0)
+        d_matrix = calculate_symmetrical_kernel_from_matrix(averaged_cov, self.kernel_stat_func)
         self._covariance_matrix = diagonal_block_expand(d_matrix, self._covariance_matrix.shape[0])
 
 
