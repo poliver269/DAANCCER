@@ -3,7 +3,8 @@ from datetime import datetime
 
 from my_tsne import TrajectoryTSNE
 from plotter import TrajectoryPlotter
-from trajectory import DataTrajectory, TopologyConverter, MultiTrajectory
+from trajectory import DataTrajectory, TopologyConverter
+from analyse import MultiTrajectory, SingleTrajectory
 from utils.param_key import *
 
 COMPARE = 'compare'
@@ -138,13 +139,13 @@ def run(run_option, kwargs, params, model_params_list, filename_list):
         TrajectoryPlotter(tr).original_data_with_timestep_slider(min_max=None)  # [0, 1000]
     elif run_option == COMPARE:
         tr = DataTrajectory(**kwargs)
-        tr.compare(model_params_list)
+        SingleTrajectory(tr).compare(model_params_list)
     elif run_option == COMPARE_WITH_CA_ATOMS:
         tr = DataTrajectory(**kwargs)
-        tr.compare_with_carbon_alpha_and_all_atoms('pca')
+        SingleTrajectory(tr).compare_with_carbon_alpha_and_all_atoms('pca')
     elif run_option == BASE_TRANSFORMATION:
         tr = DataTrajectory(**kwargs)
-        tr.compare_with_basis_transformation(['tica'])
+        SingleTrajectory(tr).compare_with_basis_transformation(['tica'])
     elif run_option == CALCULATE_PEARSON_CORRELATION_COEFFICIENT:
         tr = DataTrajectory(**kwargs)
         tr.calculate_pearson_correlation_coefficient()
