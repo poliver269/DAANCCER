@@ -31,7 +31,7 @@ class TruncatedPCA(MyPCA):
         return np.dot(self._standardized_data[:, :-self.truncation_value].T,
                       self._standardized_data[:, self.truncation_value:]) / self.n_samples
 
-    def fit_transform(self, data_ndarray, n_components=2):
+    def fit_transform(self, data_ndarray, y=None, **fit_params):
         raise NotImplementedError('Truncated eigenvalue matrix, has an other shape as the data matrix '
                                   'which should be transformed.')
 

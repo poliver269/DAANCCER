@@ -74,10 +74,10 @@ class TruncatedTICA(MyTICA):
             else:
                 cov = np.dot(self._standardized_data[:-self.lag_time, :-self.truncation_value].T,
                              self._standardized_data[self.lag_time:, self.truncation_value:]) / (
-                             self.n_samples - self.lag_time)
+                              self.n_samples - self.lag_time)
             return 0.5 * (cov + cov.T)
 
-    def fit_transform(self, data_ndarray, n_components=2):
+    def fit_transform(self, data_ndarray, y=None, **fit_params):
         raise NotImplementedError('Truncated eigenvalue matrix, has an other shape as the data matrix '
                                   'which should be transformed. '
                                   'Idea: truncate also the input by the truncation value.')
@@ -90,4 +90,3 @@ class KernelFromCovTICA(MyTICA):
         stat_cov = calculate_symmetrical_kernel_from_matrix(super_cov, flattened=True, trajectory_name='kernel diff')
         ArrayPlotter(False).matrix_plot(super_cov - stat_cov)
         return stat_cov
-

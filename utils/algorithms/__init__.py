@@ -1,10 +1,10 @@
 import numpy as np
-from sklearn.base import TransformerMixin
+from sklearn.base import TransformerMixin, BaseEstimator
 
 from utils.param_key import N_COMPONENTS
 
 
-class MyModel(TransformerMixin):
+class MyModel(TransformerMixin, BaseEstimator):
     """
     This class and some child classes are partly copied from:
     https://towardsdatascience.com/implementing-pca-from-scratch-fb434f1acbaa

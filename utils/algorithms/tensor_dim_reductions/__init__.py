@@ -70,7 +70,7 @@ class ParameterModel(TensorDR):
             NTH_EIGENVECTOR: model_parameters.get(NTH_EIGENVECTOR, 1),
             EXTRA_DR_LAYER: model_parameters.get(EXTRA_DR_LAYER, False),
             EXTRA_LAYER_ON_PROJECTION: model_parameters.get(EXTRA_LAYER_ON_PROJECTION, True),
-            ABS_EVAL_SORT: model_parameters.get(ABS_EVAL_SORT, False),
+            ABS_EVAL_SORT: model_parameters.get(ABS_EVAL_SORT, True),
 
             PLOT_2D: model_parameters.get(PLOT_2D, False),
             USE_STD: model_parameters.get(USE_STD, False),

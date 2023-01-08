@@ -61,7 +61,7 @@ class TrajectoryTSNE(DataTrajectory):
             embedding = model.fit_transform(self.flattened_coordinates)
             return model, embedding
         elif model_name == 'time-lagged_tsne':
-            # TODO speed up tl tSNE
+            # TODO speed up tl tSNE, probably refactor to numpy?
             traj_mean = self.flattened_coordinates - sp.mean(self.flattened_coordinates, axis=0)
             traj_cov = sp.cov(sp.transpose(traj_mean))  # np.linalg.cov
             eigenvalue, eigenvector = sp.linalg.eig(traj_cov)
