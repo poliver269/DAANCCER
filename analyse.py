@@ -1,12 +1,17 @@
+import os
 import warnings
+from datetime import datetime
 from itertools import combinations
 from operator import itemgetter
-
+from pathlib import Path
 import numpy as np
+import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.model_selection import GridSearchCV
 
 from plotter import ArrayPlotter, MultiTrajectoryPlotter, TrajectoryPlotter
 from trajectory import DataTrajectory
+from utils.algorithms.tensor_dim_reductions import ParameterModel
 from utils.param_key import TRAJECTORY_NAME, N_COMPONENTS, CARBON_ATOMS_ONLY, BASIS_TRANSFORMATION, PLOT_TICS, PLOT_TYPE
 
 
@@ -147,3 +152,22 @@ class MultiTrajectory:
         for model_params in model_params_list:
             result_combos = self.get_trajectory_combos(trajectories, model_params)
             self.get_all_similarities_from_combos(result_combos, pc_nr_list, plot=True)
+
+
+class GridSearchTrajectory:
+    def __init__(self, trajectory):
+        self.trajectory: DataTrajectory = trajectory
+
+    def estimate(self, grid_param):
+        model = ParameterModel()
+        inp = self.trajectory.data_input()
+        cv = [(slice(None), slice(None))]  # get rid of cross validation
+        clf = GridSearchCV(model, grid_param, cv=cv, verbose=1)
+        print('Searching for best model...')
+        clf.fit(inp, n_components=self.trajectory.params[N_COMPONENTS])
+        result_df = pd.DataFrame(clf.cv_results_)
+        current_result_path = Path('analyse_results') / datetime.now().strftime("%Y-%m-%d_%H%M%S")
+        os.mkdir(current_result_path)
+        goal_path = current_result_path / (self.trajectory.filename[:-4] + '.csv')
+        result_df.to_csv(goal_path)
+        print(f'Grid search results successfully saved into: {goal_path}')

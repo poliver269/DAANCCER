@@ -4,7 +4,7 @@ from datetime import datetime
 from my_tsne import TrajectoryTSNE
 from plotter import TrajectoryPlotter
 from trajectory import DataTrajectory, TopologyConverter
-from analyse import MultiTrajectory, SingleTrajectory
+from analyse import MultiTrajectory, SingleTrajectory, GridSearchTrajectory
 from utils.param_key import *
 
 COMPARE = 'compare'
@@ -23,7 +23,7 @@ def main():
     print(f'Starting time: {datetime.now()}')
     # TODO: Argsparser for options
     load_json = False
-    run_option = COMPARE
+    run_option = PARAMETER_GRID_SEARCH
     trajectory_name = '2f4k'
     file_element = 64
     params = {
@@ -166,33 +166,24 @@ def run(run_option, kwargs, params, model_params_list, filename_list):
             mtr = MultiTrajectory(kwargs_list, params)
             mtr.compare_all_trajectories(traj_nrs=None, model_params_list=model_params_list,
                                          pc_nr_list=None)
-        elif run_option == PARAMETER_GRID_SEARCH:
-            param_grid = [
-                {
-                    ALGORITHM_NAME: ['pca', 'tica'],
-                    KERNEL: None,
-                },
-                {
-                    ALGORITHM_NAME: ['pca'],
-                    KERNEL: [KERNEL_DIFFERENCE, KERNEL_MULTIPLICATION, KERNEL_MULTIPLICATION],
-                    KERNEL_TYPE: [MY_LINEAR, MY_GAUSSIAN, MY_EXPONENTIAL, MY_EPANECHNIKOV,
-                                  MY_LINEAR_P1, MY_NORM_LINEAR],
-                    EXTRA_DR_LAYER: [False, True],
-                    EXTRA_LAYER_ON_PROJECTION: [False, True],
-                    ABS_EVAL_SORT: [False, True]
-                },
-                {
-                    ALGORITHM_NAME: ['tica'],
-                    LAG_TIME: [10, 100],
-                    KERNEL: [KERNEL_DIFFERENCE, KERNEL_MULTIPLICATION, KERNEL_MULTIPLICATION],
-                    KERNEL_TYPE: [MY_LINEAR, MY_GAUSSIAN, MY_EXPONENTIAL, MY_EPANECHNIKOV,
-                                  MY_LINEAR_P1, MY_NORM_LINEAR],
-                    # TODO?: CORR_KERNEL
-                    EXTRA_DR_LAYER: [False, True],
-                    EXTRA_LAYER_ON_PROJECTION: [False, True],
-                    ABS_EVAL_SORT: [False, True]
-                }
-            ]
+    elif run_option == PARAMETER_GRID_SEARCH:
+        param_grid = [
+            {
+                ALGORITHM_NAME: ['pca', 'tica'],
+                KERNEL: [None],
+            },
+            {
+                ALGORITHM_NAME: ['pca'],
+                KERNEL: [KERNEL_DIFFERENCE, KERNEL_MULTIPLICATION, KERNEL_MULTIPLICATION],
+                KERNEL_TYPE: [MY_LINEAR, MY_GAUSSIAN, MY_EXPONENTIAL, MY_EPANECHNIKOV],
+                ONES_ON_KERNEL_DIAG: [True, False],
+                # EXTRA_DR_LAYER: [False, True],
+                # EXTRA_LAYER_ON_PROJECTION: [False, True],
+                # ABS_EVAL_SORT: [False, True]
+            }
+        ]
+        tr = DataTrajectory(**kwargs)
+        GridSearchTrajectory(tr).estimate(param_grid)
 
 
 if __name__ == '__main__':

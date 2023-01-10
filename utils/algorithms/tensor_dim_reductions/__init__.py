@@ -1,5 +1,6 @@
 import numpy as np
 import scipy
+from sklearn.metrics import r2_score, mean_squared_error
 
 from plotter import ArrayPlotter
 from utils.algorithms import MyModel
@@ -307,3 +308,39 @@ class ParameterModel(TensorDR):
             return np.asarray(proj2[:self.n_components]).T
         else:
             return np.dot(data_matrix, self.eigenvectors[:, :self.n_components])
+
+    def inverse_transform(self, projection_data: np.ndarray):
+        if self.extra_dr_layer:
+            return np.dot(  # TODO
+                projection_data,
+                self.eigenvectors[:, :self.n_components * self.nth_eigenvector:self.nth_eigenvector].T
+            )
+        else:
+            return np.dot(
+                projection_data,
+                self.eigenvectors[:, :self.n_components * self.nth_eigenvector:self.nth_eigenvector].T
+            )
+
+    def score(self, data_tensor, y=None):
+        """
+        Parameters
+        ----------
+        data_tensor : array-like of shape (n_samples, n_features)
+            List of n_features-dimensional data points.  Each row
+            corresponds to a single data point.
+
+        y : None
+            Ignored. This parameter exists only for compatibility with
+            :class:`~sklearn.pipeline.Pipeline`.
+            """
+        data_projection = self.transform(self._standardize_data(data_tensor))
+        reconstructed_data = self.inverse_transform(data_projection)
+
+        if self._is_matrix_model:
+            data_matrix = data_tensor
+        else:
+            data_matrix = self._update_data_tensor(data_tensor)
+
+        return np.sqrt(mean_squared_error(data_matrix, reconstructed_data))
+        # return r2_score(data_matrix, reconstructed_data)
+        # return np.sum((data_matrix - reconstructed_data) ** 2, axis=1).mean()

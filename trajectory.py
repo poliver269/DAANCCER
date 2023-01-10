@@ -123,7 +123,7 @@ class DataTrajectory(TrajectoryFile):
     @deprecated
     def get_model_and_projection_by_name(self, model_name: str, inp: np.ndarray = None):
         if inp is None:
-            inp = self._determine_input(model_name)
+            inp = self.data_input(model_name)
         if model_name == 'pca':
             pca = coor.pca(data=inp, dim=self.params[N_COMPONENTS])
             return pca, pca.get_output()
@@ -191,7 +191,7 @@ class DataTrajectory(TrajectoryFile):
     def get_model_and_projection(self, model_parameters: dict, inp: np.ndarray = None):
         print(f'Running {model_parameters}...')
         if inp is None:
-            inp = self._determine_input(model_parameters)
+            inp = self.data_input(model_parameters)
         if model_parameters[ALGORITHM_NAME].startswith('original'):
             try:
                 if model_parameters[ALGORITHM_NAME] == 'original_pca':
@@ -225,9 +225,12 @@ class DataTrajectory(TrajectoryFile):
             )
         return {MODEL: model, PROJECTION: projection, EXPLAINED_VAR: ex_var}
 
-    def _determine_input(self, model_parameters: [str, dict]) -> np.ndarray:
+    def data_input(self, model_parameters: [str, dict] = None) -> np.ndarray:
         try:
-            n_dim = MATRIX_NDIM if isinstance(model_parameters, str) else model_parameters['ndim']
+            if model_parameters is None:
+                n_dim = TENSOR_NDIM
+            else:
+                n_dim = MATRIX_NDIM if isinstance(model_parameters, str) else model_parameters['ndim']
         except KeyError as e:
             raise KeyError(f'Model-parameter-dict needs the key: {e}. Set to ´2´ or ´3´.')
 
