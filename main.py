@@ -4,7 +4,7 @@ from datetime import datetime
 from my_tsne import TrajectoryTSNE
 from plotter import TrajectoryPlotter
 from trajectory import DataTrajectory, TopologyConverter
-from analyse import MultiTrajectory, SingleTrajectory, GridSearchTrajectory
+from analyse import MultiTrajectory, SingleTrajectory
 from utils.param_key import *
 
 COMPARE = 'compare'
@@ -17,13 +17,14 @@ BASE_TRANSFORMATION = 'base_transformation'
 CALCULATE_PEARSON_CORRELATION_COEFFICIENT = 'calculate_pcc'
 GROMACS_PRODUCTION = 'gromacs_production'
 PARAMETER_GRID_SEARCH = 'parameter_grid_search'
+MULTI_GRID_SEARCH = 'multi_parameter_grid_search'
 
 
 def main():
     print(f'Starting time: {datetime.now()}')
     # TODO: Argsparser for options
     load_json = False
-    run_option = PARAMETER_GRID_SEARCH
+    run_option = MULTI_GRID_SEARCH
     trajectory_name = '2f4k'
     file_element = 64
     params = {
@@ -41,8 +42,9 @@ def main():
     }
 
     filename_list, kwargs = get_files_and_kwargs(trajectory_name, file_element, params)
-    model_params_list = get_model_params_list(load_json)
-    run(run_option, kwargs, params, model_params_list, filename_list)
+    model_params_list = get_model_params_list(load_json, params)
+    param_grid = get_param_grid()
+    run(run_option, kwargs, params, model_params_list, filename_list, param_grid)
     print(f'Finishing time: {datetime.now()}')
 
 
@@ -74,16 +76,20 @@ def get_files_and_kwargs(trajectory_name, file_element, params):
     return filename_list, kwargs
 
 
-def get_model_params_list(load_json):
+def get_model_params_list(load_json, params):
     if load_json:
         return json.load(open('algorithm_parameters_list.json'))
     else:
         return [
-            # Old Class-algorithms with parameters, not strings: USE_STD: True, CENTER_OVER_TIME: False
+            # Old Class-algorithms with parameters, not strings:
+            # USE_STD: True, CENTER_OVER_TIME: False (only for tensor),
 
             # Original Algorithms
-            # {ALGORITHM_NAME: 'original_pca', NDIM: MATRIX_NDIM},
-            # {ALGORITHM_NAME: 'original_tica', NDIM: MATRIX_NDIM},
+            {ALGORITHM_NAME: 'original_pca', NDIM: MATRIX_NDIM},
+            {ALGORITHM_NAME: 'pca', NDIM: MATRIX_NDIM, USE_STD: False, ABS_EVAL_SORT: False},
+            {ALGORITHM_NAME: 'original_tica', NDIM: MATRIX_NDIM},
+            {ALGORITHM_NAME: 'tica', LAG_TIME: params[LAG_TIME], NDIM: MATRIX_NDIM, USE_STD: False,
+             ABS_EVAL_SORT: False},
 
             # raw MATRIX models
             # {ALGORITHM_NAME: 'pca', NDIM: MATRIX_NDIM},
@@ -102,8 +108,8 @@ def get_model_params_list(load_json):
             # *** Boolean Parameters:
             # CORR_KERNEL, ONES_ON_KERNEL_DIAG, USE_STD, CENTER_OVER_TIME
 
-            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, EXTRA_DR_LAYER: False},
-            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, EXTRA_DR_LAYER: False, NTH_EIGENVECTOR: 3},
+            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, EXTRA_DR_LAYER: False},
+            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, EXTRA_DR_LAYER: False, NTH_EIGENVECTOR: 3},
             # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, EXTRA_DR_LAYER: True},
             # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_GAUSSIAN, EXTRA_DR_LAYER: False},
             # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_GAUSSIAN, EXTRA_DR_LAYER: False, NTH_EIGENVECTOR: 3},
@@ -125,7 +131,27 @@ def get_model_params_list(load_json):
         ]
 
 
-def run(run_option, kwargs, params, model_params_list, filename_list):
+def get_param_grid():
+    param_grid = [
+        {
+            ALGORITHM_NAME: ['pca', 'tica'],
+            KERNEL: [None],
+        },
+        {
+            ALGORITHM_NAME: ['pca', 'tica'],
+            LAG_TIME: [10],
+            KERNEL: [KERNEL_DIFFERENCE, KERNEL_MULTIPLICATION, KERNEL_ONLY],
+            KERNEL_TYPE: [MY_LINEAR, MY_GAUSSIAN, MY_EXPONENTIAL, MY_EPANECHNIKOV],
+            ONES_ON_KERNEL_DIAG: [True, False],
+            # EXTRA_DR_LAYER: [False, True],
+            # EXTRA_LAYER_ON_PROJECTION: [False, True],
+            ABS_EVAL_SORT: [False, True]
+        }
+    ]
+    return param_grid
+
+
+def run(run_option, kwargs, params, model_params_list, filename_list, param_grid):
     if run_option == 'covert_to_pdb':
         kwargs = {'filename': 'protein.xtc', 'topology_filename': 'protein.gro',
                   'goal_filename': 'protein.pdb', 'folder_path': 'data/ser-tr'}
@@ -148,7 +174,10 @@ def run(run_option, kwargs, params, model_params_list, filename_list):
         SingleTrajectory(tr).compare_with_basis_transformation(['tica'])
     elif run_option == CALCULATE_PEARSON_CORRELATION_COEFFICIENT:
         tr = DataTrajectory(**kwargs)
-        tr.calculate_pearson_correlation_coefficient()
+        SingleTrajectory(tr).calculate_pearson_correlation_coefficient()
+    elif run_option == PARAMETER_GRID_SEARCH:
+        tr = DataTrajectory(**kwargs)
+        SingleTrajectory(tr).grid_search(param_grid)
     elif run_option.startswith('multi'):
         kwargs_list = [kwargs]
         for filename in filename_list:
@@ -166,24 +195,9 @@ def run(run_option, kwargs, params, model_params_list, filename_list):
             mtr = MultiTrajectory(kwargs_list, params)
             mtr.compare_all_trajectories(traj_nrs=None, model_params_list=model_params_list,
                                          pc_nr_list=None)
-    elif run_option == PARAMETER_GRID_SEARCH:
-        param_grid = [
-            {
-                ALGORITHM_NAME: ['pca', 'tica'],
-                KERNEL: [None],
-            },
-            {
-                ALGORITHM_NAME: ['pca'],
-                KERNEL: [KERNEL_DIFFERENCE, KERNEL_MULTIPLICATION, KERNEL_MULTIPLICATION],
-                KERNEL_TYPE: [MY_LINEAR, MY_GAUSSIAN, MY_EXPONENTIAL, MY_EPANECHNIKOV],
-                ONES_ON_KERNEL_DIAG: [True, False],
-                # EXTRA_DR_LAYER: [False, True],
-                # EXTRA_LAYER_ON_PROJECTION: [False, True],
-                # ABS_EVAL_SORT: [False, True]
-            }
-        ]
-        tr = DataTrajectory(**kwargs)
-        GridSearchTrajectory(tr).estimate(param_grid)
+        elif run_option == MULTI_GRID_SEARCH:
+            mtr = MultiTrajectory(kwargs_list, params)
+            mtr.grid_search(param_grid)
 
 
 if __name__ == '__main__':

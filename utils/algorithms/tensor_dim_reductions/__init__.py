@@ -1,10 +1,11 @@
 import numpy as np
 import scipy
-from sklearn.metrics import r2_score, mean_squared_error
 
 from plotter import ArrayPlotter
 from utils.algorithms import MyModel
 import pyemma.coordinates as coor
+
+from utils.math import root_mean_squared_error
 from utils.matrix_tools import diagonal_block_expand, calculate_symmetrical_kernel_from_matrix, ensure_matrix_symmetry
 from utils.param_key import *
 
@@ -54,7 +55,7 @@ class ParameterModel(TensorDR):
     def __init__(self,
                  cov_stat_func=np.mean,
                  kernel_stat_func=np.median,
-                 algorithm_name='pca',  # pca, tica, kica<
+                 algorithm_name='pca',  # pca, tica, kica
                  ndim=TENSOR_NDIM,  # 3: tensor, 2: matrix
                  kernel=None,  # diff, multi, only, None
                  corr_kernel=False,  # only for tica: True, False
@@ -231,10 +232,10 @@ class ParameterModel(TensorDR):
             tensor_corr = self._get_tensor_correlation()
             corr = self.cov_stat_func(tensor_corr, axis=0)
 
-            if self.plot_2d:
-                for i in range(tensor_corr.shape[0]):
-                    ArrayPlotter(False).matrix_plot(tensor_corr[i])
-                ArrayPlotter(False).matrix_plot(corr)
+            if self.plot_2d:  # plot the correlation matrix
+                for i in range(tensor_corr.shape[0]):  # for each axis
+                    ArrayPlotter(interactive=False).matrix_plot(tensor_corr[i])
+                ArrayPlotter(interactive=False).matrix_plot(corr)  # and for the mean-ed
 
             if self.corr_kernel or self._use_kernel_as_correlations_matrix():
                 corr = self._map_kernel(corr)
@@ -333,7 +334,11 @@ class ParameterModel(TensorDR):
             Ignored. This parameter exists only for compatibility with
             :class:`~sklearn.pipeline.Pipeline`.
             """
-        data_projection = self.transform(self._standardize_data(data_tensor))
+        if y is not None:
+            data_projection = y
+        else:
+            data_projection = self.transform(self._standardize_data(data_tensor))
+
         reconstructed_data = self.inverse_transform(data_projection)
 
         if self._is_matrix_model:
@@ -341,6 +346,6 @@ class ParameterModel(TensorDR):
         else:
             data_matrix = self._update_data_tensor(data_tensor)
 
-        return np.sqrt(mean_squared_error(data_matrix, reconstructed_data))
+        return root_mean_squared_error(data_matrix, reconstructed_data)
+        # R2 Score probably not good for tensor data... Negative values for the scoring implies bad results.
         # return r2_score(data_matrix, reconstructed_data)
-        # return np.sum((data_matrix - reconstructed_data) ** 2, axis=1).mean()

@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.spatial import distance
+from sklearn.metrics import mean_squared_error
 
 
 def generate_independent_matrix(row, dimension):
@@ -84,3 +85,7 @@ def epanechnikov_2d(x, sigma):
 
 def gaussian_2d(x, mu, sigma):
     return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sigma, 2.)))
+
+
+def root_mean_squared_error(x_true, x_reconstructed):
+    return np.sqrt(mean_squared_error(x_true, x_reconstructed))

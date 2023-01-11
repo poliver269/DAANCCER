@@ -12,7 +12,8 @@ from sklearn.model_selection import GridSearchCV
 from plotter import ArrayPlotter, MultiTrajectoryPlotter, TrajectoryPlotter
 from trajectory import DataTrajectory
 from utils.algorithms.tensor_dim_reductions import ParameterModel
-from utils.param_key import TRAJECTORY_NAME, N_COMPONENTS, CARBON_ATOMS_ONLY, BASIS_TRANSFORMATION, PLOT_TICS, PLOT_TYPE
+from utils.matrix_tools import calculate_symmetrical_kernel_from_matrix
+from utils.param_key import *
 
 
 class SingleTrajectory:
@@ -31,15 +32,15 @@ class SingleTrajectory:
         self.compare_with_plot(model_results)
 
     def compare_with_carbon_alpha_and_all_atoms(self, model_names):
-        model_results = self.trajectory.get_model_results_with_different_param(model_names, CARBON_ATOMS_ONLY)
+        model_results = self.trajectory.get_model_results_with_changing_param(model_names, CARBON_ATOMS_ONLY)
         self.compare_with_plot(model_results)
 
     def compare_with_basis_transformation(self, model_params_list):
-        model_results = self.trajectory.get_model_results_with_different_param(model_params_list, BASIS_TRANSFORMATION)
+        model_results = self.trajectory.get_model_results_with_changing_param(model_params_list, BASIS_TRANSFORMATION)
         self.compare_with_plot(model_results)
 
     def compare_with_plot(self, model_projection_list):
-        TrajectoryPlotter(self).plot_models(
+        TrajectoryPlotter(self.trajectory).plot_models(
             model_projection_list,
             data_elements=[0],  # [0, 1, 2]
             plot_type=self.trajectory.params[PLOT_TYPE],
@@ -47,11 +48,35 @@ class SingleTrajectory:
             components=self.trajectory.params[N_COMPONENTS]
         )
 
+    def calculate_pearson_correlation_coefficient(self):
+        mode = 'calculate_coefficients_than_mean_dimensions'
+        coefficient_mean = self.trajectory.determine_coefficient_mean(mode)
+        print('Fit Kernel on data...')
+        d_matrix = calculate_symmetrical_kernel_from_matrix(coefficient_mean,
+                                                            trajectory_name=self.trajectory.params[TRAJECTORY_NAME])
+        weighted_alpha_coeff_matrix = coefficient_mean - d_matrix
+
+        title_prefix = (f'{"Angles" if self.trajectory.params[USE_ANGLES] else "Coordinates"}. '
+                        f'Pearson Coefficient. {mode}')
+        ArrayPlotter().matrix_plot(weighted_alpha_coeff_matrix,
+                                   title_prefix=title_prefix,
+                                   xy_label='number of correlations',
+                                   as_surface=self.trajectory.params[PLOT_TYPE])
+
+    def grid_search(self, param_grid):
+        print('Searching for best model...')
+        model = ParameterModel()
+        inp = self.trajectory.data_input()  # Cannot train for
+        cv = [(slice(None), slice(None))]  # get rid of cross validation
+        grid = GridSearchCV(model, param_grid, cv=cv, verbose=1)
+        grid.fit(inp, n_components=self.trajectory.params[N_COMPONENTS])
+        _save_tuning_results(grid.cv_results_, name=self.trajectory.filename[:-4])
+
 
 class MultiTrajectory:
     def __init__(self, kwargs_list, params):
         self.trajectories: list[DataTrajectory] = [DataTrajectory(**kwargs) for kwargs in kwargs_list]
-        self.params = params
+        self.params: dict = params
 
     def compare_pcs(self, algorithms):
         for algorithm in algorithms:
@@ -63,7 +88,7 @@ class MultiTrajectory:
             MultiTrajectoryPlotter(interactive=False).plot_principal_components(algorithm, pcs,
                                                                                 self.params[N_COMPONENTS])
 
-    def get_trajectories_by_index(self, traj_nrs: [list[int], None]):
+    def _get_trajectories_by_index(self, traj_nrs: [list[int], None]):
         if traj_nrs is None:  # take all the trajectories
             return self.trajectories
         else:
@@ -71,7 +96,7 @@ class MultiTrajectory:
             return list(itemgetter(*sorted_traj_nrs)(self.trajectories))
 
     @staticmethod
-    def get_trajectory_combos(trajectories, model_params):
+    def _get_trajectory_combos(trajectories, model_params):
         traj_results = []
         for trajectory in trajectories:
             res = trajectory.get_model_result(model_params)
@@ -80,7 +105,7 @@ class MultiTrajectory:
         return list(combinations(traj_results, 2))
 
     @staticmethod
-    def get_all_similarities_from_combos(combos, pc_nr_list=None, plot=False):
+    def _get_all_similarities_from_combos(combos, pc_nr_list=None, plot=False):
         if plot and pc_nr_list is None:
             raise ValueError('Trajectories can not be compared to each other, because the `pc_nr_list` is not given.')
 
@@ -117,11 +142,11 @@ class MultiTrajectory:
 
     def compare_all_trajectories(self, traj_nrs: [list[int], None], model_params_list: list[dict],
                                  pc_nr_list: [list[int], None]):
-        trajectories = self.get_trajectories_by_index(traj_nrs)
+        trajectories = self._get_trajectories_by_index(traj_nrs)
 
         for model_params in model_params_list:
-            result_combos = self.get_trajectory_combos(trajectories, model_params)
-            all_sim_matrix = self.get_all_similarities_from_combos(result_combos)
+            result_combos = self._get_trajectory_combos(trajectories, model_params)
+            all_sim_matrix = self._get_all_similarities_from_combos(result_combos)
 
             if pc_nr_list is None:
                 ArrayPlotter(interactive=False).plot_2d(
@@ -147,27 +172,34 @@ class MultiTrajectory:
                     )
 
     def compare_trajectory_combos(self, traj_nrs, model_params_list, pc_nr_list):
-        trajectories = self.get_trajectories_by_index(traj_nrs)
+        trajectories = self._get_trajectories_by_index(traj_nrs)
 
         for model_params in model_params_list:
-            result_combos = self.get_trajectory_combos(trajectories, model_params)
-            self.get_all_similarities_from_combos(result_combos, pc_nr_list, plot=True)
+            result_combos = self._get_trajectory_combos(trajectories, model_params)
+            self._get_all_similarities_from_combos(result_combos, pc_nr_list, plot=True)
 
-
-class GridSearchTrajectory:
-    def __init__(self, trajectory):
-        self.trajectory: DataTrajectory = trajectory
-
-    def estimate(self, grid_param):
-        model = ParameterModel()
-        inp = self.trajectory.data_input()
-        cv = [(slice(None), slice(None))]  # get rid of cross validation
-        clf = GridSearchCV(model, grid_param, cv=cv, verbose=1)
+    def grid_search(self, param_grid):
         print('Searching for best model...')
-        clf.fit(inp, n_components=self.trajectory.params[N_COMPONENTS])
-        result_df = pd.DataFrame(clf.cv_results_)
-        current_result_path = Path('analyse_results') / datetime.now().strftime("%Y-%m-%d_%H%M%S")
-        os.mkdir(current_result_path)
-        goal_path = current_result_path / (self.trajectory.filename[:-4] + '.csv')
-        result_df.to_csv(goal_path)
-        print(f'Grid search results successfully saved into: {goal_path}')
+        train_trajectories = self.trajectories[:int(len(self.trajectories) * .8)]
+        # test_trajectories = self.trajectories[int(len(self.trajectories) * .8):]
+        inp = train_trajectories[0].data_input()
+        for trajectory in train_trajectories[1:]:
+            np.concatenate((inp, trajectory.data_input()), axis=0)
+        model = ParameterModel()
+        cv = len(train_trajectories)
+        grid = GridSearchCV(model, param_grid, cv=cv, verbose=1)
+        grid.fit(inp, n_components=self.params[N_COMPONENTS])
+        _save_tuning_results(grid.cv_results_, self.params[TRAJECTORY_NAME],
+                             header=['params', 'mean_test_score', 'std_test_score', 'rank_test_score'])
+
+
+def _save_tuning_results(result, name, header=None):
+    if header is None:
+        result_df = pd.DataFrame(result)
+    else:
+        result_df = pd.DataFrame(result)[header]
+    current_result_path = Path('analyse_results') / datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    os.mkdir(current_result_path)
+    goal_path = current_result_path / (name + '.csv')
+    result_df.to_csv(goal_path)
+    print(f'Grid search results successfully saved into: {goal_path}')

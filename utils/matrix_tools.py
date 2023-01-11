@@ -59,9 +59,9 @@ def expand_diagonals_to_matrix(matrix: np.ndarray, array: np.ndarray):
     :return:
     """
     if not matrix.ndim == 2:
-        raise ValueError(f'Input should be a matrix, but it\'s number of array dimension is: {matrix.ndim}')
+        raise ValueError(f'Input should be a matrix, but it\'s n-dimension is: {matrix.ndim}')
     if not array.ndim == 1:
-        raise ValueError(f'Input should be an array, but it\'s number of array dimension is: {array.ndim}')
+        raise ValueError(f'Input should be an array, but it\'s n-dimension is: {array.ndim}')
 
     new_matrix = np.zeros_like(matrix)
     diag_indices = diagonal_indices(new_matrix)
@@ -136,12 +136,15 @@ def calculate_symmetrical_kernel_from_matrix(
 
     xdata = diagonal_indices(matrix)
     original_ydata = matrix_diagonals_calculation(matrix, np.mean)
+
     if flattened:
         stat_func = np.min
         interpolated_ydata = interpolate_array(original_ydata, stat_func)
     else:
         interpolated_ydata = interpolate_center(original_ydata, stat_func)
+
     kernel_funcs = {MY_EXPONENTIAL: exponential_2d, MY_EPANECHNIKOV: epanechnikov_2d, MY_GAUSSIAN: gaussian_2d}
+
     if kernel_name in kernel_funcs.keys():
         if kernel_name == MY_EPANECHNIKOV:
             non_zero_i = np.argmax(interpolated_ydata > 0)
@@ -178,7 +181,9 @@ def calculate_symmetrical_kernel_from_matrix(
         # noinspection PyUnresolvedReferences
         fit_y = np.exp(kde.score_samples(xdata))
         fit_y = np.interp(fit_y, [0, fit_y.max()], [0, 1])
+
     kernel_matrix = expand_diagonals_to_matrix(matrix, fit_y)
+
     if trajectory_name is not None:
         if trajectory_name == 'weighted':
             ArrayPlotter(interactive=False).plot_gauss2d(xdata, original_ydata - fit_y, interpolated_ydata, fit_y,
