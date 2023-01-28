@@ -307,7 +307,7 @@ class ParameterModel(TensorDR):
 
         if self.extra_layer_on_projection:
             return np.asarray(proj2[:self.n_components]).T
-        else:
+        else:  # extra layer on the eigenvectors
             return np.dot(data_matrix, self.eigenvectors[:, :self.n_components])
 
     def inverse_transform(self, projection_data: np.ndarray):

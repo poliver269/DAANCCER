@@ -240,7 +240,8 @@ class DataTrajectory(TrajectoryFile):
             if n_dim == MATRIX_NDIM:
                 return np.concatenate([self.phi[DIHEDRAL_ANGEL_VALUES], self.psi[DIHEDRAL_ANGEL_VALUES]], axis=1)
             else:
-                return np.asarray([self.phi[DIHEDRAL_ANGEL_VALUES], self.psi[DIHEDRAL_ANGEL_VALUES]])
+                return np.concatenate([self.phi[DIHEDRAL_ANGEL_VALUES][:, :, np.newaxis],
+                                       self.psi[DIHEDRAL_ANGEL_VALUES][:, :, np.newaxis]], axis=2)
         else:
             if n_dim == MATRIX_NDIM:
                 return self.flattened_coordinates

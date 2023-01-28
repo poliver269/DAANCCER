@@ -291,6 +291,7 @@ class ArrayPlotter(MyPlotter):
             x_coordinates, y_coordinates = np.meshgrid(x_coordinates, y_coordinates)
             self.fig = plt.figure()
             self.axes = self.fig.gca(projection='3d')
+            self.axes.set_zlabel('covariance values')
             im = self.axes.plot_surface(x_coordinates, y_coordinates, matrix, cmap=c_map)
         else:
             self.fig, self.axes = plt.subplots(1, 1)

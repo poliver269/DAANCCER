@@ -24,11 +24,11 @@ def main():
     print(f'Starting time: {datetime.now()}')
     # TODO: Argsparser for options
     load_json = False
-    run_option = MULTI_GRID_SEARCH
+    run_option = COMPARE
     trajectory_name = '2f4k'
-    file_element = 64
+    file_element = 63
     params = {
-        PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map', 'explained_var_plot'
+        PLOT_TYPE: EXPL_VAR_PLOT,  # 'heat_map', 'color_map', '3d_map', 'explained_var_plot'
         PLOT_TICS: True,  # True, False
         STANDARDIZED_PLOT: False,  # True, False
         CARBON_ATOMS_ONLY: True,  # True, False
@@ -83,13 +83,14 @@ def get_model_params_list(load_json, params):
         return [
             # Old Class-algorithms with parameters, not strings:
             # USE_STD: True, CENTER_OVER_TIME: False (only for tensor),
+            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, CENTER_OVER_TIME: False},
 
             # Original Algorithms
-            {ALGORITHM_NAME: 'original_pca', NDIM: MATRIX_NDIM},
-            {ALGORITHM_NAME: 'pca', NDIM: MATRIX_NDIM, USE_STD: False, ABS_EVAL_SORT: False},
-            {ALGORITHM_NAME: 'original_tica', NDIM: MATRIX_NDIM},
-            {ALGORITHM_NAME: 'tica', LAG_TIME: params[LAG_TIME], NDIM: MATRIX_NDIM, USE_STD: False,
-             ABS_EVAL_SORT: False},
+            # {ALGORITHM_NAME: 'original_pca', NDIM: MATRIX_NDIM},
+            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: False, ABS_EVAL_SORT: False},
+            # {ALGORITHM_NAME: 'original_tica', NDIM: MATRIX_NDIM},
+            # {ALGORITHM_NAME: 'tica', LAG_TIME: params[LAG_TIME], NDIM: MATRIX_NDIM, USE_STD: False,
+            #  ABS_EVAL_SORT: False},
 
             # raw MATRIX models
             # {ALGORITHM_NAME: 'pca', NDIM: MATRIX_NDIM},
@@ -108,8 +109,18 @@ def get_model_params_list(load_json, params):
             # *** Boolean Parameters:
             # CORR_KERNEL, ONES_ON_KERNEL_DIAG, USE_STD, CENTER_OVER_TIME
 
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, EXTRA_DR_LAYER: False},
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, EXTRA_DR_LAYER: False, NTH_EIGENVECTOR: 3},
+            # {ALGORITHM_NAME: 'kica', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_LINEAR, PLOT_2D: True},
+            # {ALGORITHM_NAME: 'kica', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_GAUSSIAN, PLOT_2D: True},
+            # {ALGORITHM_NAME: 'kica', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_EPANECHNIKOV, PLOT_2D: True},
+            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, EXTRA_DR_LAYER: False, PLOT_2D: True},
+            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, PLOT_2D: True},
+            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_LINEAR, PLOT_2D: True},
+            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_LINEAR_INVERSE, PLOT_2D: True},
+            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_LINEAR_INVERSE_P1, PLOT_2D: True},
+            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_LINEAR_NORM, PLOT_2D: True},
+            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_LINEAR_INVERSE_NORM, PLOT_2D: True},
+            #{ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: False, KERNEL: KERNEL_ONLY, PLOT_2D: True},
+
             # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, EXTRA_DR_LAYER: True},
             # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_GAUSSIAN, EXTRA_DR_LAYER: False},
             # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_GAUSSIAN, EXTRA_DR_LAYER: False, NTH_EIGENVECTOR: 3},
@@ -136,9 +147,8 @@ def get_param_grid():
         {
             ALGORITHM_NAME: ['pca', 'tica'],
             KERNEL: [None],
-        },
-        {
-            ALGORITHM_NAME: ['pca', 'tica'],
+        }, {
+            ALGORITHM_NAME: ['pca', 'tica', 'kica'],
             LAG_TIME: [10],
             KERNEL: [KERNEL_DIFFERENCE, KERNEL_MULTIPLICATION, KERNEL_ONLY],
             KERNEL_TYPE: [MY_LINEAR, MY_GAUSSIAN, MY_EXPONENTIAL, MY_EPANECHNIKOV],

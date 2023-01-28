@@ -6,7 +6,8 @@ from sklearn.neighbors import KernelDensity
 from plotter import ArrayPlotter
 from utils.array_tools import interpolate_array, interpolate_center
 from utils.math import is_matrix_symmetric, exponential_2d, epanechnikov_2d, gaussian_2d
-from utils.param_key import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL, MY_LINEAR, MY_NORM_LINEAR, MY_LINEAR_P1
+from utils.param_key import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL, MY_LINEAR_NORM, MY_LINEAR_INVERSE_NORM, \
+    MY_LINEAR, MY_LINEAR_INVERSE, MY_LINEAR_INVERSE_P1
 
 
 def diagonal_indices(matrix: np.ndarray):
@@ -161,12 +162,17 @@ def calculate_symmetrical_kernel_from_matrix(
         else:
             fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata, interpolated_ydata)
             fit_y = kernel_funcs[kernel_name](xdata, *fit_parameters)
-    elif kernel_name in [MY_LINEAR, MY_NORM_LINEAR, MY_LINEAR_P1]:
-        if kernel_name == MY_NORM_LINEAR:
+    elif kernel_name.startswith('my_linear'):
+        if kernel_name == MY_LINEAR_NORM:
             fit_y = np.concatenate((np.linspace(0, 1, len(matrix)), np.linspace(1, 0, len(matrix))[1:]))
-        else:
+        elif kernel_name == MY_LINEAR_INVERSE_NORM:
+            fit_y = np.concatenate((np.linspace(1, 0, len(matrix)), np.linspace(0, 1, len(matrix))[1:]))
+        elif kernel_name == MY_LINEAR:
+            fit_y = np.concatenate((np.linspace(0, np.max(xdata), len(matrix)),
+                                    np.linspace(np.max(xdata), 0, len(matrix))[1:]))
+        else:  # kernel_name.startswith(MY_LINEAR_INVERSE):
             fit_y = np.abs(xdata)
-            if kernel_name == MY_LINEAR_P1:
+            if kernel_name == MY_LINEAR_INVERSE_P1:
                 fit_y -= 1
                 fit_y = np.where(fit_y < 0, 1, fit_y)
     else:  # Try to use an implemented kernel from sklearn
@@ -185,6 +191,10 @@ def calculate_symmetrical_kernel_from_matrix(
     kernel_matrix = expand_diagonals_to_matrix(matrix, fit_y)
 
     if trajectory_name is not None:
+        # ArrayPlotter().matrix_plot(matrix,
+        #                            title_prefix='Combined Covariance Matrix on standardized data',
+        #                            xy_label='carbon-alpha-atom index',
+        #                            as_surface=PLOT_3D_MAP)
         if trajectory_name == 'weighted':
             ArrayPlotter(interactive=False).plot_gauss2d(xdata, original_ydata - fit_y, interpolated_ydata, fit_y,
                                                          kernel_name,
@@ -193,8 +203,9 @@ def calculate_symmetrical_kernel_from_matrix(
                                                          statistical_function=stat_func)
         else:
             ArrayPlotter(interactive=False).plot_gauss2d(xdata, original_ydata, interpolated_ydata, fit_y, kernel_name,
-                                                         title_prefix=f'Trajectory: {trajectory_name}, '
-                                                                      f' on diagonal of cov',
+                                                         title_prefix='CMM Diagonal Data Points',
+                                                         # title_prefix=f'Trajectory: {trajectory_name}, '
+                                                         #              f' on diagonal of cov',
                                                          statistical_function=stat_func)
     return kernel_matrix
 
