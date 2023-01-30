@@ -1,0 +1,24 @@
+[
+  {
+    "algorithm_name": "original_pca",
+    "ndim": 2
+  },
+  {
+    "algorithm_name": "pca",
+    "ndim": 3,
+    "use_std": true,
+    "kernel": "only"
+  },
+  {
+    "algorithm_name": "pca",
+    "ndim": 3,
+    "use_std": true,
+    "kernel": "diff"
+  },
+  {
+    "algorithm_name": "pca",
+    "ndim": 3,
+    "use_std": true,
+    "kernel": "multi"
+  }
+]

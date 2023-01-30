@@ -1,5 +1,6 @@
 import numpy as np
 import scipy
+from sklearn.metrics import mean_squared_error
 
 from plotter import ArrayPlotter
 from utils.algorithms import MyModel
@@ -333,8 +334,9 @@ class ParameterModel(TensorDR):
         y : None
             Ignored. This parameter exists only for compatibility with
             :class:`~sklearn.pipeline.Pipeline`.
-            """
-        if y is not None:
+        """
+
+        if y is not None:  # "use" variable, to not have a warning
             data_projection = y
         else:
             data_projection = self.transform(self._standardize_data(data_tensor))
@@ -346,6 +348,6 @@ class ParameterModel(TensorDR):
         else:
             data_matrix = self._update_data_tensor(data_tensor)
 
-        return root_mean_squared_error(data_matrix, reconstructed_data)
+        return mean_squared_error(data_matrix, reconstructed_data, squared=False)
         # R2 Score probably not good for tensor data... Negative values for the scoring implies bad results.
         # return r2_score(data_matrix, reconstructed_data)

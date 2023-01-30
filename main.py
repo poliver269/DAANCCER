@@ -10,6 +10,7 @@ from utils.param_key import *
 COMPARE = 'compare'
 MULTI_COMPARE_ALL_PCS = 'multi_compare_all_pcs'
 MULTI_COMPARE_COMBO_PCS = 'multi_compare_combo_pcs'
+MULTI_COMPARE_SOME_PCS = 'multi_compare_some_pcs'
 COMPARE_WITH_TLTSNE = 'compare_with_tltsne'
 PLOT_WITH_SLIDER = 'plot_with_slider'
 COMPARE_WITH_CA_ATOMS = 'compare_with_carbon_alpha_atoms'
@@ -18,37 +19,41 @@ CALCULATE_PEARSON_CORRELATION_COEFFICIENT = 'calculate_pcc'
 GROMACS_PRODUCTION = 'gromacs_production'
 PARAMETER_GRID_SEARCH = 'parameter_grid_search'
 MULTI_GRID_SEARCH = 'multi_parameter_grid_search'
+MULTI_RECONSTRUCT_WITH_DIFFERENT_EV = 'multi_reconstruct_with_different_eigenvector'
 
 
 def main():
     print(f'Starting time: {datetime.now()}')
     # TODO: Argsparser for options
-    load_json = False
-    run_option = COMPARE
-    trajectory_name = '2f4k'
-    file_element = 63
-    params = {
-        PLOT_TYPE: EXPL_VAR_PLOT,  # 'heat_map', 'color_map', '3d_map', 'explained_var_plot'
+    # run_params_json = None  # NotYetImplemented
+    alg_params_json = 'config_files/algorithm/pca+gaussian_kernels.json'  # None or filename
+    # alg_params_json = 'config_files/algorithm/pca+all_kernels.json'  # None or filename
+    run_option = MULTI_COMPARE_ALL_PCS
+    run_params = {
+        PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map', 'explained_var_plot'
         PLOT_TICS: True,  # True, False
         STANDARDIZED_PLOT: False,  # True, False
         CARBON_ATOMS_ONLY: True,  # True, False
         INTERACTIVE: True,  # True, False
         N_COMPONENTS: 2,
         LAG_TIME: 10,
-        TRUNCATION_VALUE: 0,
+        TRUNCATION_VALUE: 0,  # deprecated
         BASIS_TRANSFORMATION: False,
         USE_ANGLES: False,
-        TRAJECTORY_NAME: trajectory_name
+        TRAJECTORY_NAME: '2wav',
+        FILE_ELEMENT: 0,
     }
 
-    filename_list, kwargs = get_files_and_kwargs(trajectory_name, file_element, params)
-    model_params_list = get_model_params_list(load_json, params)
+    filename_list, kwargs = get_files_and_kwargs(run_params)
+    model_params_list = get_model_params_list(alg_params_json, run_params)
     param_grid = get_param_grid()
-    run(run_option, kwargs, params, model_params_list, filename_list, param_grid)
+    run(run_option, kwargs, run_params, model_params_list, filename_list, param_grid)
     print(f'Finishing time: {datetime.now()}')
 
 
-def get_files_and_kwargs(trajectory_name, file_element, params):
+def get_files_and_kwargs(params):
+    trajectory_name = params[TRAJECTORY_NAME]
+    file_element = params[FILE_ELEMENT]
     if trajectory_name == '2f4k':
         filename_list = [f'2F4K-0-protein-{i:03d}.dcd' for i in range(0, 62 + 1)] + ['tr3_unfolded.xtc',
                                                                                      'tr8_folded.xtc']
@@ -65,7 +70,7 @@ def get_files_and_kwargs(trajectory_name, file_element, params):
     elif trajectory_name == '2wav':
         filename_list = [f'2WAV-0-protein-{i:03d}.dcd' for i in range(0, 136)]
         kwargs = {'filename': filename_list[file_element], 'topology_filename': '2wav.pdb',
-                  'folder_path': 'data/2WAV-0-protein', 'params': params}
+                  'folder_path': 'data/2WAV-0-protein', 'params': params, 'atoms': list(range(710))}
     elif trajectory_name == '5i6x':
         filename_list = ['protein.xtc', 'system.xtc']
         kwargs = {'filename': filename_list[file_element], 'topology_filename': '5i6x.pdb',
@@ -76,17 +81,19 @@ def get_files_and_kwargs(trajectory_name, file_element, params):
     return filename_list, kwargs
 
 
-def get_model_params_list(load_json, params):
-    if load_json:
-        return json.load(open('algorithm_parameters_list.json'))
+def get_model_params_list(alg_json_file, params):
+    if alg_json_file is not None:
+        return json.load(open(alg_json_file))
+        # return json.load(open('algorithm_parameters_list.json'))
     else:
+        plot = False
         return [
             # Old Class-algorithms with parameters, not strings:
             # USE_STD: True, CENTER_OVER_TIME: False (only for tensor),
             # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, CENTER_OVER_TIME: False},
 
             # Original Algorithms
-            # {ALGORITHM_NAME: 'original_pca', NDIM: MATRIX_NDIM},
+            {ALGORITHM_NAME: 'original_pca', NDIM: MATRIX_NDIM},
             # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: False, ABS_EVAL_SORT: False},
             # {ALGORITHM_NAME: 'original_tica', NDIM: MATRIX_NDIM},
             # {ALGORITHM_NAME: 'tica', LAG_TIME: params[LAG_TIME], NDIM: MATRIX_NDIM, USE_STD: False,
@@ -109,36 +116,18 @@ def get_model_params_list(load_json, params):
             # *** Boolean Parameters:
             # CORR_KERNEL, ONES_ON_KERNEL_DIAG, USE_STD, CENTER_OVER_TIME
 
-            # {ALGORITHM_NAME: 'kica', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_LINEAR, PLOT_2D: True},
-            # {ALGORITHM_NAME: 'kica', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_GAUSSIAN, PLOT_2D: True},
-            # {ALGORITHM_NAME: 'kica', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_EPANECHNIKOV, PLOT_2D: True},
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, EXTRA_DR_LAYER: False, PLOT_2D: True},
-            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, PLOT_2D: True},
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_LINEAR, PLOT_2D: True},
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_LINEAR_INVERSE, PLOT_2D: True},
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_LINEAR_INVERSE_P1, PLOT_2D: True},
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_LINEAR_NORM, PLOT_2D: True},
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_LINEAR_INVERSE_NORM, PLOT_2D: True},
-            #{ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: False, KERNEL: KERNEL_ONLY, PLOT_2D: True},
-
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, EXTRA_DR_LAYER: True},
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_GAUSSIAN, EXTRA_DR_LAYER: False},
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_GAUSSIAN, EXTRA_DR_LAYER: False, NTH_EIGENVECTOR: 3},
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_GAUSSIAN, EXTRA_DR_LAYER: True},
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_GAUSSIAN, EXTRA_DR_LAYER: True, EXTRA_LAYER_ON_PROJECTION: False},
-            # {ALGORITHM_NAME: 'tica', NDIM: TENSOR_NDIM, LAG_TIME: params[LAG_TIME], EXTRA_DR_LAYER: True},
-            # {ALGORITHM_NAME: 'pca', NDIM: 3, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_NORM_LINEAR},
-            # {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_LINEAR},
-            # {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_LINEAR, EXTRA_DR_LAYER: True},
-            # {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_ONLY, KERNEL_TYPE: LINEAR},
-            # {ALGORITHM_NAME: 'pca', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_ONLY, KERNEL_TYPE: LINEAR, ABS_EVAL_SORT: True},
-            # {ALGORITHM_NAME: 'original_tica', NDIM: 2, LAG_TIME: params[LAG_TIME]},
-            # {ALGORITHM_NAME: 'pca', NDIM: 2},
-            # {ALGORITHM_NAME: 'tica', NDIM: 2, LAG_TIME: params[LAG_TIME]},
-            # {ALGORITHM_NAME: 'pca', NDIM: 2, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_DIFFERENCE},
-            # {ALGORITHM_NAME: 'pca', NDIM: 2, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_DIFFERENCE,
-            #  CORR_KERNEL: True},
-            # {ALGORITHM_NAME: 'tica', NDIM: 3, LAG_TIME: params[LAG_TIME], KERNEL: KERNEL_ONLY},},
+            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, PLOT_2D: plot},
+            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_LINEAR, PLOT_2D: plot},
+            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_EXPONENTIAL, PLOT_2D: plot},
+            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_EPANECHNIKOV, PLOT_2D: plot},
+            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_DIFFERENCE, PLOT_2D: plot},
+            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_LINEAR, PLOT_2D: plot},
+            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_EXPONENTIAL, PLOT_2D: plot},
+            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_EPANECHNIKOV, PLOT_2D: plot},
+            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_MULTIPLICATION, PLOT_2D: plot},
+            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_LINEAR, PLOT_2D: plot},
+            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_EXPONENTIAL, PLOT_2D: plot},
+            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_EPANECHNIKOV, PLOT_2D: plot},
         ]
 
 
@@ -194,6 +183,7 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
             new_kwargs = kwargs.copy()
             new_kwargs['filename'] = filename
             kwargs_list.append(new_kwargs)
+
         if run_option == 'multi_trajectory':
             mtr = MultiTrajectory(kwargs_list, params)
             mtr.compare_pcs(['tensor_ko_pca', 'tensor_ko_tica'])
@@ -203,11 +193,18 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
                                           pc_nr_list=[2, 9, 30])
         elif run_option == MULTI_COMPARE_ALL_PCS:
             mtr = MultiTrajectory(kwargs_list, params)
-            mtr.compare_all_trajectories(traj_nrs=None, model_params_list=model_params_list,
-                                         pc_nr_list=None)
+            mtr.compare_all_trajectory_eigenvectors(traj_nrs=None, model_params_list=model_params_list,
+                                                    pc_nr_list=None)
+        elif run_option == MULTI_COMPARE_SOME_PCS:
+            mtr = MultiTrajectory(kwargs_list, params)
+            mtr.compare_all_trajectory_eigenvectors(traj_nrs=None, model_params_list=model_params_list,
+                                                    pc_nr_list=[2, 9, 30])
         elif run_option == MULTI_GRID_SEARCH:
             mtr = MultiTrajectory(kwargs_list, params)
             mtr.grid_search(param_grid)
+        elif run_option == MULTI_RECONSTRUCT_WITH_DIFFERENT_EV:
+            mtr = MultiTrajectory(kwargs_list, params)
+            mtr.reconstruct_with_different_eigenvector(model_params_list)
 
 
 if __name__ == '__main__':

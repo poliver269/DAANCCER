@@ -104,7 +104,7 @@ class TrajectoryPlotter(MyPlotter):
             y_coordinates = data_tensor[timeframe, :, 1]
             z_coordinates = data_tensor[timeframe, :, 2]
             self.axes.cla()
-            self.axes.scatter(x_coordinates, y_coordinates, z_coordinates, c='r', marker='.')
+            self.axes.plot(x_coordinates, y_coordinates, z_coordinates, c='r', marker='o')
             self.axes.set_xlim(coordinate_mins[X], coordinate_maxs[X])
             self.axes.set_ylim(coordinate_mins[Y], coordinate_maxs[Y])
             self.axes.set_zlim(coordinate_mins[Z], coordinate_maxs[Z])
@@ -271,7 +271,20 @@ class MultiTrajectoryPlotter(MyPlotter):
 
 
 class ArrayPlotter(MyPlotter):
-    def matrix_plot(self, matrix, title_prefix='', xy_label='', as_surface='2d', bottom_text=None):
+    def __init__(self, interactive=False, bottom_text=None):
+        super().__init__(interactive)
+        self.bottom_text = bottom_text
+
+    def __show(self):
+        if self.bottom_text is not None:
+            self.fig.text(0.01, 0.01, self.bottom_text, fontsize=10)
+            self.fig.tight_layout()
+            self.fig.subplots_adjust(bottom=(self.bottom_text.count('\n') + 1) * 0.1)
+        else:
+            self.fig.tight_layout()
+        plt.show()
+
+    def matrix_plot(self, matrix, title_prefix='', xy_label='', as_surface='2d'):
         """
         Plots the values of a matrix on a 2d or a 3d axes
         :param matrix: ndarray (2-ndim)
@@ -281,8 +294,6 @@ class ArrayPlotter(MyPlotter):
             The description on the x and y label
         :param as_surface: str
             Plot as a 3d-surface if value PLOT_3D_MAP else 2d-axes
-        :param bottom_text: str
-            Text to plot on the bottom of the figure
         """
         c_map = plt.cm.viridis
         if as_surface == PLOT_3D_MAP:
@@ -301,13 +312,7 @@ class ArrayPlotter(MyPlotter):
         self.axes.set_ylabel(xy_label)
         self.axes.set_title(title_prefix + ' Matrix', fontsize=10)
         # print(f'{title_prefix}: {matrix}')
-        if bottom_text is not None:
-            self.fig.text(0.01, 0.01, bottom_text, fontsize=10)
-            self.fig.tight_layout()
-            self.fig.subplots_adjust(bottom=(bottom_text.count('\n') + 1) * 0.1)
-        else:
-            self.fig.tight_layout()
-        plt.show()
+        self.__show()
 
     def plot_gauss2d(self, xdata: np.ndarray, ydata: np.ndarray, new_ydata: np.ndarray, gauss_fitted: np.ndarray,
                      fit_method: str, title_prefix: str = '', statistical_function: callable = np.median):
@@ -340,14 +345,19 @@ class ArrayPlotter(MyPlotter):
         self.axes.set_ylabel(f'{function_label}-ed correlation values')
         self.axes.legend()
         self.axes.set_title(title_prefix)
-        # self.axes.set_ylim(-1, 1)
-        plt.show()
+        # self.axes.set_ylim(-1, 1)  # normalize plot
+        self.__show()
 
-    def plot_2d(self, ndarray_data, title_prefix='', xlabel='', ylabel=''):
+    def plot_2d(self, ndarray_data, title_prefix='', xlabel='', ylabel='', statistical_func=None):
         self.fig, self.axes = plt.subplots(1, 1)
         self.axes.plot(ndarray_data, '-')
+        if statistical_func is not None:
+            statistical_value = statistical_func(ndarray_data)
+            statistical_value_line = np.full(ndarray_data.shape, statistical_value)
+            self.axes.plot(statistical_value_line, '-', label=f'{function_name(statistical_func)}: {statistical_value}')
         self.axes.set_xlabel(xlabel)
         self.axes.set_ylabel(ylabel)
         self.axes.set_title(title_prefix)
         self.fig.tight_layout()
-        plt.show()
+        self.axes.legend()
+        self.__show()

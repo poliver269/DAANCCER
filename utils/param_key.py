@@ -19,6 +19,7 @@ BASIS_TRANSFORMATION = 'basis_transformation'
 RANDOM_SEED = 'random_seed'
 USE_ANGLES = 'use_angles'
 TRAJECTORY_NAME = 'trajectory_name'
+FILE_ELEMENT = 'file_element'
 
 # Model Results
 MODEL = 'model'

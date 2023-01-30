@@ -6,6 +6,7 @@ import numpy as np
 import pyemma.coordinates as coor
 from mdtraj import Trajectory
 from mdtraj.utils import deprecated
+from sklearn.decomposition import PCA
 
 from plotter import ArrayPlotter
 from utils.algorithms.pca import MyPCA, TruncatedPCA, KernelFromCovPCA
@@ -39,12 +40,12 @@ class TrajectoryFile:
 
 
 class DataTrajectory(TrajectoryFile):
-    def __init__(self, filename, topology_filename, folder_path='data/2f4k', params=None):
+    def __init__(self, filename, topology_filename, folder_path='data/2f4k', params=None, atoms=None):
         super().__init__(filename, topology_filename, folder_path)
         try:
             print(f"Loading trajectory {filename}...")
             if str(self.filename).endswith('dcd'):
-                self.traj: Trajectory = md.load_dcd(self.filepath, top=self.topology_path)
+                self.traj: Trajectory = md.load_dcd(self.filepath, top=self.topology_path, atom_indices=atoms)
             else:
                 self.traj = md.load(self.filepath, top=self.topology_path)
             self.traj: Trajectory = self.traj.superpose(self.traj).center_coordinates(mass_weighted=True)
@@ -229,7 +230,7 @@ class DataTrajectory(TrajectoryFile):
 
     def data_input(self, model_parameters: [str, dict] = None) -> np.ndarray:
         try:
-            if model_parameters is None:
+            if model_parameters is None:  # TODO: not so nice
                 n_dim = TENSOR_NDIM
             else:
                 n_dim = MATRIX_NDIM if isinstance(model_parameters, str) else model_parameters['ndim']

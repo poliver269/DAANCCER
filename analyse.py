@@ -6,6 +6,9 @@ from operator import itemgetter
 from pathlib import Path
 import numpy as np
 import pandas as pd
+from pyemma.coordinates.data._base.transformer import StreamingEstimationTransformer
+from scipy.optimize import linear_sum_assignment
+from sklearn.metrics import mean_squared_error
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.model_selection import GridSearchCV
 
@@ -20,7 +23,14 @@ class SingleTrajectory:
     def __init__(self, trajectory):
         self.trajectory: DataTrajectory = trajectory
 
-    def compare(self, model_parameter_list: list[dict, str]):
+    def compare(self, model_parameter_list: list[dict, str], plot_results: bool = True) -> list[dict]:
+        """
+        Compares different models, with different input-parameters.
+        :param model_parameter_list: dict - model parameter dict, (str - specific algorithm name)
+            List of different model-parameters
+        :param plot_results: bool
+        :return: The results of the models {MODEL, PROJECTION, EXPLAINED_VAR}
+        """
         model_results = []
         for model_parameters in model_parameter_list:
             try:
@@ -29,7 +39,11 @@ class SingleTrajectory:
                 warnings.warn(f'Eigenvalue decomposition for model `{model_parameters}` could not be calculated:\n {e}')
             except AssertionError as e:
                 warnings.warn(f'{e}')
-        self.compare_with_plot(model_results)
+
+        if plot_results:
+            self.compare_with_plot(model_results)
+
+        return model_results
 
     def compare_with_carbon_alpha_and_all_atoms(self, model_names):
         model_results = self.trajectory.get_model_results_with_changing_param(model_names, CARBON_ATOMS_ONLY)
@@ -105,16 +119,16 @@ class MultiTrajectory:
         return list(combinations(traj_results, 2))
 
     @staticmethod
-    def _get_all_similarities_from_combos(combos, pc_nr_list=None, plot=False):
+    def _get_all_similarities_from_eigenvector_combos(combos, pc_nr_list=None, plot=False):
         if plot and pc_nr_list is None:
             raise ValueError('Trajectories can not be compared to each other, because the `pc_nr_list` is not given.')
 
         all_similarities = []
         for combi in combos:
-            pc_0_matrix = combi[0]['model'].eigenvectors.T
-            pc_1_matrix = combi[1]['model'].eigenvectors.T
+            pc_0_matrix = combi[0][MODEL].eigenvectors.T
+            pc_1_matrix = combi[1][MODEL].eigenvectors.T
             cos_matrix = cosine_similarity(np.real(pc_0_matrix), np.real(pc_1_matrix))
-            sorted_similarity_indexes = np.argmax(np.abs(cos_matrix), axis=1)
+            sorted_similarity_indexes = linear_sum_assignment(-np.abs(cos_matrix))[1]
             assert len(sorted_similarity_indexes) == len(
                 set(sorted_similarity_indexes)), "Not all eigenvectors have a unique most similar eigenvector pair."
             sorted_cos_matrix = cos_matrix[:, sorted_similarity_indexes]
@@ -129,24 +143,39 @@ class MultiTrajectory:
                 combo_similarity = np.mean(np.abs(combo_pc_similarity))
                 sim_text = f'Similarity values: All: {combo_similarity},\n{selected_sim_vals}'
                 print(sim_text)
-                ArrayPlotter(interactive=False).matrix_plot(
+                ArrayPlotter(interactive=False, bottom_text=sim_text).matrix_plot(
                     cos_matrix,
                     title_prefix=f'{combi[0]["model"]}\n'
                                  f'{combi[0]["traj"].filename} & {combi[1]["traj"].filename}\n'
                                  f'PC Similarity',
-                    bottom_text=sim_text,
                     xy_label='Principal Component Number'
                 )
             all_similarities.append(combo_sim_of_n_pcs)
         return np.asarray(all_similarities)
 
-    def compare_all_trajectories(self, traj_nrs: [list[int], None], model_params_list: list[dict],
-                                 pc_nr_list: [list[int], None]):
+    def compare_all_trajectory_eigenvectors(self,
+                                            traj_nrs: [list[int], None],
+                                            model_params_list: list[dict],
+                                            pc_nr_list: [list[int], None]):
+        """
+        This function compares different models.
+        For each model, the similarity of the eigenvectors are calculated,
+        which are fitted from different trajectories.
+        :param traj_nrs:
+            if None compare all the trajectories
+            compare only the trajectories in a given list,
+        :param model_params_list:
+            different model parameters, which should be compared with each other
+        :param pc_nr_list:
+            gives a list of how many principal components should be compared with each other.
+            If None, then all the principal components are compared
+        :return:
+        """
         trajectories = self._get_trajectories_by_index(traj_nrs)
 
         for model_params in model_params_list:
-            result_combos = self._get_trajectory_combos(trajectories, model_params)
-            all_sim_matrix = self._get_all_similarities_from_combos(result_combos)
+            eigenvector_combos = self._get_trajectory_combos(trajectories, model_params)
+            all_sim_matrix = self._get_all_similarities_from_eigenvector_combos(eigenvector_combos)
 
             if pc_nr_list is None:
                 ArrayPlotter(interactive=False).plot_2d(
@@ -163,11 +192,10 @@ class MultiTrajectory:
                     print(sim_text)
                     tria[np.triu_indices(len(trajectories), 1)] = all_sim_matrix[:, pc_index]
                     tria = tria + tria.T
-                    ArrayPlotter(interactive=False).matrix_plot(
+                    ArrayPlotter(interactive=False, bottom_text=sim_text).matrix_plot(
                         tria,
                         title_prefix=f'{self.params[TRAJECTORY_NAME]}\n{model_params}\n'
                                      f'Trajectory Similarities for {pc_index}-Components',
-                        bottom_text=sim_text,
                         xy_label='Trajectory number'
                     )
 
@@ -176,7 +204,7 @@ class MultiTrajectory:
 
         for model_params in model_params_list:
             result_combos = self._get_trajectory_combos(trajectories, model_params)
-            self._get_all_similarities_from_combos(result_combos, pc_nr_list, plot=True)
+            self._get_all_similarities_from_eigenvector_combos(result_combos, pc_nr_list, plot=True)
 
     def grid_search(self, param_grid):
         print('Searching for best model...')
@@ -191,6 +219,47 @@ class MultiTrajectory:
         grid.fit(inp, n_components=self.params[N_COMPONENTS])
         _save_tuning_results(grid.cv_results_, self.params[TRAJECTORY_NAME],
                              header=['params', 'mean_test_score', 'std_test_score', 'rank_test_score'])
+
+    def reconstruct_with_different_eigenvector(self, model_params_list):
+        """
+        Calculate the reconstruction error of the trajectories
+        given a list of eigenvalues of different models on a specific trajectory
+        (0th-element in self.trajectories).
+        :param model_params_list:
+        :return:
+        """
+
+        st = SingleTrajectory(self.trajectories[0])
+        model_results: list = st.compare(model_params_list, plot_results=False)
+
+        for model_dict in model_results:
+            model: [ParameterModel, StreamingEstimationTransformer] = model_dict[MODEL]
+            print(f'Calculating reconstruction errors ({model})...')
+            score_list = []
+            for trajectory in self.trajectories[1:]:
+                input_data = trajectory.data_input()
+                score = self._get_reconstruction_score(model, input_data)
+                score_list.append(score)
+            score_list = np.asarray(score_list)
+            ArrayPlotter(
+                interactive=False,
+                bottom_text=f'index-min: {score_list.argmin()}, '
+                            f'index-max: {score_list.argmax()}'
+            ).plot_2d(score_list,
+                      title_prefix=f'Reconstruction Error from {self.trajectories[0].filename}\n{model}',
+                      xlabel='trajectories',
+                      ylabel='score',
+                      statistical_func=np.median)
+
+    @staticmethod
+    def _get_reconstruction_score(model, input_data):
+        try:
+            return model.score(input_data)
+        except AttributeError:
+            input_data = input_data.reshape(input_data.shape[0], input_data.shape[1] * input_data.shape[2])
+            data_projection = model.transform(input_data)
+            reconstructed_data = np.dot(data_projection, model.eigenvectors[:, :model.dim].T)
+            return mean_squared_error(input_data, reconstructed_data, squared=False)
 
 
 def _save_tuning_results(result, name, header=None):
