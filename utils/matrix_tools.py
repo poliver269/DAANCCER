@@ -46,7 +46,6 @@ def matrix_diagonals_calculation(matrix: np.ndarray, func: callable = np.sum, fu
         calculated_diagonals.append(func(m, **func_kwargs))
 
     return np.asarray(calculated_diagonals)
-    # TODO: Other idea: map diagonals into indices difference (i-j)
 
 
 def expand_diagonals_to_matrix(matrix: np.ndarray, array: np.ndarray):
@@ -196,17 +195,15 @@ def calculate_symmetrical_kernel_from_matrix(
         #                            xy_label='carbon-alpha-atom index',
         #                            as_surface=PLOT_3D_MAP)
         if trajectory_name == 'weighted':
-            ArrayPlotter(interactive=False).plot_gauss2d(xdata, original_ydata - fit_y, interpolated_ydata, fit_y,
-                                                         kernel_name,
-                                                         title_prefix=f'{trajectory_name}'
-                                                                      f' on diagonal of cov',
-                                                         statistical_function=stat_func)
+            ArrayPlotter(
+                interactive=False,
+                title_prefix=f'{trajectory_name} on diagonal of cov'
+            ).plot_gauss2d(xdata, original_ydata - fit_y, interpolated_ydata, fit_y, kernel_name, stat_func)
         else:
-            ArrayPlotter(interactive=False).plot_gauss2d(xdata, original_ydata, interpolated_ydata, fit_y, kernel_name,
-                                                         title_prefix='CMM Diagonal Data Points',
-                                                         # title_prefix=f'Trajectory: {trajectory_name}, '
-                                                         #              f' on diagonal of cov',
-                                                         statistical_function=stat_func)
+            ArrayPlotter(
+                interactive=False,
+                title_prefix=f'Trajectory: {trajectory_name}, on diagonal of cov',
+            ).plot_gauss2d(xdata, original_ydata, interpolated_ydata, fit_y, kernel_name, stat_func)
     return kernel_matrix
 
 

@@ -95,17 +95,26 @@ class ParameterModel(TensorDR):
         self.center_over_time = center_over_time
 
     def __str__(self):
-        sb = f'{"Matrix" if self._is_matrix_model else "Tensor"}-{self.algorithm_name}'
-        if self.kernel is not None:
-            sb += (f', {self.kernel_type}-{self.kernel}' +
-                   f'{f"-onCorr2" if self.corr_kernel else ""}')
+        sb = self.descr
         sb += '\n'
         sb += f'lag-time={self.lag_time}, ' if self.lag_time > 0 else ''
-        sb += f'abs_ew_sorting={self.abs_eigenvalue_sorting}, '
+        # sb += f'abs_ew_sorting={self.abs_eigenvalue_sorting}, '
         sb += f'2nd_layer={self.extra_dr_layer}' if self.extra_dr_layer else ''
         sb += f'\nn-th_ev={self.nth_eigenvector}' if self.nth_eigenvector > 1 else ''
         return sb
         # f'{function_name(self.cov_function)}'
+
+    @property
+    def descr(self):
+        """
+        Short version of __str__
+        :return: Short description of the model
+        """
+        sb = f'{"Matrix" if self._is_matrix_model else "Tensor"}-{self.algorithm_name}'
+        if self.kernel is not None:
+            sb += (f', {self.kernel_type}-{self.kernel}' +
+                   f'{f"-onCorr2" if self.corr_kernel else ""}')
+        return sb
 
     @property
     def _is_matrix_model(self) -> bool:
@@ -140,16 +149,24 @@ class ParameterModel(TensorDR):
         return self
 
     def _standardize_data(self, tensor):
-        if self._is_matrix_model or not self.center_over_time:
-            numerator = tensor - np.mean(tensor, axis=0)
-        else:
-            numerator = tensor - np.mean(tensor, axis=1)[:, np.newaxis, :]
+        numerator = self._center_data(tensor)
 
         if self.use_std:
             denominator = np.std(tensor, axis=0)
             return numerator / denominator
         else:
             return numerator
+
+    def _center_data(self, tensor):
+        """
+        Center the data by subtracting the mean vector.
+        :param tensor: Input data to center
+        :return: centered data tensor or matrix
+        """
+        if self._is_matrix_model or not self.center_over_time:
+            return tensor - np.mean(tensor, axis=0)
+        else:
+            return tensor - np.mean(tensor, axis=1)[:, np.newaxis, :]
 
     def get_covariance_matrix(self):
         if self._is_matrix_model:
@@ -321,10 +338,13 @@ class ParameterModel(TensorDR):
             return np.dot(
                 projection_data,
                 self.eigenvectors[:, :self.n_components * self.nth_eigenvector:self.nth_eigenvector].T
-            )
+            )  # Da orthogonal --> Transform = inverse
 
     def score(self, data_tensor, y=None):
         """
+        Reconstruct data and calculate the root mean squared error (RMSE).
+        See Notes: https://stats.stackexchange.com/q/229093
+
         Parameters
         ----------
         data_tensor : array-like of shape (n_samples, n_features)
@@ -339,15 +359,17 @@ class ParameterModel(TensorDR):
         if y is not None:  # "use" variable, to not have a warning
             data_projection = y
         else:
-            data_projection = self.transform(self._standardize_data(data_tensor))
+            data_projection = self.transform(self._center_data(data_tensor))
 
-        reconstructed_data = self.inverse_transform(data_projection)
+        reconstructed_matrix_data = self.inverse_transform(data_projection)
 
         if self._is_matrix_model:
             data_matrix = data_tensor
         else:
             data_matrix = self._update_data_tensor(data_tensor)
 
-        return mean_squared_error(data_matrix, reconstructed_data, squared=False)
+        reconstructed_matrix_data += np.mean(data_matrix, axis=0)
+
+        return mean_squared_error(data_matrix, reconstructed_matrix_data, squared=False)
         # R2 Score probably not good for tensor data... Negative values for the scoring implies bad results.
-        # return r2_score(data_matrix, reconstructed_data)
+        # return r2_score(data_matrix, reconstructed_matrix_data)

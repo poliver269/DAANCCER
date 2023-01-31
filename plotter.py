@@ -271,27 +271,38 @@ class MultiTrajectoryPlotter(MyPlotter):
 
 
 class ArrayPlotter(MyPlotter):
-    def __init__(self, interactive=False, bottom_text=None):
+    def __init__(self, interactive=False, title_prefix='', x_label='', y_label='', bottom_text=None):
         super().__init__(interactive)
+        self.title_prefix = title_prefix
+        self.x_label = x_label
+        self.y_label = y_label
         self.bottom_text = bottom_text
 
-    def __show(self):
+    def _post_processing(self, legend_outside=False):
+        self.axes.set_title(self.title_prefix)
+        self.axes.set_xlabel(self.x_label)
+        self.axes.set_ylabel(self.y_label)
+
         if self.bottom_text is not None:
             self.fig.text(0.01, 0.01, self.bottom_text, fontsize=10)
             self.fig.tight_layout()
             self.fig.subplots_adjust(bottom=(self.bottom_text.count('\n') + 1) * 0.1)
         else:
             self.fig.tight_layout()
+
+        if legend_outside:
+            self.axes.legend(bbox_to_anchor=(0.5, -0.05), loc='upper center', fontsize=10)
+            plt.subplots_adjust(bottom=0.25)
+        else:
+            self.axes.legend()
+
         plt.show()
 
-    def matrix_plot(self, matrix, title_prefix='', xy_label='', as_surface='2d'):
+    def matrix_plot(self, matrix, as_surface='2d'):
         """
         Plots the values of a matrix on a 2d or a 3d axes
         :param matrix: ndarray (2-ndim)
             matrix, which should be plotted
-        :param title_prefix: str
-        :param xy_label: str
-            The description on the x and y label
         :param as_surface: str
             Plot as a 3d-surface if value PLOT_3D_MAP else 2d-axes
         """
@@ -305,20 +316,23 @@ class ArrayPlotter(MyPlotter):
             self.axes.set_zlabel('covariance values')
             im = self.axes.plot_surface(x_coordinates, y_coordinates, matrix, cmap=c_map)
         else:
-            self.fig, self.axes = plt.subplots(1, 1)
+            self.fig, self.axes = plt.subplots(1, 1, dpi=320)
             im = self.axes.matshow(matrix, cmap=c_map)
         self.fig.colorbar(im, ax=self.axes)
-        self.axes.set_xlabel(xy_label)
-        self.axes.set_ylabel(xy_label)
-        self.axes.set_title(title_prefix + ' Matrix', fontsize=10)
         # print(f'{title_prefix}: {matrix}')
-        self.__show()
+        self._post_processing()
 
-    def plot_gauss2d(self, xdata: np.ndarray, ydata: np.ndarray, new_ydata: np.ndarray, gauss_fitted: np.ndarray,
-                     fit_method: str, title_prefix: str = '', statistical_function: callable = np.median):
+    def plot_gauss2d(self,
+                     x_index: np.ndarray,
+                     ydata: np.ndarray,
+                     new_ydata: np.ndarray,
+                     gauss_fitted: np.ndarray,
+                     fit_method: str,
+                     statistical_function: callable = np.median):
         """
-        Plot the data (ydata) in a range (xdata), the (fitted) gauss curve and a line (mean, median)
-        :param xdata: ndarray (1-ndim)
+        Plot the original data (ydata), the new data (new_ydata) where the x-axis-indices is given by (x_index),
+        the (fitted) gauss curve and a line (mean, median)
+        :param x_index: ndarray (1-ndim)
             range of plotting
         :param ydata: ndarray (1-ndim)
             original data
@@ -328,36 +342,43 @@ class ArrayPlotter(MyPlotter):
             the fitted curve on the new data
         :param fit_method: str
             the name of the fitting method
-        :param title_prefix: str
-            title of the plot
         :param statistical_function: callable
             Some statistical numpy function
         :return:
         """
-        self.fig, self.axes = plt.subplots(1, 1)
-        self.axes.plot(xdata, gauss_fitted, '-', label=f'fit {fit_method}')
-        self.axes.plot(xdata, ydata, '.', label='original data')
-        statistical_value = np.full(xdata.shape, statistical_function(ydata))
+        self.fig, self.axes = plt.subplots(1, 1, dpi=320)
+        self.axes.plot(x_index, gauss_fitted, '-', label=f'fit {fit_method}')
+        self.axes.plot(x_index, ydata, '.', label='original data')
+        statistical_value = np.full(x_index.shape, statistical_function(ydata))
         function_label = function_name(statistical_function)
-        self.axes.plot(xdata, statistical_value, '-', label=function_label)
-        self.axes.plot(xdata, new_ydata, '.', label='interpolated data')
+        self.axes.plot(x_index, statistical_value, '-', label=function_label)
+        self.axes.plot(x_index, new_ydata, '.', label='interpolated data')
         self.axes.set_xlabel('matrix diagonal indexes')
         self.axes.set_ylabel(f'{function_label}-ed correlation values')
         self.axes.legend()
-        self.axes.set_title(title_prefix)
         # self.axes.set_ylim(-1, 1)  # normalize plot
-        self.__show()
+        self._post_processing()
 
-    def plot_2d(self, ndarray_data, title_prefix='', xlabel='', ylabel='', statistical_func=None):
+    def plot_2d(self, ndarray_data, statistical_func=None):
         self.fig, self.axes = plt.subplots(1, 1)
         self.axes.plot(ndarray_data, '-')
         if statistical_func is not None:
             statistical_value = statistical_func(ndarray_data)
             statistical_value_line = np.full(ndarray_data.shape, statistical_value)
-            self.axes.plot(statistical_value_line, '-', label=f'{function_name(statistical_func)}: {statistical_value}')
-        self.axes.set_xlabel(xlabel)
-        self.axes.set_ylabel(ylabel)
-        self.axes.set_title(title_prefix)
-        self.fig.tight_layout()
-        self.axes.legend()
-        self.__show()
+            self.axes.plot(statistical_value_line, '-',
+                           label=f'{function_name(statistical_func)}: {statistical_value:.4f}')
+        self.axes.set_ylim(0, 0.6)  # normalize plot
+        self._post_processing()
+
+    def plot_merged_2ds(self, ndarray_dict: dict, statistical_func=None):
+        self.fig, self.axes = plt.subplots(1, 1, dpi=320)
+        self.title_prefix += f'with {function_name(statistical_func)}' if statistical_func is not None else ''
+        for key, ndarray_data in ndarray_dict.items():
+            color = next(self.axes._get_lines.prop_cycler)['color']
+            self.axes.plot(ndarray_data, '-', color=color)
+            if statistical_func is not None:
+                statistical_value = statistical_func(ndarray_data)
+                statistical_value_line = np.full(ndarray_data.shape, statistical_value)
+                self.axes.plot(statistical_value_line, '--',
+                               label=f'{key.strip()}: {statistical_value:.4f}'.strip(), color=color)
+        self._post_processing(legend_outside=True)

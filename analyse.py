@@ -72,10 +72,11 @@ class SingleTrajectory:
 
         title_prefix = (f'{"Angles" if self.trajectory.params[USE_ANGLES] else "Coordinates"}. '
                         f'Pearson Coefficient. {mode}')
-        ArrayPlotter().matrix_plot(weighted_alpha_coeff_matrix,
-                                   title_prefix=title_prefix,
-                                   xy_label='number of correlations',
-                                   as_surface=self.trajectory.params[PLOT_TYPE])
+        ArrayPlotter(
+            title_prefix=title_prefix,
+            x_label='number of correlations',
+            y_label='number of correlations'
+        ).matrix_plot(weighted_alpha_coeff_matrix, as_surface=self.trajectory.params[PLOT_TYPE])
 
     def grid_search(self, param_grid):
         print('Searching for best model...')
@@ -143,13 +144,15 @@ class MultiTrajectory:
                 combo_similarity = np.mean(np.abs(combo_pc_similarity))
                 sim_text = f'Similarity values: All: {combo_similarity},\n{selected_sim_vals}'
                 print(sim_text)
-                ArrayPlotter(interactive=False, bottom_text=sim_text).matrix_plot(
-                    cos_matrix,
+                ArrayPlotter(
+                    interactive=False,
                     title_prefix=f'{combi[0]["model"]}\n'
                                  f'{combi[0]["traj"].filename} & {combi[1]["traj"].filename}\n'
                                  f'PC Similarity',
-                    xy_label='Principal Component Number'
-                )
+                    x_label='Principal Component Number',
+                    y_label='Principal Component Number',
+                    bottom_text=sim_text
+                ).matrix_plot(cos_matrix)
             all_similarities.append(combo_sim_of_n_pcs)
         return np.asarray(all_similarities)
 
@@ -178,13 +181,13 @@ class MultiTrajectory:
             all_sim_matrix = self._get_all_similarities_from_eigenvector_combos(eigenvector_combos)
 
             if pc_nr_list is None:
-                ArrayPlotter(interactive=False).plot_2d(
-                    np.mean(all_sim_matrix, axis=0),
+                ArrayPlotter(
+                    interactive=False,
                     title_prefix=f'{self.params[TRAJECTORY_NAME]}\n{model_params}\n'
                                  'Similarity value of all trajectories',
-                    xlabel='Principal component number',
-                    ylabel='Similarity value',
-                )
+                    x_label='Principal component number',
+                    y_label='Similarity value',
+                ).plot_2d(np.mean(all_sim_matrix, axis=0))
             else:
                 for pc_index in pc_nr_list:
                     tria = np.zeros((len(trajectories), len(trajectories)))
@@ -192,12 +195,14 @@ class MultiTrajectory:
                     print(sim_text)
                     tria[np.triu_indices(len(trajectories), 1)] = all_sim_matrix[:, pc_index]
                     tria = tria + tria.T
-                    ArrayPlotter(interactive=False, bottom_text=sim_text).matrix_plot(
-                        tria,
+                    ArrayPlotter(
+                        interactive=False,
                         title_prefix=f'{self.params[TRAJECTORY_NAME]}\n{model_params}\n'
                                      f'Trajectory Similarities for {pc_index}-Components',
-                        xy_label='Trajectory number'
-                    )
+                        x_label='Trajectory number',
+                        y_label='Trajectory number',
+                        bottom_text=sim_text
+                    ).matrix_plot(tria)
 
     def compare_trajectory_combos(self, traj_nrs, model_params_list, pc_nr_list):
         trajectories = self._get_trajectories_by_index(traj_nrs)
@@ -232,33 +237,32 @@ class MultiTrajectory:
         st = SingleTrajectory(self.trajectories[0])
         model_results: list = st.compare(model_params_list, plot_results=False)
 
+        model_scores = {}
         for model_dict in model_results:
             model: [ParameterModel, StreamingEstimationTransformer] = model_dict[MODEL]
             print(f'Calculating reconstruction errors ({model})...')
             score_list = []
-            for trajectory in self.trajectories[1:]:
-                input_data = trajectory.data_input()
+            for trajectory in self.trajectories:
+                input_data = trajectory.data_input(model_dict[INPUT_PARAMS])
                 score = self._get_reconstruction_score(model, input_data)
                 score_list.append(score)
             score_list = np.asarray(score_list)
-            ArrayPlotter(
-                interactive=False,
-                bottom_text=f'index-min: {score_list.argmin()}, '
-                            f'index-max: {score_list.argmax()}'
-            ).plot_2d(score_list,
-                      title_prefix=f'Reconstruction Error from {self.trajectories[0].filename}\n{model}',
-                      xlabel='trajectories',
-                      ylabel='score',
-                      statistical_func=np.median)
+            model_scores[f'{str(model):25}'] = score_list
+        ArrayPlotter(
+            interactive=False,
+            title_prefix=f'Reconstruction Error from {self.trajectories[0].filename}\n',
+            x_label='trajectories',
+            y_label='score'
+        ).plot_merged_2ds(model_scores, np.median)
 
     @staticmethod
     def _get_reconstruction_score(model, input_data):
         try:
             return model.score(input_data)
-        except AttributeError:
-            input_data = input_data.reshape(input_data.shape[0], input_data.shape[1] * input_data.shape[2])
-            data_projection = model.transform(input_data)
-            reconstructed_data = np.dot(data_projection, model.eigenvectors[:, :model.dim].T)
+        except AttributeError:  # Only for Original Algorithms
+            mu = np.mean(input_data, axis=0)
+            data_projection = model.transform(input_data - mu)
+            reconstructed_data = np.dot(data_projection, model.eigenvectors[:, :model.dim].T) + mu
             return mean_squared_error(input_data, reconstructed_data, squared=False)
 
 

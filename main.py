@@ -28,20 +28,20 @@ def main():
     # run_params_json = None  # NotYetImplemented
     alg_params_json = 'config_files/algorithm/pca+gaussian_kernels.json'  # None or filename
     # alg_params_json = 'config_files/algorithm/pca+all_kernels.json'  # None or filename
-    run_option = MULTI_COMPARE_ALL_PCS
+    run_option = MULTI_RECONSTRUCT_WITH_DIFFERENT_EV
     run_params = {
         PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map', 'explained_var_plot'
         PLOT_TICS: True,  # True, False
         STANDARDIZED_PLOT: False,  # True, False
         CARBON_ATOMS_ONLY: True,  # True, False
         INTERACTIVE: True,  # True, False
-        N_COMPONENTS: 2,
+        N_COMPONENTS: 9,
         LAG_TIME: 10,
         TRUNCATION_VALUE: 0,  # deprecated
         BASIS_TRANSFORMATION: False,
         USE_ANGLES: False,
-        TRAJECTORY_NAME: '2wav',
-        FILE_ELEMENT: 0,
+        TRAJECTORY_NAME: '2f4k',
+        FILE_ELEMENT: 64,
     }
 
     filename_list, kwargs = get_files_and_kwargs(run_params)
@@ -86,7 +86,7 @@ def get_model_params_list(alg_json_file, params):
         return json.load(open(alg_json_file))
         # return json.load(open('algorithm_parameters_list.json'))
     else:
-        plot = False
+        plot = True
         return [
             # Old Class-algorithms with parameters, not strings:
             # USE_STD: True, CENTER_OVER_TIME: False (only for tensor),
@@ -95,7 +95,7 @@ def get_model_params_list(alg_json_file, params):
             # Original Algorithms
             {ALGORITHM_NAME: 'original_pca', NDIM: MATRIX_NDIM},
             # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: False, ABS_EVAL_SORT: False},
-            # {ALGORITHM_NAME: 'original_tica', NDIM: MATRIX_NDIM},
+            {ALGORITHM_NAME: 'original_tica', NDIM: MATRIX_NDIM},
             # {ALGORITHM_NAME: 'tica', LAG_TIME: params[LAG_TIME], NDIM: MATRIX_NDIM, USE_STD: False,
             #  ABS_EVAL_SORT: False},
 
@@ -117,17 +117,18 @@ def get_model_params_list(alg_json_file, params):
             # CORR_KERNEL, ONES_ON_KERNEL_DIAG, USE_STD, CENTER_OVER_TIME
 
             {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, PLOT_2D: plot},
-            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_LINEAR, PLOT_2D: plot},
-            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_EXPONENTIAL, PLOT_2D: plot},
-            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_EPANECHNIKOV, PLOT_2D: plot},
+            # {ALGORITHM_NAME: 'pca', NDIM: MATRIX_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, PLOT_2D: plot},
+            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_LINEAR, PLOT_2D: plot},
+            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_EXPONENTIAL, PLOT_2D: plot},
+            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_EPANECHNIKOV, PLOT_2D: plot},
             {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_DIFFERENCE, PLOT_2D: plot},
-            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_LINEAR, PLOT_2D: plot},
-            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_EXPONENTIAL, PLOT_2D: plot},
-            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_EPANECHNIKOV, PLOT_2D: plot},
+            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_LINEAR, PLOT_2D: plot},
+            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_EXPONENTIAL, PLOT_2D: plot},
+            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_EPANECHNIKOV, PLOT_2D: plot},
             {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_MULTIPLICATION, PLOT_2D: plot},
-            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_LINEAR, PLOT_2D: plot},
-            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_EXPONENTIAL, PLOT_2D: plot},
-            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_EPANECHNIKOV, PLOT_2D: plot},
+            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_LINEAR, PLOT_2D: plot},
+            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_EXPONENTIAL, PLOT_2D: plot},
+            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_EPANECHNIKOV, PLOT_2D: plot},
         ]
 
 
