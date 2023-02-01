@@ -20,6 +20,7 @@ GROMACS_PRODUCTION = 'gromacs_production'
 PARAMETER_GRID_SEARCH = 'parameter_grid_search'
 MULTI_GRID_SEARCH = 'multi_parameter_grid_search'
 MULTI_RECONSTRUCT_WITH_DIFFERENT_EV = 'multi_reconstruct_with_different_eigenvector'
+MULTI_MEDIAN_RECONSTRUCTION_SCORES = 'multi_median_reconstruction_scores'
 
 
 def main():
@@ -28,20 +29,20 @@ def main():
     # run_params_json = None  # NotYetImplemented
     alg_params_json = 'config_files/algorithm/pca+gaussian_kernels.json'  # None or filename
     # alg_params_json = 'config_files/algorithm/pca+all_kernels.json'  # None or filename
-    run_option = MULTI_RECONSTRUCT_WITH_DIFFERENT_EV
+    run_option = MULTI_MEDIAN_RECONSTRUCTION_SCORES
     run_params = {
         PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map', 'explained_var_plot'
         PLOT_TICS: True,  # True, False
         STANDARDIZED_PLOT: False,  # True, False
         CARBON_ATOMS_ONLY: True,  # True, False
         INTERACTIVE: True,  # True, False
-        N_COMPONENTS: 9,
+        N_COMPONENTS: 20,
         LAG_TIME: 10,
         TRUNCATION_VALUE: 0,  # deprecated
         BASIS_TRANSFORMATION: False,
         USE_ANGLES: False,
         TRAJECTORY_NAME: '2f4k',
-        FILE_ELEMENT: 64,
+        FILE_ELEMENT: 0,
     }
 
     filename_list, kwargs = get_files_and_kwargs(run_params)
@@ -205,7 +206,10 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
             mtr.grid_search(param_grid)
         elif run_option == MULTI_RECONSTRUCT_WITH_DIFFERENT_EV:
             mtr = MultiTrajectory(kwargs_list, params)
-            mtr.reconstruct_with_different_eigenvector(model_params_list)
+            mtr.compare_reconstruction_scores_from_other_trajectory(model_params_list)
+        elif run_option == MULTI_MEDIAN_RECONSTRUCTION_SCORES:
+            mtr = MultiTrajectory(kwargs_list, params)
+            mtr.compare_median_reconstruction_scores(model_params_list)
 
 
 if __name__ == '__main__':

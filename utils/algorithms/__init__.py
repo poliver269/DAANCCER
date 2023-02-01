@@ -22,9 +22,9 @@ class MyModel(TransformerMixin, BaseEstimator):
     def __str__(self):
         return f'{self.__class__.__name__}:\ncomponents={self.n_components}'
 
-    def fit_transform(self, data_ndarray, y=None, **fit_params):
-        self.fit(data_ndarray)
-        return self.transform(self._standardized_data)
+    def fit_transform(self, data_ndarray, **fit_params):
+        self.fit(data_ndarray, **fit_params)
+        return self.transform(data_ndarray)
 
     def fit(self, data_matrix, **fit_params):
         self.n_samples = data_matrix.shape[0]
@@ -63,4 +63,5 @@ class MyModel(TransformerMixin, BaseEstimator):
         Project the data to the lower dimension with the help of the eigenvectors.
         :return: Data reduced to lower dimensions from higher dimensions
         """
-        return np.dot(data_matrix, self.eigenvectors[:, :self.n_components])
+        data_matrix_standardized = self._standardize_data(data_matrix)
+        return np.dot(data_matrix_standardized, self.eigenvectors[:, :self.n_components])

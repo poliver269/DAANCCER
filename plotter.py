@@ -271,12 +271,13 @@ class MultiTrajectoryPlotter(MyPlotter):
 
 
 class ArrayPlotter(MyPlotter):
-    def __init__(self, interactive=False, title_prefix='', x_label='', y_label='', bottom_text=None):
+    def __init__(self, interactive=False, title_prefix='', x_label='', y_label='', bottom_text=None, y_range=None):
         super().__init__(interactive)
         self.title_prefix = title_prefix
         self.x_label = x_label
         self.y_label = y_label
         self.bottom_text = bottom_text
+        self.range_tuple = y_range
 
     def _post_processing(self, legend_outside=False):
         self.axes.set_title(self.title_prefix)
@@ -291,10 +292,13 @@ class ArrayPlotter(MyPlotter):
             self.fig.tight_layout()
 
         if legend_outside:
-            self.axes.legend(bbox_to_anchor=(0.5, -0.05), loc='upper center', fontsize=10)
+            self.axes.legend(bbox_to_anchor=(0.5, -0.05), loc='upper center', fontsize=8)
             plt.subplots_adjust(bottom=0.25)
         else:
             self.axes.legend()
+
+        if self.range_tuple is not None:
+            self.axes.set_ylim(self.range_tuple)
 
         plt.show()
 
@@ -374,11 +378,15 @@ class ArrayPlotter(MyPlotter):
         self.fig, self.axes = plt.subplots(1, 1, dpi=320)
         self.title_prefix += f'with {function_name(statistical_func)}' if statistical_func is not None else ''
         for key, ndarray_data in ndarray_dict.items():
+            # noinspection PyProtectedMember
             color = next(self.axes._get_lines.prop_cycler)['color']
-            self.axes.plot(ndarray_data, '-', color=color)
             if statistical_func is not None:
+                self.axes.plot(ndarray_data, '-', color=color)
                 statistical_value = statistical_func(ndarray_data)
                 statistical_value_line = np.full(ndarray_data.shape, statistical_value)
                 self.axes.plot(statistical_value_line, '--',
-                               label=f'{key.strip()}: {statistical_value:.4f}'.strip(), color=color)
+                               label=f'{key.strip()}: {statistical_value:.4f}', color=color)
+            else:
+                self.axes.plot(ndarray_data, '-', color=color, label=f'{key.strip()}')
+
         self._post_processing(legend_outside=True)

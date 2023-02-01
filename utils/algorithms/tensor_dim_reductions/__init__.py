@@ -19,7 +19,7 @@ class TensorDR(MyModel):
         self.kernel_stat_func = kernel_stat_func
 
     def fit(self, data_tensor, **fit_params):
-        self.n_samples = data_tensor.shape[0]
+        self.n_samples = data_tensor.shape[TIME_DIM]
         self.n_components = fit_params.get(N_COMPONENTS, 2)
         self._standardized_data = self._standardize_data(data_tensor)
         self._covariance_matrix = self.get_covariance_matrix()
@@ -44,12 +44,12 @@ class TensorDR(MyModel):
         return eigenvectors[:, sorted_eigenvalue_indexes]
 
     def transform(self, data_tensor):
-        data_matrix = self._update_data_tensor(data_tensor)
+        data_matrix = self.convert_to_matrix(data_tensor)
         return super(TensorDR, self).transform(data_matrix)
 
     @staticmethod
-    def _update_data_tensor(data_tensor):
-        return data_tensor.reshape(data_tensor.shape[0], data_tensor.shape[1] * data_tensor.shape[2])
+    def convert_to_matrix(tensor):
+        return tensor.reshape(tensor.shape[0], tensor.shape[1] * tensor.shape[2])
 
 
 class ParameterModel(TensorDR):
@@ -95,7 +95,8 @@ class ParameterModel(TensorDR):
         self.center_over_time = center_over_time
 
     def __str__(self):
-        sb = self.descr
+        sb = self.describe()
+        sb += f'PCs={self.n_components}'
         sb += '\n'
         sb += f'lag-time={self.lag_time}, ' if self.lag_time > 0 else ''
         # sb += f'abs_ew_sorting={self.abs_eigenvalue_sorting}, '
@@ -104,8 +105,7 @@ class ParameterModel(TensorDR):
         return sb
         # f'{function_name(self.cov_function)}'
 
-    @property
-    def descr(self):
+    def describe(self):
         """
         Short version of __str__
         :return: Short description of the model
@@ -138,7 +138,7 @@ class ParameterModel(TensorDR):
         return self._standardized_data.shape[ATOM_DIM]
 
     def fit_transform(self, data_tensor, **fit_params):
-        return super().fit_transform(data_tensor, fit_params)
+        return super().fit_transform(data_tensor, **fit_params)
 
     def fit(self, data_tensor, **fit_params):
         self.n_samples = data_tensor.shape[TIME_DIM]
@@ -282,10 +282,8 @@ class ParameterModel(TensorDR):
             return np.asarray(temp_list)
 
     def transform(self, data_tensor):
-        if self._is_matrix_model:
-            data_matrix = data_tensor
-        else:
-            data_matrix = self._update_data_tensor(data_tensor)
+        data_tensor_standardized = self._standardize_data(data_tensor)
+        data_matrix = self.convert_to_matrix(data_tensor_standardized)
 
         if self.nth_eigenvector < 1:
             self.nth_eigenvector = self._combine_dim
@@ -297,6 +295,12 @@ class ParameterModel(TensorDR):
                 data_matrix,
                 self.eigenvectors[:, :self.n_components * self.nth_eigenvector:self.nth_eigenvector]
             )
+
+    def convert_to_matrix(self, tensor):
+        if self._is_matrix_model:
+            return tensor
+        else:
+            return super().convert_to_matrix(tensor)
 
     def transform_with_extra_layer(self, data_matrix):
         if self.extra_layer_on_projection:
@@ -329,15 +333,18 @@ class ParameterModel(TensorDR):
             return np.dot(data_matrix, self.eigenvectors[:, :self.n_components])
 
     def inverse_transform(self, projection_data: np.ndarray):
+        return self.inverse_transform_definite(projection_data, self.n_components)
+
+    def inverse_transform_definite(self, projection_data: np.ndarray, inv_component: int):
         if self.extra_dr_layer:
             return np.dot(  # TODO
                 projection_data,
-                self.eigenvectors[:, :self.n_components * self.nth_eigenvector:self.nth_eigenvector].T
+                self.eigenvectors[:, :inv_component * self.nth_eigenvector:self.nth_eigenvector].T
             )
         else:
             return np.dot(
                 projection_data,
-                self.eigenvectors[:, :self.n_components * self.nth_eigenvector:self.nth_eigenvector].T
+                self.eigenvectors[:, :inv_component * self.nth_eigenvector:self.nth_eigenvector].T
             )  # Da orthogonal --> Transform = inverse
 
     def score(self, data_tensor, y=None):
@@ -359,14 +366,11 @@ class ParameterModel(TensorDR):
         if y is not None:  # "use" variable, to not have a warning
             data_projection = y
         else:
-            data_projection = self.transform(self._center_data(data_tensor))
+            data_projection = self.transform(data_tensor)
 
         reconstructed_matrix_data = self.inverse_transform(data_projection)
 
-        if self._is_matrix_model:
-            data_matrix = data_tensor
-        else:
-            data_matrix = self._update_data_tensor(data_tensor)
+        data_matrix = self.convert_to_matrix(data_tensor)
 
         reconstructed_matrix_data += np.mean(data_matrix, axis=0)
 

@@ -225,11 +225,11 @@ class MultiTrajectory:
         _save_tuning_results(grid.cv_results_, self.params[TRAJECTORY_NAME],
                              header=['params', 'mean_test_score', 'std_test_score', 'rank_test_score'])
 
-    def reconstruct_with_different_eigenvector(self, model_params_list):
+    def compare_reconstruction_scores_from_other_trajectory(self, model_params_list):
         """
-        Calculate the reconstruction error of the trajectories
-        given a list of eigenvalues of different models on a specific trajectory
+        Calculate the reconstruction error of the trajectories from model fitted on specific trajectory
         (0th-element in self.trajectories).
+        given a list of eigenvalues of different models
         :param model_params_list:
         :return:
         """
@@ -252,18 +252,59 @@ class MultiTrajectory:
             interactive=False,
             title_prefix=f'Reconstruction Error from {self.trajectories[0].filename}\n',
             x_label='trajectories',
-            y_label='score'
+            y_label='score',
+            y_range=(0, 1)
         ).plot_merged_2ds(model_scores, np.median)
 
     @staticmethod
     def _get_reconstruction_score(model, input_data):
-        try:
+        if isinstance(model, ParameterModel):
             return model.score(input_data)
-        except AttributeError:  # Only for Original Algorithms
+        else:  # Only for Original Algorithms
             mu = np.mean(input_data, axis=0)
-            data_projection = model.transform(input_data - mu)
+            data_projection = model.transform(input_data)  # pca subtracts mean, at transformation step.
             reconstructed_data = np.dot(data_projection, model.eigenvectors[:, :model.dim].T) + mu
             return mean_squared_error(input_data, reconstructed_data, squared=False)
+
+    def compare_median_reconstruction_scores(self, model_params_list):
+        st = SingleTrajectory(self.trajectories[0])
+        model_results: list = st.compare(model_params_list, plot_results=False)
+
+        model_mean_scores = {}
+        for model_dict in model_results:
+            model: [ParameterModel, StreamingEstimationTransformer] = model_dict[MODEL]
+            print(f'Calculating median reconstruction errors ({model.describe()})...')
+            mean_list = []
+            for component in range(1, self.params[N_COMPONENTS]+1):
+                score_list = []
+                for trajectory in self.trajectories:
+                    input_data = trajectory.data_input(model_dict[INPUT_PARAMS])
+                    matrix_projection = model.transform(input_data)
+                    try:
+                        if isinstance(model, ParameterModel):
+                            reconstructed_matrix_data = model.inverse_transform_definite(
+                                matrix_projection[:, :component], component)
+                            input_matrix = model.convert_to_matrix(input_data)
+                        else:
+                            reconstructed_matrix_data = np.dot(matrix_projection[:, :component],
+                                                               model.eigenvectors[:, :component].T)
+                            input_matrix = input_data
+                        reconstructed_matrix_data += np.mean(input_matrix, axis=0)
+                        score = mean_squared_error(input_matrix, reconstructed_matrix_data, squared=False)
+                        score_list.append(score)
+                    except IndexError:
+                        warnings.warn(f"Examining eigenvector number ({component}) is missing in Model {model}")
+                        score_list.append(0)
+                mean_list.append(np.median(score_list))
+            model_mean_scores[f'{str(model.describe()):25}'] = np.asarray(mean_list)
+        ArrayPlotter(
+            interactive=False,
+            title_prefix=f'Reconstruction Error from {self.trajectories[0].filename}\n'
+                         f'on {self.params[N_COMPONENTS]} Principal Components ',
+            x_label='principal components',
+            y_label='median scores',
+            y_range=(0, 1)
+        ).plot_merged_2ds(model_mean_scores)
 
 
 def _save_tuning_results(result, name, header=None):
