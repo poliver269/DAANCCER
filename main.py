@@ -28,15 +28,16 @@ def main():
     # TODO: Argsparser for options
     # run_params_json = None  # NotYetImplemented
     alg_params_json = 'config_files/algorithm/pca+gaussian_kernels.json'  # None or filename
-    # alg_params_json = 'config_files/algorithm/pca+all_kernels.json'  # None or filename
-    run_option = MULTI_MEDIAN_RECONSTRUCTION_SCORES
+    # alg_params_json = 'config_files/algorithm/pca+gaussian_kernels_with_2nd_layer.json'
+    # alg_params_json = 'config_files/algorithm/pca+tica+all_kernels.json'  # None or filename
+    run_option = MULTI_COMPARE_COMBO_PCS
     run_params = {
         PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map', 'explained_var_plot'
         PLOT_TICS: True,  # True, False
         STANDARDIZED_PLOT: False,  # True, False
         CARBON_ATOMS_ONLY: True,  # True, False
         INTERACTIVE: True,  # True, False
-        N_COMPONENTS: 20,
+        N_COMPONENTS: 2,
         LAG_TIME: 10,
         TRUNCATION_VALUE: 0,  # deprecated
         BASIS_TRANSFORMATION: False,
@@ -115,7 +116,7 @@ def get_model_params_list(alg_json_file, params):
             # NTH_EIGENVECTOR: int
             # LAG_TIME: int
             # *** Boolean Parameters:
-            # CORR_KERNEL, ONES_ON_KERNEL_DIAG, USE_STD, CENTER_OVER_TIME
+            # CORR_KERNEL, ONES_ON_KERNEL_DIAG, USE_STD, CENTER_OVER_TIME, EXTRA_DR_LAYER
 
             {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, PLOT_2D: plot},
             # {ALGORITHM_NAME: 'pca', NDIM: MATRIX_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, PLOT_2D: plot},
@@ -196,7 +197,7 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
         elif run_option == MULTI_COMPARE_ALL_PCS:
             mtr = MultiTrajectory(kwargs_list, params)
             mtr.compare_all_trajectory_eigenvectors(traj_nrs=None, model_params_list=model_params_list,
-                                                    pc_nr_list=None)
+                                                    pc_nr_list=None, merged_plot=True)
         elif run_option == MULTI_COMPARE_SOME_PCS:
             mtr = MultiTrajectory(kwargs_list, params)
             mtr.compare_all_trajectory_eigenvectors(traj_nrs=None, model_params_list=model_params_list,

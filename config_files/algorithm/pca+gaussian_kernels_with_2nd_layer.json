@@ -1,0 +1,24 @@
+[
+  {
+    "algorithm_name": "original_pca",
+    "ndim": 2
+  },
+  {
+    "algorithm_name": "pca",
+    "ndim": 3,
+    "kernel": "only",
+    "extra_dr_layer": true
+  },
+  {
+    "algorithm_name": "pca",
+    "ndim": 3,
+    "kernel": "diff",
+    "extra_dr_layer": true
+  },
+  {
+    "algorithm_name": "pca",
+    "ndim": 3,
+    "kernel": "multi",
+    "extra_dr_layer": true
+  }
+]

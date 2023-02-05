@@ -295,7 +295,7 @@ class ArrayPlotter(MyPlotter):
             self.axes.legend(bbox_to_anchor=(0.5, -0.05), loc='upper center', fontsize=8)
             plt.subplots_adjust(bottom=0.25)
         else:
-            self.axes.legend()
+            self.axes.legend(fontsize=8)
 
         if self.range_tuple is not None:
             self.axes.set_ylim(self.range_tuple)
@@ -371,7 +371,7 @@ class ArrayPlotter(MyPlotter):
             statistical_value_line = np.full(ndarray_data.shape, statistical_value)
             self.axes.plot(statistical_value_line, '-',
                            label=f'{function_name(statistical_func)}: {statistical_value:.4f}')
-        self.axes.set_ylim(0, 0.6)  # normalize plot
+        # self.axes.set_ylim(0, 0.6)  # normalize plot
         self._post_processing()
 
     def plot_merged_2ds(self, ndarray_dict: dict, statistical_func=None):
@@ -387,6 +387,6 @@ class ArrayPlotter(MyPlotter):
                 self.axes.plot(statistical_value_line, '--',
                                label=f'{key.strip()}: {statistical_value:.4f}', color=color)
             else:
-                self.axes.plot(ndarray_data, '-', color=color, label=f'{key.strip()}')
+                self.axes.plot(ndarray_data, '-', color=color, label=f'{key.strip()[:35]}')
 
-        self._post_processing(legend_outside=True)
+        self._post_processing()

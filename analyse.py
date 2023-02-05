@@ -111,7 +111,7 @@ class MultiTrajectory:
             return list(itemgetter(*sorted_traj_nrs)(self.trajectories))
 
     @staticmethod
-    def _get_trajectory_combos(trajectories, model_params):
+    def _get_trajectory_pairs(trajectories: list[DataTrajectory], model_params: dict) -> list:
         traj_results = []
         for trajectory in trajectories:
             res = trajectory.get_model_result(model_params)
@@ -120,14 +120,23 @@ class MultiTrajectory:
         return list(combinations(traj_results, 2))
 
     @staticmethod
-    def _get_all_similarities_from_eigenvector_combos(combos, pc_nr_list=None, plot=False):
+    def _get_all_similarities_from_trajectory_ev_pairs(trajectory_pairs: list[tuple],
+                                                       pc_nr_list: list = None,
+                                                       plot: bool = False):
+        """
+        Calculates and returns the similarity between trajectory pairs.
+        :param trajectory_pairs:
+        :param pc_nr_list:
+        :param plot:
+        :return:
+        """
         if plot and pc_nr_list is None:
             raise ValueError('Trajectories can not be compared to each other, because the `pc_nr_list` is not given.')
 
         all_similarities = []
-        for combi in combos:
-            pc_0_matrix = combi[0][MODEL].eigenvectors.T
-            pc_1_matrix = combi[1][MODEL].eigenvectors.T
+        for trajectory_pair in trajectory_pairs:
+            pc_0_matrix = trajectory_pair[0][MODEL].eigenvectors.T
+            pc_1_matrix = trajectory_pair[1][MODEL].eigenvectors.T
             cos_matrix = cosine_similarity(np.real(pc_0_matrix), np.real(pc_1_matrix))
             sorted_similarity_indexes = linear_sum_assignment(-np.abs(cos_matrix))[1]
             assert len(sorted_similarity_indexes) == len(
@@ -146,8 +155,8 @@ class MultiTrajectory:
                 print(sim_text)
                 ArrayPlotter(
                     interactive=False,
-                    title_prefix=f'{combi[0]["model"]}\n'
-                                 f'{combi[0]["traj"].filename} & {combi[1]["traj"].filename}\n'
+                    title_prefix=f'{trajectory_pair[0]["model"]}\n'
+                                 f'{trajectory_pair[0]["traj"].filename} & {trajectory_pair[1]["traj"].filename}\n'
                                  f'PC Similarity',
                     x_label='Principal Component Number',
                     y_label='Principal Component Number',
@@ -159,7 +168,8 @@ class MultiTrajectory:
     def compare_all_trajectory_eigenvectors(self,
                                             traj_nrs: [list[int], None],
                                             model_params_list: list[dict],
-                                            pc_nr_list: [list[int], None]):
+                                            pc_nr_list: [list[int], None],
+                                            merged_plot=False):
         """
         This function compares different models.
         For each model, the similarity of the eigenvectors are calculated,
@@ -172,44 +182,64 @@ class MultiTrajectory:
         :param pc_nr_list:
             gives a list of how many principal components should be compared with each other.
             If None, then all the principal components are compared
+        :param merged_plot:
+        :return:
+        """
+        trajectories = self._get_trajectories_by_index(traj_nrs)
+
+        model_similarities = {}
+        for model_params in model_params_list:
+            trajectory_pairs = self._get_trajectory_pairs(trajectories, model_params)
+            all_sim_matrix = self._get_all_similarities_from_trajectory_ev_pairs(trajectory_pairs)
+
+            if merged_plot:
+                model_similarities[str(trajectory_pairs[0][0][MODEL])] = np.mean(all_sim_matrix, axis=0)
+            else:
+                if pc_nr_list is None:
+                    ArrayPlotter(
+                        interactive=False,
+                        title_prefix=f'{self.params[TRAJECTORY_NAME]}\n{model_params}\n'
+                                     'Similarity value of all trajectories',
+                        x_label='Principal component number',
+                        y_label='Similarity value',
+                    ).plot_2d(np.mean(all_sim_matrix, axis=0))
+                else:
+                    for pc_index in pc_nr_list:
+                        tria = np.zeros((len(trajectories), len(trajectories)))
+                        sim_text = f'Similarity of all {np.mean(all_sim_matrix[:, pc_index])}'
+                        print(sim_text)
+                        tria[np.triu_indices(len(trajectories), 1)] = all_sim_matrix[:, pc_index]
+                        tria = tria + tria.T
+                        ArrayPlotter(
+                            interactive=False,
+                            title_prefix=f'{self.params[TRAJECTORY_NAME]}\n{model_params}\n'
+                                         f'Trajectory Similarities for {pc_index}-Components',
+                            x_label='Trajectory number',
+                            y_label='Trajectory number',
+                            bottom_text=sim_text
+                        ).matrix_plot(tria)
+        if merged_plot:
+            ArrayPlotter(
+                interactive=False,
+                title_prefix=f'Eigenvector Similarities',
+                x_label='Principal Component Number',
+                y_label='Similarity value',
+                y_range=(0, 1)
+            ).plot_merged_2ds(model_similarities)
+
+    def compare_trajectory_combos(self, traj_nrs, model_params_list, pc_nr_list):
+        """
+        Compare the trajectory combos with each other
+        :param traj_nrs:
+        :param model_params_list:
+        :param pc_nr_list:
         :return:
         """
         trajectories = self._get_trajectories_by_index(traj_nrs)
 
         for model_params in model_params_list:
-            eigenvector_combos = self._get_trajectory_combos(trajectories, model_params)
-            all_sim_matrix = self._get_all_similarities_from_eigenvector_combos(eigenvector_combos)
-
-            if pc_nr_list is None:
-                ArrayPlotter(
-                    interactive=False,
-                    title_prefix=f'{self.params[TRAJECTORY_NAME]}\n{model_params}\n'
-                                 'Similarity value of all trajectories',
-                    x_label='Principal component number',
-                    y_label='Similarity value',
-                ).plot_2d(np.mean(all_sim_matrix, axis=0))
-            else:
-                for pc_index in pc_nr_list:
-                    tria = np.zeros((len(trajectories), len(trajectories)))
-                    sim_text = f'Similarity of all {np.mean(all_sim_matrix[:, pc_index])}'
-                    print(sim_text)
-                    tria[np.triu_indices(len(trajectories), 1)] = all_sim_matrix[:, pc_index]
-                    tria = tria + tria.T
-                    ArrayPlotter(
-                        interactive=False,
-                        title_prefix=f'{self.params[TRAJECTORY_NAME]}\n{model_params}\n'
-                                     f'Trajectory Similarities for {pc_index}-Components',
-                        x_label='Trajectory number',
-                        y_label='Trajectory number',
-                        bottom_text=sim_text
-                    ).matrix_plot(tria)
-
-    def compare_trajectory_combos(self, traj_nrs, model_params_list, pc_nr_list):
-        trajectories = self._get_trajectories_by_index(traj_nrs)
-
-        for model_params in model_params_list:
-            result_combos = self._get_trajectory_combos(trajectories, model_params)
-            self._get_all_similarities_from_eigenvector_combos(result_combos, pc_nr_list, plot=True)
+            trajectory_pairs = self._get_trajectory_pairs(trajectories, model_params)
+            self._get_all_similarities_from_trajectory_ev_pairs(trajectory_pairs, pc_nr_list, plot=True)
 
     def grid_search(self, param_grid):
         print('Searching for best model...')
@@ -228,7 +258,7 @@ class MultiTrajectory:
     def compare_reconstruction_scores_from_other_trajectory(self, model_params_list):
         """
         Calculate the reconstruction error of the trajectories from model fitted on specific trajectory
-        (0th-element in self.trajectories).
+        (0th-element in self trajectories).
         given a list of eigenvalues of different models
         :param model_params_list:
         :return:
@@ -275,7 +305,7 @@ class MultiTrajectory:
             model: [ParameterModel, StreamingEstimationTransformer] = model_dict[MODEL]
             print(f'Calculating median reconstruction errors ({model.describe()})...')
             mean_list = []
-            for component in range(1, self.params[N_COMPONENTS]+1):
+            for component in range(1, self.params[N_COMPONENTS] + 1):
                 score_list = []
                 for trajectory in self.trajectories:
                     input_data = trajectory.data_input(model_dict[INPUT_PARAMS])

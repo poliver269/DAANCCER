@@ -66,7 +66,6 @@ class ParameterModel(TensorDR):
                  lag_time=0,
                  nth_eigenvector=1,
                  extra_dr_layer=False,
-                 extra_layer_on_projection=True,
                  abs_eigenvalue_sorting=True,
                  plot_2d=False,
                  use_std=False,
@@ -87,7 +86,6 @@ class ParameterModel(TensorDR):
 
         self.nth_eigenvector = nth_eigenvector
         self.extra_dr_layer = extra_dr_layer
-        self.extra_layer_on_projection = extra_layer_on_projection
 
         self.abs_eigenvalue_sorting = abs_eigenvalue_sorting
         self.plot_2d = plot_2d
@@ -96,7 +94,7 @@ class ParameterModel(TensorDR):
 
     def __str__(self):
         sb = self.describe()
-        sb += f'PCs={self.n_components}'
+        sb += f' PCs={self.n_components}'
         sb += '\n'
         sb += f'lag-time={self.lag_time}, ' if self.lag_time > 0 else ''
         # sb += f'abs_ew_sorting={self.abs_eigenvalue_sorting}, '
@@ -236,7 +234,32 @@ class ParameterModel(TensorDR):
         # sort eigenvalues descending
         sorted_eigenvalue_indexes = np.argsort(eigenvalues)[::-1]
         self.eigenvalues = np.real_if_close(eigenvalues[sorted_eigenvalue_indexes])
-        return np.real_if_close(eigenvectors[:, sorted_eigenvalue_indexes])
+        eigenvectors = np.real_if_close(eigenvectors[:, sorted_eigenvalue_indexes])
+
+        if self.extra_dr_layer:
+            return self._get_eigenvectors_with_dr_layer(eigenvectors)
+        else:
+            return eigenvectors
+
+    def _get_eigenvectors_with_dr_layer(self, eigenvectors):
+        eigenvalues2 = []
+        eigenvectors2 = []
+        for component in range(self._atom_dim):
+            vector_from = component * self._combine_dim
+            vector_to = (component + 1) * self._combine_dim
+            model = coor.pca(data=eigenvectors[:, vector_from:vector_to], dim=1)
+
+            # No idea if it makes sense TODO
+            ew2 = model.eigenvalues[0]
+            # eigenvalues2.append(np.mean(self.eigenvalues[vector_from:vector_to] * ew2))
+            eigenvalues2.append(np.sum(self.eigenvalues[vector_from:vector_to] * ew2))
+
+            ev2 = model.eigenvectors[0]
+            ev = np.dot(eigenvectors[:, vector_from:vector_to], ev2)
+            eigenvectors2.append(ev)
+
+        self.eigenvalues = np.asarray(eigenvalues2).T
+        return np.asarray(eigenvectors2).T
 
     def _get_correlations_matrix(self):
         if self._is_matrix_model:
@@ -289,7 +312,8 @@ class ParameterModel(TensorDR):
             self.nth_eigenvector = self._combine_dim
 
         if self.extra_dr_layer:
-            return self.transform_with_extra_layer(data_matrix)
+            return np.dot(data_matrix, self.eigenvectors[:, :self.n_components])
+            # return self.transform_with_extra_layer(data_matrix)
         else:
             return np.dot(
                 data_matrix,
@@ -302,47 +326,11 @@ class ParameterModel(TensorDR):
         else:
             return super().convert_to_matrix(tensor)
 
-    def transform_with_extra_layer(self, data_matrix):
-        if self.extra_layer_on_projection:
-            proj1 = np.dot(data_matrix, self.eigenvectors)
-        else:
-            proj1 = self.eigenvectors
-        proj2 = []
-        eigenvalues2 = []
-        eigenvectors2 = []
-        for component in range(self._atom_dim):
-            vector_from = component * self._combine_dim
-            vector_to = (component + 1) * self._combine_dim
-            model = coor.pca(data=proj1[:, vector_from:vector_to], dim=1)
-
-            proj2.append(np.squeeze(model.get_output()[0]))
-
-            ew2 = model.eigenvalues[0]
-            eigenvalues2.append(np.mean(self.eigenvalues[vector_from:vector_to] * ew2))
-
-            ev2 = model.eigenvectors[0]
-            ev = np.dot(self.eigenvectors[:, vector_from:vector_to], ev2)
-            eigenvectors2.append(ev)
-
-        self.eigenvalues = np.asarray(eigenvalues2).T
-        self.eigenvectors = np.asarray(eigenvectors2).T
-
-        if self.extra_layer_on_projection:
-            return np.asarray(proj2[:self.n_components]).T
-        else:  # extra layer on the eigenvectors
-            return np.dot(data_matrix, self.eigenvectors[:, :self.n_components])
-
     def inverse_transform(self, projection_data: np.ndarray):
         return self.inverse_transform_definite(projection_data, self.n_components)
 
     def inverse_transform_definite(self, projection_data: np.ndarray, inv_component: int):
-        if self.extra_dr_layer:
-            return np.dot(  # TODO
-                projection_data,
-                self.eigenvectors[:, :inv_component * self.nth_eigenvector:self.nth_eigenvector].T
-            )
-        else:
-            return np.dot(
+        return np.dot(
                 projection_data,
                 self.eigenvectors[:, :inv_component * self.nth_eigenvector:self.nth_eigenvector].T
             )  # Da orthogonal --> Transform = inverse
