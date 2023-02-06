@@ -6,7 +6,6 @@ from plotter import ArrayPlotter
 from utils.algorithms import MyModel
 import pyemma.coordinates as coor
 
-from utils.math import root_mean_squared_error
 from utils.matrix_tools import diagonal_block_expand, calculate_symmetrical_kernel_from_matrix, ensure_matrix_symmetry
 from utils.param_key import *
 
@@ -67,7 +66,7 @@ class ParameterModel(TensorDR):
                  nth_eigenvector=1,
                  extra_dr_layer=False,
                  abs_eigenvalue_sorting=True,
-                 plot_2d=False,
+                 analyze_plot_type=None,
                  use_std=False,
                  center_over_time=True
                  ):
@@ -88,7 +87,7 @@ class ParameterModel(TensorDR):
         self.extra_dr_layer = extra_dr_layer
 
         self.abs_eigenvalue_sorting = abs_eigenvalue_sorting
-        self.plot_2d = plot_2d
+        self.analyze_plot_type = analyze_plot_type
         self.use_std = use_std
         self.center_over_time = center_over_time
 
@@ -157,7 +156,7 @@ class ParameterModel(TensorDR):
 
     def _center_data(self, tensor):
         """
-        Center the data by subtracting the mean vector.
+        Center the data by subtracting the mean vector
         :param tensor: Input data to center
         :return: centered data tensor or matrix
         """
@@ -168,7 +167,7 @@ class ParameterModel(TensorDR):
 
     def get_covariance_matrix(self):
         if self._is_matrix_model:
-            cov = self._get_matrix_covariance()
+            cov = self._get_combined_covariance_matrix()
             if self.kernel is not None and not self._use_kernel_as_correlations_matrix():
                 cov = self._map_kernel(cov)
             return cov
@@ -179,7 +178,7 @@ class ParameterModel(TensorDR):
                 cov = self._map_kernel(cov)
             return diagonal_block_expand(cov, tensor_cov.shape[0])
 
-    def _get_matrix_covariance(self):
+    def _get_combined_covariance_matrix(self):
         if self._is_time_lagged_algorithm() and self.lag_time > 0:
             return np.cov(self._standardized_data[:-self.lag_time].T)
         else:
@@ -199,10 +198,9 @@ class ParameterModel(TensorDR):
             ))
 
     def _map_kernel(self, matrix):
-        trajectory_name = 'Not Model Related' if self.plot_2d else None
         kernel_matrix = calculate_symmetrical_kernel_from_matrix(
             matrix, self.kernel_stat_func, self.kernel_type,
-            trajectory_name, flattened=self._is_matrix_model)
+            trajectory_name=self.analyze_plot_type, flattened=self._is_matrix_model)
         if self.kernel == KERNEL_ONLY:
             matrix = kernel_matrix
         elif self.kernel == KERNEL_DIFFERENCE:
@@ -273,7 +271,7 @@ class ParameterModel(TensorDR):
             tensor_corr = self._get_tensor_correlation()
             corr = self.cov_stat_func(tensor_corr, axis=0)
 
-            if self.plot_2d:  # plot the correlation matrix
+            if self.analyze_plot_type:  # plot the correlation matrix
                 for i in range(tensor_corr.shape[0]):  # for each axis
                     ArrayPlotter(interactive=False).matrix_plot(tensor_corr[i])
                 ArrayPlotter(interactive=False).matrix_plot(corr)  # and for the mean-ed
@@ -285,7 +283,7 @@ class ParameterModel(TensorDR):
 
     def _get_matrix_correlation(self):
         if self.lag_time <= 0:
-            return self._get_matrix_covariance()
+            return self._get_combined_covariance_matrix()
         else:
             corr = np.dot(self._standardized_data[:-self.lag_time].T,
                           self._standardized_data[self.lag_time:]) / (self.n_samples - self.lag_time)

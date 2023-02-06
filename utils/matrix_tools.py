@@ -4,10 +4,11 @@ from sklearn.model_selection import GridSearchCV, LeaveOneOut
 from sklearn.neighbors import KernelDensity
 
 from plotter import ArrayPlotter
+from utils import function_name
 from utils.array_tools import interpolate_array, interpolate_center
 from utils.math import is_matrix_symmetric, exponential_2d, epanechnikov_2d, gaussian_2d
 from utils.param_key import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL, MY_LINEAR_NORM, MY_LINEAR_INVERSE_NORM, \
-    MY_LINEAR, MY_LINEAR_INVERSE, MY_LINEAR_INVERSE_P1
+    MY_LINEAR, MY_LINEAR_INVERSE_P1, PLOT_3D_MAP, WEIGHTED_DIAGONAL
 
 
 def diagonal_indices(matrix: np.ndarray):
@@ -190,14 +191,17 @@ def calculate_symmetrical_kernel_from_matrix(
     kernel_matrix = expand_diagonals_to_matrix(matrix, fit_y)
 
     if trajectory_name is not None:
-        # ArrayPlotter().matrix_plot(matrix,
-        #                            title_prefix='Combined Covariance Matrix on standardized data',
-        #                            xy_label='carbon-alpha-atom index',
-        #                            as_surface=PLOT_3D_MAP)
-        if trajectory_name == 'weighted':
+        if trajectory_name == PLOT_3D_MAP:
+            ArrayPlotter(
+                interactive=True,
+                title_prefix='Combined Covariance Matrix',
+                x_label='carbon-alpha-atom index',
+                y_label='carbon-alpha-atom index',
+            ).matrix_plot(matrix, as_surface=PLOT_3D_MAP)
+        elif trajectory_name == WEIGHTED_DIAGONAL:
             ArrayPlotter(
                 interactive=False,
-                title_prefix=f'{trajectory_name} on diagonal of cov'
+                title_prefix=f'{WEIGHTED_DIAGONAL} of {function_name(stat_func)}'
             ).plot_gauss2d(xdata, original_ydata - fit_y, interpolated_ydata, fit_y, kernel_name, stat_func)
         else:
             ArrayPlotter(

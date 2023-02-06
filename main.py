@@ -26,11 +26,12 @@ MULTI_MEDIAN_RECONSTRUCTION_SCORES = 'multi_median_reconstruction_scores'
 def main():
     print(f'Starting time: {datetime.now()}')
     # TODO: Argsparser for options
-    # run_params_json = None  # NotYetImplemented
-    alg_params_json = 'config_files/algorithm/pca+gaussian_kernels.json'  # None or filename
+    run_params_json = None  # NotYetImplemented
+    alg_params_json = None
+    # alg_params_json = 'config_files/algorithm/pca+gaussian_kernels.json'  # None or filename
     # alg_params_json = 'config_files/algorithm/pca+gaussian_kernels_with_2nd_layer.json'
     # alg_params_json = 'config_files/algorithm/pca+tica+all_kernels.json'  # None or filename
-    run_option = MULTI_COMPARE_COMBO_PCS
+    run_option = COMPARE
     run_params = {
         PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map', 'explained_var_plot'
         PLOT_TICS: True,  # True, False
@@ -43,7 +44,7 @@ def main():
         BASIS_TRANSFORMATION: False,
         USE_ANGLES: False,
         TRAJECTORY_NAME: '2f4k',
-        FILE_ELEMENT: 0,
+        FILE_ELEMENT: 64,
     }
 
     filename_list, kwargs = get_files_and_kwargs(run_params)
@@ -75,7 +76,7 @@ def get_files_and_kwargs(params):
                   'folder_path': 'data/2WAV-0-protein', 'params': params, 'atoms': list(range(710))}
     elif trajectory_name == '5i6x':
         filename_list = ['protein.xtc', 'system.xtc']
-        kwargs = {'filename': filename_list[file_element], 'topology_filename': '5i6x.pdb',
+        kwargs = {'filename': filename_list[file_element], 'topology_filename': 'protein.pdb',
                   'folder_path': 'data/ser-tr', 'params': params}
     else:
         raise ValueError(f'No data trajectory was found with the name `{trajectory_name}`.')
@@ -88,7 +89,6 @@ def get_model_params_list(alg_json_file, params):
         return json.load(open(alg_json_file))
         # return json.load(open('algorithm_parameters_list.json'))
     else:
-        plot = True
         return [
             # Old Class-algorithms with parameters, not strings:
             # USE_STD: True, CENTER_OVER_TIME: False (only for tensor),
@@ -118,19 +118,7 @@ def get_model_params_list(alg_json_file, params):
             # *** Boolean Parameters:
             # CORR_KERNEL, ONES_ON_KERNEL_DIAG, USE_STD, CENTER_OVER_TIME, EXTRA_DR_LAYER
 
-            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, PLOT_2D: plot},
-            # {ALGORITHM_NAME: 'pca', NDIM: MATRIX_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, PLOT_2D: plot},
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_LINEAR, PLOT_2D: plot},
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_EXPONENTIAL, PLOT_2D: plot},
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_EPANECHNIKOV, PLOT_2D: plot},
-            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_DIFFERENCE, PLOT_2D: plot},
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_LINEAR, PLOT_2D: plot},
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_EXPONENTIAL, PLOT_2D: plot},
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_DIFFERENCE, KERNEL_TYPE: MY_EPANECHNIKOV, PLOT_2D: plot},
-            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_MULTIPLICATION, PLOT_2D: plot},
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_LINEAR, PLOT_2D: plot},
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_EXPONENTIAL, PLOT_2D: plot},
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, KERNEL: KERNEL_MULTIPLICATION, KERNEL_TYPE: MY_EPANECHNIKOV, PLOT_2D: plot},
+            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, ANALYSE_PLOT_TYPE: 'CMM'},
         ]
 
 

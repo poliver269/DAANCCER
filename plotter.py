@@ -278,6 +278,7 @@ class ArrayPlotter(MyPlotter):
         self.y_label = y_label
         self.bottom_text = bottom_text
         self.range_tuple = y_range
+        self._activate_legend = False
 
     def _post_processing(self, legend_outside=False):
         self.axes.set_title(self.title_prefix)
@@ -294,7 +295,7 @@ class ArrayPlotter(MyPlotter):
         if legend_outside:
             self.axes.legend(bbox_to_anchor=(0.5, -0.05), loc='upper center', fontsize=8)
             plt.subplots_adjust(bottom=0.25)
-        else:
+        elif self._activate_legend:
             self.axes.legend(fontsize=8)
 
         if self.range_tuple is not None:
@@ -360,7 +361,6 @@ class ArrayPlotter(MyPlotter):
         self.axes.set_xlabel('matrix diagonal indexes')
         self.axes.set_ylabel(f'{function_label}-ed correlation values')
         self.axes.legend()
-        # self.axes.set_ylim(-1, 1)  # normalize plot
         self._post_processing()
 
     def plot_2d(self, ndarray_data, statistical_func=None):
@@ -371,7 +371,7 @@ class ArrayPlotter(MyPlotter):
             statistical_value_line = np.full(ndarray_data.shape, statistical_value)
             self.axes.plot(statistical_value_line, '-',
                            label=f'{function_name(statistical_func)}: {statistical_value:.4f}')
-        # self.axes.set_ylim(0, 0.6)  # normalize plot
+        self._activate_legend = True
         self._post_processing()
 
     def plot_merged_2ds(self, ndarray_dict: dict, statistical_func=None):
@@ -389,4 +389,5 @@ class ArrayPlotter(MyPlotter):
             else:
                 self.axes.plot(ndarray_data, '-', color=color, label=f'{key.strip()[:35]}')
 
+        self._activate_legend = True
         self._post_processing()

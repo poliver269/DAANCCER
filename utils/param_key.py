@@ -32,8 +32,12 @@ INPUT_PARAMS = 'input_params'
 HEAT_MAP = 'heat_map'
 COLOR_MAP = 'color_map'
 PLOT_3D_MAP = '3d_map'
-PLOT_2D = 'plot_2d'
 EXPL_VAR_PLOT = 'explained_variance_plot'
+ANALYSE_PLOT_TYPE = 'analyze_plot_type'
+
+# Analysing Plot Types
+WEIGHTED_DIAGONAL = 'weighted_diagonal'
+
 
 # Coordinates
 X = 'x'

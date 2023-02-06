@@ -47,7 +47,7 @@ class DataTrajectory(TrajectoryFile):
             if str(self.filename).endswith('dcd'):
                 self.traj: Trajectory = md.load_dcd(self.filepath, top=self.topology_path, atom_indices=atoms)
             else:
-                self.traj = md.load(self.filepath, top=self.topology_path)
+                self.traj: Trajectory = md.load(self.filepath, top=self.topology_path)
             self.traj: Trajectory = self.traj.superpose(self.traj).center_coordinates(mass_weighted=True)
             self.dim: dict = {TIME_FRAMES: self.traj.xyz.shape[TIME_DIM],
                               ATOMS: self.traj.xyz.shape[ATOM_DIM],
