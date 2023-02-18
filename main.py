@@ -32,7 +32,7 @@ def main():
     # alg_params_json = 'config_files/algorithm/pca+gaussian_kernels.json'  # None or filename
     # alg_params_json = 'config_files/algorithm/pca+gaussian_kernels_with_2nd_layer.json'
     # alg_params_json = 'config_files/algorithm/pca+tica+all_kernels.json'  # None or filename
-    run_option = COMPARE
+    run_option = MULTI_KERNEL_COMPARE
     run_params = {
         PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map', 'explained_var_plot'
         PLOT_TICS: True,  # True, False
@@ -203,9 +203,9 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
             mtr.compare_median_reconstruction_scores(model_params_list)
         elif run_option == MULTI_KERNEL_COMPARE:
             kernel_names = [MY_GAUSSIAN, MY_EXPONENTIAL, MY_EPANECHNIKOV]
-            model_params_alg_name_only = {ALGORITHM_NAME: 'pca'}
+            model_params = {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM}
             mtr = MultiTrajectory(kwargs_list, params)
-            mtr.compare_kernel_fitting_scores(kernel_names, model_params_alg_name_only)
+            mtr.compare_kernel_fitting_scores(kernel_names, model_params)
 
 
 if __name__ == '__main__':
