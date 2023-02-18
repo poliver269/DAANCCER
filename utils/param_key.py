@@ -35,9 +35,9 @@ PLOT_3D_MAP = '3d_map'
 EXPL_VAR_PLOT = 'explained_variance_plot'
 ANALYSE_PLOT_TYPE = 'analyze_plot_type'
 
-# Analysing Plot Types
+# Analysing Types
 WEIGHTED_DIAGONAL = 'weighted_diagonal'
-
+KERNEL_COMPARE = 'kernel_compare'
 
 # Coordinates
 X = 'x'

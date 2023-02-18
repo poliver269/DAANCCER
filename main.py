@@ -21,6 +21,7 @@ PARAMETER_GRID_SEARCH = 'parameter_grid_search'
 MULTI_GRID_SEARCH = 'multi_parameter_grid_search'
 MULTI_RECONSTRUCT_WITH_DIFFERENT_EV = 'multi_reconstruct_with_different_eigenvector'
 MULTI_MEDIAN_RECONSTRUCTION_SCORES = 'multi_median_reconstruction_scores'
+MULTI_KERNEL_COMPARE = 'multi_kernel_compare'
 
 
 def main():
@@ -118,7 +119,8 @@ def get_model_params_list(alg_json_file, params):
             # *** Boolean Parameters:
             # CORR_KERNEL, ONES_ON_KERNEL_DIAG, USE_STD, CENTER_OVER_TIME, EXTRA_DR_LAYER
 
-            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, ANALYSE_PLOT_TYPE: 'CMM'},
+            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, ANALYSE_PLOT_TYPE: 'CMM', USE_STD: True},
+            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, ANALYSE_PLOT_TYPE: 'CMM', USE_STD: False},
         ]
 
 
@@ -199,6 +201,11 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
         elif run_option == MULTI_MEDIAN_RECONSTRUCTION_SCORES:
             mtr = MultiTrajectory(kwargs_list, params)
             mtr.compare_median_reconstruction_scores(model_params_list)
+        elif run_option == MULTI_KERNEL_COMPARE:
+            kernel_names = [MY_GAUSSIAN, MY_EXPONENTIAL, MY_EPANECHNIKOV]
+            model_params_alg_name_only = {ALGORITHM_NAME: 'pca'}
+            mtr = MultiTrajectory(kwargs_list, params)
+            mtr.compare_kernel_fitting_scores(kernel_names, model_params_alg_name_only)
 
 
 if __name__ == '__main__':

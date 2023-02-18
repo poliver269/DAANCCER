@@ -211,6 +211,9 @@ class DataTrajectory(TrajectoryFile):
         if inp is None:
             inp = self.data_input(model_parameters)
 
+        if ALGORITHM_NAME not in model_parameters.keys():
+            raise KeyError(f'{ALGORITHM_NAME} is a mandatory model parameter.')
+
         if model_parameters[ALGORITHM_NAME].startswith('original'):
             try:
                 if model_parameters[ALGORITHM_NAME] == 'original_pca':

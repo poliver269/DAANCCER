@@ -4,7 +4,7 @@ import scipy
 from utils.algorithms.tensor_dim_reductions import TensorDR
 from utils.algorithms.tensor_dim_reductions.pca import (TensorKernelOnCovPCA, TensorKernelOnPearsonCovPCA,
                                                         TensorKernelFromCovPCA)
-from utils.matrix_tools import (co_mad, calculate_symmetrical_kernel_from_matrix, diagonal_block_expand,
+from utils.matrix_tools import (co_mad, calculate_symmetrical_kernel_matrix, diagonal_block_expand,
                                 is_matrix_symmetric)
 
 
@@ -72,7 +72,7 @@ class TensorPearsonCovTICA(TensorTICA):
 class TensorKernelOnCovTICA(TensorTICA, TensorKernelOnCovPCA):
     def _update_cov(self):
         averaged_cov = self.params['cov_stat_func'](self._covariance_matrix, axis=0)
-        d_matrix = calculate_symmetrical_kernel_from_matrix(averaged_cov, self.params['kernel_stat_func'],
+        d_matrix = calculate_symmetrical_kernel_matrix(averaged_cov, self.params['kernel_stat_func'],
                                                             'my_gaussian', '2f4k')
         if not is_matrix_symmetric(d_matrix):
             if is_matrix_symmetric(d_matrix, rtol=1.e-3, atol=1.e-6):
@@ -90,8 +90,8 @@ class TensorKernelOnPearsonCovTICA(TensorPearsonCovTICA, TensorKernelOnPearsonCo
 class TensorKernelFromCovTICA(TensorTICA, TensorKernelFromCovPCA):
     def _update_cov(self):
         averaged_cov = self.params['cov_stat_func'](self._covariance_matrix, axis=0)
-        d_matrix = calculate_symmetrical_kernel_from_matrix(averaged_cov, self.params['kernel_stat_func'],
-                                                            'my_gaussian', trajectory_name='2f4k')
+        d_matrix = calculate_symmetrical_kernel_matrix(averaged_cov, self.params['kernel_stat_func'],
+                                                            'my_gaussian', analyse_mode='2f4k')
         if not is_matrix_symmetric(d_matrix):
             if is_matrix_symmetric(d_matrix, rtol=1.e-3, atol=1.e-6):
                 d_matrix = 0.5 * (d_matrix + d_matrix.T)

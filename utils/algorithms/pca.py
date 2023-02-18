@@ -1,7 +1,7 @@
 import numpy as np
 
 from utils.algorithms import MyModel
-from utils.matrix_tools import calculate_symmetrical_kernel_from_matrix
+from utils.matrix_tools import calculate_symmetrical_kernel_matrix
 
 
 class MyPCA(MyModel):
@@ -43,4 +43,4 @@ class KernelFromCovPCA(MyPCA):
         :return: The kernel from the covariance matrix
         """
         super_cov = super().get_covariance_matrix()
-        return calculate_symmetrical_kernel_from_matrix(super_cov, flattened=True, trajectory_name='print')
+        return calculate_symmetrical_kernel_matrix(super_cov, flattened=True, analyse_mode='print')

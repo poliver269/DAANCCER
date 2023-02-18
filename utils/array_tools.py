@@ -11,30 +11,34 @@ def split_list_in_half(array):
     return array[:half], array[half:]
 
 
-def interpolate_center(symmetrical_array, stat_func: callable = np.median):
+def rescale_center(symmetrical_array, stat_func: callable = np.median):
     """
-    Interpolates the data in the array center, and zeroes all the other values
+    Rescales the data in the array center, and eliminates all the other values on the sides (setting to 0)
     :param symmetrical_array: (nd)array symmetrical
     :param stat_func: Some statistical function of an array: np.median (default), np.mean, ...
     :return:
     """
-    symmetrical_array = interpolate_array(symmetrical_array, stat_func)
+    symmetrical_array = rescale_array(symmetrical_array, stat_func)
     return extinct_side_values(symmetrical_array)
 
 
-def interpolate_array(array, stat_func: callable = np.median, interp_range=None):
+def rescale_array(array, stat_func: callable = np.median, interp_range=None, lower_bound=None):
     """
-    Interpolate an array from a range, of its statistical value (mean, median, min, ...) to the maximum,
+    Rescale an array from a range, of its statistical value (mean, median, min, ...) to the maximum,
     into a new range `interp_range` (default: 0-1)
     :param array:
     :param stat_func: Some statistical function of an array: np.median (default), np.mean, ...
     :param interp_range: the new range for the interpolation
+    :param lower_bound: 
     :return: the new interpolated array
     """
     if interp_range is None:
         interp_range = [0, 1]
-    statistical_value = stat_func(array)
-    return np.interp(array, [statistical_value, array.max()], interp_range)
+
+    if lower_bound is None:
+        lower_bound = stat_func(array)
+
+    return np.interp(array, [lower_bound, array.max()], interp_range)
 
 
 def extinct_side_values(symmetrical_array, smaller_than=0):

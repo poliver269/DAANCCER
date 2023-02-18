@@ -381,6 +381,8 @@ class ArrayPlotter(MyPlotter):
             # noinspection PyProtectedMember
             color = next(self.axes._get_lines.prop_cycler)['color']
             if statistical_func is not None:
+                if isinstance(ndarray_data, list):
+                    ndarray_data = np.asarray(ndarray_data)
                 self.axes.plot(ndarray_data, '-', color=color)
                 statistical_value = statistical_func(ndarray_data)
                 statistical_value_line = np.full(ndarray_data.shape, statistical_value)

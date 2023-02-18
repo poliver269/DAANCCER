@@ -2,13 +2,14 @@ import numpy as np
 from scipy.optimize import curve_fit
 from sklearn.model_selection import GridSearchCV, LeaveOneOut
 from sklearn.neighbors import KernelDensity
+from sklearn.metrics import mean_squared_error
 
 from plotter import ArrayPlotter
 from utils import function_name
-from utils.array_tools import interpolate_array, interpolate_center
+from utils.array_tools import rescale_array, rescale_center
 from utils.math import is_matrix_symmetric, exponential_2d, epanechnikov_2d, gaussian_2d
 from utils.param_key import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL, MY_LINEAR_NORM, MY_LINEAR_INVERSE_NORM, \
-    MY_LINEAR, MY_LINEAR_INVERSE_P1, PLOT_3D_MAP, WEIGHTED_DIAGONAL
+    MY_LINEAR, MY_LINEAR_INVERSE_P1, PLOT_3D_MAP, WEIGHTED_DIAGONAL, KERNEL_COMPARE
 
 
 def diagonal_indices(matrix: np.ndarray):
@@ -112,11 +113,11 @@ def diagonal_block_expand(matrix, n_repeats):
     return np.einsum('ij,kl->ikjl', matrix, np.eye(n_repeats)).reshape(len(matrix) * n_repeats, -1)
 
 
-def calculate_symmetrical_kernel_from_matrix(
+def calculate_symmetrical_kernel_matrix(
         matrix: np.ndarray,
         stat_func: callable = np.median,
         kernel_name: str = 'gaussian',
-        trajectory_name: str = None,
+        analyse_mode: str = None,
         flattened: bool = False) -> np.ndarray:
     """
     Creates a symmetrical kernel matrix out of a symmetrical matrix.
@@ -125,7 +126,7 @@ def calculate_symmetrical_kernel_from_matrix(
         https://www.tutorialspoint.com/numpy/numpy_statistical_functions.htm
     :param kernel_name: str
         (my_)gaussian, (my_)exponential, (my_)epanechnikov, (my_)linear
-    :param trajectory_name: str
+    :param analyse_mode: str
         If the name of the trajectory is given than a plot of the gauss curve will be plotted with the given
     :param flattened: bool
         If True: runs the calculation in a way, where discontinuous input values are permitted.
@@ -133,82 +134,100 @@ def calculate_symmetrical_kernel_from_matrix(
         The gaussian kernel matrix
     """
     if not is_matrix_symmetric(matrix):
-        raise ValueError('Input matrix to calculate the gaussian kernel has to be symmetric.')
+        raise ValueError(f'Input matrix to calculate the {kernel_name}-kernel has to be symmetric.')
 
     xdata = diagonal_indices(matrix)
     original_ydata = matrix_diagonals_calculation(matrix, np.mean)
 
-    if flattened:
-        stat_func = np.min
-        interpolated_ydata = interpolate_array(original_ydata, stat_func)
-    else:
-        interpolated_ydata = interpolate_center(original_ydata, stat_func)
-
-    kernel_funcs = {MY_EXPONENTIAL: exponential_2d, MY_EPANECHNIKOV: epanechnikov_2d, MY_GAUSSIAN: gaussian_2d}
-
-    if kernel_name in kernel_funcs.keys():
-        if kernel_name == MY_EPANECHNIKOV:
-            non_zero_i = np.argmax(interpolated_ydata > 0)
-            if non_zero_i == 0:  # TODO: Correcting for flattened data
-                fit_parameters, _ = curve_fit(epanechnikov_2d, xdata,
-                                              interpolated_ydata)
-            else:
-                fit_parameters, _ = curve_fit(epanechnikov_2d, xdata[non_zero_i:-non_zero_i],
-                                              interpolated_ydata[non_zero_i:-non_zero_i])
-            center_fit_y = epanechnikov_2d(xdata[non_zero_i:-non_zero_i], *fit_parameters)
-            center_fit_y = np.where(center_fit_y < 0, 0, center_fit_y)
-            fit_y = interpolated_ydata.copy()
-            fit_y[non_zero_i:-non_zero_i] = center_fit_y
-        else:
-            fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata, interpolated_ydata)
-            fit_y = kernel_funcs[kernel_name](xdata, *fit_parameters)
-    elif kernel_name.startswith('my_linear'):
-        if kernel_name == MY_LINEAR_NORM:
-            fit_y = np.concatenate((np.linspace(0, 1, len(matrix)), np.linspace(1, 0, len(matrix))[1:]))
-        elif kernel_name == MY_LINEAR_INVERSE_NORM:
-            fit_y = np.concatenate((np.linspace(1, 0, len(matrix)), np.linspace(0, 1, len(matrix))[1:]))
-        elif kernel_name == MY_LINEAR:
-            fit_y = np.concatenate((np.linspace(0, np.max(xdata), len(matrix)),
-                                    np.linspace(np.max(xdata), 0, len(matrix))[1:]))
-        else:  # kernel_name.startswith(MY_LINEAR_INVERSE):
-            fit_y = np.abs(xdata)
-            if kernel_name == MY_LINEAR_INVERSE_P1:
-                fit_y -= 1
-                fit_y = np.where(fit_y < 0, 1, fit_y)
-    else:  # Try to use an implemented kernel from sklearn
-        xdata = xdata[:, np.newaxis]
-        interpolated_ydata = interpolated_ydata[:, np.newaxis]
-        interpolated_ydata = interpolated_ydata / interpolated_ydata.sum()
-        bandwidths = 10 ** np.linspace(-1, 1, 100)
-        grid = GridSearchCV(KernelDensity(kernel=kernel_name), {'bandwidth': bandwidths}, cv=LeaveOneOut())
-        grid.fit(xdata)
-        print(f'Best parameters for {kernel_name}: {grid.best_params_}')
-        kde = KernelDensity(kernel=kernel_name, **grid.best_params_).fit(interpolated_ydata)
-        # noinspection PyUnresolvedReferences
-        fit_y = np.exp(kde.score_samples(xdata))
-        fit_y = np.interp(fit_y, [0, fit_y.max()], [0, 1])
-
+    rescaled_ydata = _get_rescaled_array(original_ydata, stat_func, flattened)
+    fit_y = _get_curve_fitted_y(matrix, kernel_name, xdata, rescaled_ydata)
     kernel_matrix = expand_diagonals_to_matrix(matrix, fit_y)
 
-    if trajectory_name is not None:
-        if trajectory_name == PLOT_3D_MAP:
+    if analyse_mode is not None:
+        if analyse_mode == KERNEL_COMPARE:
+            return mean_squared_error(rescaled_ydata, fit_y, squared=False)
+        elif analyse_mode == PLOT_3D_MAP:
             ArrayPlotter(
                 interactive=True,
                 title_prefix='Combined Covariance Matrix',
                 x_label='carbon-alpha-atom index',
                 y_label='carbon-alpha-atom index',
             ).matrix_plot(matrix, as_surface=PLOT_3D_MAP)
-        elif trajectory_name == WEIGHTED_DIAGONAL:
+        elif analyse_mode == WEIGHTED_DIAGONAL:
             ArrayPlotter(
                 interactive=False,
                 title_prefix=f'{WEIGHTED_DIAGONAL} of {function_name(stat_func)}'
-            ).plot_gauss2d(xdata, original_ydata - fit_y, interpolated_ydata, fit_y, kernel_name, stat_func)
+            ).plot_gauss2d(xdata, original_ydata - fit_y, rescaled_ydata, fit_y, kernel_name, stat_func)
         else:
             ArrayPlotter(
                 interactive=False,
-                title_prefix=f'Trajectory: {trajectory_name}, on diagonal of cov',
-            ).plot_gauss2d(xdata, original_ydata, interpolated_ydata, fit_y, kernel_name, stat_func)
+                title_prefix=f'Trajectory: {analyse_mode}, on diagonal of cov',
+            ).plot_gauss2d(xdata, original_ydata, rescaled_ydata, fit_y, kernel_name, stat_func)
     return kernel_matrix
+
+
+def _get_rescaled_array(original_ydata, stat_func, flattened):
+    """
+    This function chooses the rescaling option depending on the flattened or unflattened input vairable.
+    It the input-data-matrix was flattened, the array has to be rescaled on another way,
+    since in this case, the original_ydata is not a continuous function.
+    :param original_ydata:
+    :param stat_func:
+    :param flattened:
+    :return:
+    """
+    if flattened:
+        stat_func = np.min
+        return rescale_array(original_ydata, stat_func)
+    else:
+        return rescale_center(original_ydata, stat_func)
+
+
+def _get_curve_fitted_y(matrix, kernel_name, xdata, rescaled_ydata):
+    kernel_funcs = {MY_EXPONENTIAL: exponential_2d, MY_EPANECHNIKOV: epanechnikov_2d, MY_GAUSSIAN: gaussian_2d}
+
+    if kernel_name in kernel_funcs.keys():
+        if kernel_name == MY_EPANECHNIKOV:
+            non_zero_i = np.argmax(rescaled_ydata > 0)
+            if non_zero_i == 0:  # TODO: Correcting for flattened data
+                fit_parameters, _ = curve_fit(epanechnikov_2d, xdata,
+                                              rescaled_ydata)
+            else:
+                fit_parameters, _ = curve_fit(epanechnikov_2d, xdata[non_zero_i:-non_zero_i],
+                                              rescaled_ydata[non_zero_i:-non_zero_i])
+            center_fit_y = epanechnikov_2d(xdata[non_zero_i:-non_zero_i], *fit_parameters)
+            center_fit_y = np.where(center_fit_y < 0, 0, center_fit_y)
+            fit_y = rescaled_ydata.copy()
+            fit_y[non_zero_i:-non_zero_i] = center_fit_y
+            return fit_y
+        else:
+            fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata, rescaled_ydata)
+            return kernel_funcs[kernel_name](xdata, *fit_parameters)
+    elif kernel_name.startswith('my_linear'):
+        if kernel_name == MY_LINEAR_NORM:
+            return np.concatenate((np.linspace(0, 1, len(matrix)), np.linspace(1, 0, len(matrix))[1:]))
+        elif kernel_name == MY_LINEAR_INVERSE_NORM:
+            return np.concatenate((np.linspace(1, 0, len(matrix)), np.linspace(0, 1, len(matrix))[1:]))
+        elif kernel_name == MY_LINEAR:
+            return np.concatenate((np.linspace(0, np.max(xdata), len(matrix)),
+                                   np.linspace(np.max(xdata), 0, len(matrix))[1:]))
+        else:  # kernel_name.startswith(MY_LINEAR_INVERSE):
+            fit_y = np.abs(xdata)
+            if kernel_name == MY_LINEAR_INVERSE_P1:
+                fit_y -= 1
+                return np.where(fit_y < 0, 1, fit_y)
+    else:  # Try to use an implemented kernel from sklearn
+        xdata = xdata[:, np.newaxis]
+        rescaled_ydata = rescaled_ydata[:, np.newaxis]
+        rescaled_ydata = rescaled_ydata / rescaled_ydata.sum()
+        bandwidths = 10 ** np.linspace(-1, 1, 100)
+        grid = GridSearchCV(KernelDensity(kernel=kernel_name), {'bandwidth': bandwidths}, cv=LeaveOneOut())
+        grid.fit(xdata)
+        print(f'Best parameters for {kernel_name}: {grid.best_params_}')
+        kde = KernelDensity(kernel=kernel_name, **grid.best_params_).fit(rescaled_ydata)
+        # noinspection PyUnresolvedReferences
+        fit_y = np.exp(kde.score_samples(xdata))
+        return np.interp(fit_y, [0, fit_y.max()], [0, 1])
 
 
 def co_mad(matrix):

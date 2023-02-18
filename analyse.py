@@ -14,8 +14,9 @@ from sklearn.model_selection import GridSearchCV
 
 from plotter import ArrayPlotter, MultiTrajectoryPlotter, TrajectoryPlotter
 from trajectory import DataTrajectory
+from utils import statistical_zero
 from utils.algorithms.tensor_dim_reductions import ParameterModel
-from utils.matrix_tools import calculate_symmetrical_kernel_from_matrix
+from utils.matrix_tools import calculate_symmetrical_kernel_matrix
 from utils.param_key import *
 
 
@@ -66,8 +67,8 @@ class SingleTrajectory:
         mode = 'calculate_coefficients_than_mean_dimensions'
         coefficient_mean = self.trajectory.determine_coefficient_mean(mode)
         print('Fit Kernel on data...')
-        d_matrix = calculate_symmetrical_kernel_from_matrix(coefficient_mean,
-                                                            trajectory_name=self.trajectory.params[TRAJECTORY_NAME])
+        d_matrix = calculate_symmetrical_kernel_matrix(coefficient_mean,
+                                                       analyse_mode=self.trajectory.params[TRAJECTORY_NAME])
         weighted_alpha_coeff_matrix = coefficient_mean - d_matrix
 
         title_prefix = (f'{"Angles" if self.trajectory.params[USE_ANGLES] else "Coordinates"}. '
@@ -335,6 +336,23 @@ class MultiTrajectory:
             y_label='median scores',
             y_range=(0, 1)
         ).plot_merged_2ds(model_mean_scores)
+
+    def compare_kernel_fitting_scores(self, kernel_names, model_params):
+        kernel_accuracies = {kernel_name: [] for kernel_name in kernel_names}
+        for trajectory in self.trajectories:
+            model, _ = trajectory.get_model_and_projection(model_params)
+            for kernel_name in kernel_names:
+                matrix = model.get_combined_covariance_matrix()
+                variance = calculate_symmetrical_kernel_matrix(
+                    matrix, statistical_zero, kernel_name,
+                    analyse_mode=KERNEL_COMPARE)
+                kernel_accuracies[kernel_name].append(variance)
+        ArrayPlotter(
+            interactive=False,
+            title_prefix=f'Compare Kernels',
+            x_label='trajectory Nr',
+            y_range=(0, 0.2),
+        ).plot_merged_2ds(kernel_accuracies, statistical_func=np.mean)
 
 
 def _save_tuning_results(result, name, header=None):
