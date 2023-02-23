@@ -6,7 +6,6 @@ import numpy as np
 import pyemma.coordinates as coor
 from mdtraj import Trajectory
 from mdtraj.utils import deprecated
-from sklearn.decomposition import PCA
 
 from plotter import ArrayPlotter
 from utils.algorithms.pca import MyPCA, TruncatedPCA, KernelFromCovPCA
@@ -20,7 +19,7 @@ from utils.algorithms.tensor_dim_reductions.tica import (TensorTICA, TensorKerne
                                                          TensorKernelOnCoMadTICA)
 from utils.algorithms.tica import MyTICA, TruncatedTICA, KernelFromCovTICA
 from utils.math import basis_transform, explained_variance
-from utils.matrix_tools import calculate_pearson_correlations
+from utils.matrix_tools import calculate_pearson_correlations, reconstruct_matrix
 from utils.param_key import *
 
 
@@ -85,27 +84,27 @@ class DataTrajectory(TrajectoryFile):
     @property
     def atom_coordinates(self) -> np.ndarray:
         if self.params[BASIS_TRANSFORMATION]:
-            return self.basis_transformed_coordinates
+            return self.basis_transformed_coordinates()
         else:
             return self.traj.xyz
 
     @property
     def flattened_coordinates(self) -> np.ndarray:
         if self.params[CARBON_ATOMS_ONLY]:
+            self.dim[ATOMS] = len(self.alpha_carbon_indexes)
             return self.alpha_carbon_coordinates.reshape(self.dim[TIME_FRAMES],
-                                                         len(self.carbon_alpha_indexes) * self.dim[COORDINATES])
+                                                         self.dim[ATOMS] * self.dim[COORDINATES])
         else:
             return self.atom_coordinates.reshape(self.dim[TIME_FRAMES], self.dim[ATOMS] * self.dim[COORDINATES])
 
     @property
-    def carbon_alpha_indexes(self) -> list:
+    def alpha_carbon_indexes(self) -> list:
         return [a.index for a in self.traj.topology.atoms if a.name == 'CA']
 
     @property
     def alpha_carbon_coordinates(self) -> np.ndarray:
-        return self._filter_coordinates_by_atom_index(self.carbon_alpha_indexes)
+        return self._filter_coordinates_by_atom_index(self.alpha_carbon_indexes)
 
-    @property
     def basis_transformed_coordinates(self) -> np.ndarray:
         np.random.seed(self.params[RANDOM_SEED])
         return basis_transform(self.traj.xyz, self.dim[COORDINATES])
@@ -123,6 +122,11 @@ class DataTrajectory(TrajectoryFile):
         return coordinates_dict[:, :, element_list]
 
     def get_model_result(self, model_parameters: [str, dict]) -> dict:
+        """
+        Returns a dict of all the important result values. Used for analysing the information
+        :param model_parameters:
+        :return: dict of the results: {MODEL, PROJECTION, EXPLAINED_VAR, INPUT_PARAMS}
+        """
         if isinstance(model_parameters, str):
             model, projection = self.get_model_and_projection_by_name(model_parameters)
         else:
@@ -206,7 +210,7 @@ class DataTrajectory(TrajectoryFile):
         else:
             raise ValueError(f'Model with name \"{model_name}\" does not exists.')
 
-    def get_model_and_projection(self, model_parameters: dict, inp: np.ndarray = None):
+    def get_model_and_projection(self, model_parameters: dict, inp: np.ndarray = None, ):
         print(f'Running {model_parameters}...')
         if inp is None:
             inp = self.data_input(model_parameters)
@@ -267,6 +271,20 @@ class DataTrajectory(TrajectoryFile):
                                   TITLE_PREFIX: f'{parameter}: {self.params[parameter]}\n'})
             self.params[parameter] = not self.params[parameter]
         return model_results
+
+    def get_reconstructed_traj(self, model_parameters):
+        model, projection = self.get_model_and_projection(model_parameters)
+        if isinstance(model, ParameterModel):
+            return model.reconstruct(projection[0])
+        else:
+            component = self.dim[ATOMS] * self.dim[COORDINATES]
+            eigenvectors = model.eigenvectors
+            input_data = self.data_input(model_parameters)
+            reconstructed_matrix = reconstruct_matrix(projection[0], eigenvectors, component,
+                                                      mean=np.mean(input_data, axis=0))
+            return reconstructed_matrix.reshape((self.dim[TIME_FRAMES],
+                                                self.dim[ATOMS],
+                                                self.dim[COORDINATES]))
 
     def determine_coefficient_mean(self, mode):
         if mode == 'coordinates_mean_first':  # Not used currently

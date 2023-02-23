@@ -22,9 +22,13 @@ class MyPlotter:
 
 
 class TrajectoryPlotter(MyPlotter):
-    def __init__(self, trajectory, interactive=True):
+    def __init__(self, trajectory, reconstruct_params=None, interactive=True):
         super().__init__(interactive)
         self.data_trajectory = trajectory
+        if reconstruct_params is not None:
+            self.reconstructed = self.data_trajectory.get_reconstructed_traj(reconstruct_params)
+        else:
+            self.reconstructed = None
 
     def _set_figure_title(self):
         self.fig.suptitle(f'Trajectory: {self.data_trajectory.params[TRAJECTORY_NAME]}-'
@@ -41,7 +45,7 @@ class TrajectoryPlotter(MyPlotter):
         self.axes = Axes3D(self.fig)
         self._update_on_slider_change(timestep)
 
-    def original_data_with_timestep_slider(self, min_max=None):
+    def data_with_timestep_slider(self, min_max=None):
         """
         Creates an interactive plot window, where the trajectory to plot can can be chosen by a Slider at a specific
         timestep. Used as in https://matplotlib.org/stable/gallery/widgets/slider_demo.html
@@ -81,7 +85,9 @@ class TrajectoryPlotter(MyPlotter):
         """
         if 0 <= timeframe <= self.data_trajectory.traj.n_frames:
             timeframe = int(timeframe)
-            if self.data_trajectory.params[CARBON_ATOMS_ONLY]:
+            if self.reconstructed is not None:
+                data_tensor = self.reconstructed
+            elif self.data_trajectory.params[CARBON_ATOMS_ONLY]:
                 data_tensor = self.data_trajectory.alpha_carbon_coordinates
             else:
                 data_tensor = self.data_trajectory.traj.xyz
@@ -91,7 +97,7 @@ class TrajectoryPlotter(MyPlotter):
                 numerator = data_tensor - np.mean(data_tensor, axis=1)[:, np.newaxis, :]  # correct: center over time
                 # numerator = data_tensor - np.mean(data_tensor, axis=2)[:, :, np.newaxis]  # Raumdiagonale gleich
                 denominator = np.std(data_tensor, axis=0)
-                data_tensor = numerator  # / denominator
+                data_tensor = numerator / denominator
                 coordinate_mins = {X: data_tensor[:, :, 0].min(), Y: data_tensor[:, :, 1].min(),
                                    Z: data_tensor[:, :, 2].min()}
                 coordinate_maxs = {X: data_tensor[:, :, 0].max(), Y: data_tensor[:, :, 1].max(),

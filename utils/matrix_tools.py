@@ -7,7 +7,7 @@ from sklearn.metrics import mean_squared_error
 from plotter import ArrayPlotter
 from utils import function_name
 from utils.array_tools import rescale_array, rescale_center
-from utils.math import is_matrix_symmetric, exponential_2d, epanechnikov_2d, gaussian_2d
+from utils.math import is_matrix_symmetric, exponential_2d, epanechnikov_2d, gaussian_2d, is_matrix_orthogonal
 from utils.param_key import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL, MY_LINEAR_NORM, MY_LINEAR_INVERSE_NORM, \
     MY_LINEAR, MY_LINEAR_INVERSE_P1, PLOT_3D_MAP, WEIGHTED_DIAGONAL, KERNEL_COMPARE
 
@@ -244,3 +244,22 @@ def co_mad(matrix):
 
 def ensure_matrix_symmetry(matrix):
     return 0.5 * (matrix + matrix.T)
+
+
+def reconstruct_matrix(projection, eigenvectors, dim, mean, std=1):
+    """
+    Reconstructs a matrix from a given projection and eigenvector
+    :param projection:
+    :param eigenvectors:
+    :param dim:
+    :param mean: of the original data
+    :param std: of the original data
+    :return:
+    """
+    if is_matrix_orthogonal(eigenvectors):
+        reconstructed_matrix = np.dot(projection[:, :dim], eigenvectors[:, :dim].T)
+    else:
+        reconstructed_matrix = np.dot(projection[:, :dim], np.linalg.inv(eigenvectors)[:dim])
+    reconstructed_matrix *= std
+    reconstructed_matrix += mean
+    return reconstructed_matrix

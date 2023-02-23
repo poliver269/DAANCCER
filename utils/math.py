@@ -1,6 +1,5 @@
 import numpy as np
 from scipy.spatial import distance
-from sklearn.metrics import mean_squared_error
 
 
 def generate_independent_matrix(row, dimension):
@@ -66,6 +65,21 @@ def is_matrix_symmetric(matrix, rtol=1e-05, atol=1e-08):
         Returns True if the matrix is symmetric within a tolerance.
     """
     return np.allclose(matrix, matrix.T, rtol=rtol, atol=atol)
+
+
+def is_matrix_orthogonal(matrix, rtol=1e-05, atol=1e-08):
+    """
+    Checks if the rows of the given matrix are orthogonal:
+    https://stackoverflow.com/a/62587115/11566305
+    :param matrix: array_like
+    :param rtol: float
+        The relative tolerance parameter
+    :param atol: float
+        The absolute tolerance parameter
+    :return: bool
+        Returns True if the matrix rows are orthogonal within a tolerance.
+    """
+    return np.allclose(matrix.T @ matrix, np.eye(matrix.shape[0]), rtol=rtol, atol=atol)
 
 
 def exponential_2d(x, sigma):

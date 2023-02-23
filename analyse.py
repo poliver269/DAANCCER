@@ -16,17 +16,17 @@ from plotter import ArrayPlotter, MultiTrajectoryPlotter, TrajectoryPlotter
 from trajectory import DataTrajectory
 from utils import statistical_zero
 from utils.algorithms.tensor_dim_reductions import ParameterModel
-from utils.matrix_tools import calculate_symmetrical_kernel_matrix
+from utils.matrix_tools import calculate_symmetrical_kernel_matrix, reconstruct_matrix
 from utils.param_key import *
 
 
-class SingleTrajectory:
+class SingleTrajectoryAnalyser:
     def __init__(self, trajectory):
         self.trajectory: DataTrajectory = trajectory
 
     def compare(self, model_parameter_list: list[dict, str], plot_results: bool = True) -> list[dict]:
         """
-        Compares different models, with different input-parameters.
+        Compares different models, with different input-parameters
         :param model_parameter_list: dict - model parameter dict, (str - specific algorithm name)
             List of different model-parameters
         :param plot_results: bool
@@ -89,19 +89,19 @@ class SingleTrajectory:
         _save_tuning_results(grid.cv_results_, name=self.trajectory.filename[:-4])
 
 
-class MultiTrajectory:
+class MultiTrajectoryAnalyser:
     def __init__(self, kwargs_list, params):
         self.trajectories: list[DataTrajectory] = [DataTrajectory(**kwargs) for kwargs in kwargs_list]
         self.params: dict = params
 
-    def compare_pcs(self, algorithms):
-        for algorithm in algorithms:
+    def compare_pcs(self, model_params_list: list):
+        for model_parameters in model_params_list:
             principal_components = []
             for trajectory in self.trajectories:
-                res = trajectory.get_model_result(algorithm)
+                res = trajectory.get_model_result(model_parameters)
                 principal_components.append(res['model'].eigenvectors)
             pcs = np.asarray(principal_components)
-            MultiTrajectoryPlotter(interactive=False).plot_principal_components(algorithm, pcs,
+            MultiTrajectoryPlotter(interactive=False).plot_principal_components(model_parameters, pcs,
                                                                                 self.params[N_COMPONENTS])
 
     def _get_trajectories_by_index(self, traj_nrs: [list[int], None]):
@@ -256,32 +256,38 @@ class MultiTrajectory:
         _save_tuning_results(grid.cv_results_, self.params[TRAJECTORY_NAME],
                              header=['params', 'mean_test_score', 'std_test_score', 'rank_test_score'])
 
-    def compare_reconstruction_scores_from_other_trajectory(self, model_params_list):
+    def compare_reconstruction_scores(self, model_params_list, from_other_traj=True):
         """
-        Calculate the reconstruction error of the trajectories from model fitted on specific trajectory
-        (0th-element in self trajectories).
-        given a list of eigenvalues of different models
+        Calculate the reconstruction error of the trajectories
+        if from_other_traj is True than reconstruct from the model fitted on specific trajectory
+        (0th-element in self trajectories)
+        :param from_other_traj:
         :param model_params_list:
-        :return:
         """
 
-        st = SingleTrajectory(self.trajectories[0])
+        st = SingleTrajectoryAnalyser(self.trajectories[0])
         model_results: list = st.compare(model_params_list, plot_results=False)
 
         model_scores = {}
-        for model_dict in model_results:
+        for model_index, model_dict in enumerate(model_results):
             model: [ParameterModel, StreamingEstimationTransformer] = model_dict[MODEL]
             print(f'Calculating reconstruction errors ({model})...')
             score_list = []
             for trajectory in self.trajectories:
-                input_data = trajectory.data_input(model_dict[INPUT_PARAMS])
+                if not from_other_traj:
+                    model_dict = trajectory.get_model_result(model_params_list[model_index])
+                    model = model_dict[MODEL]
+                input_data = trajectory.data_input(model_parameters=model_dict[INPUT_PARAMS])
                 score = self._get_reconstruction_score(model, input_data)
                 score_list.append(score)
             score_list = np.asarray(score_list)
             model_scores[f'{str(model):25}'] = score_list
+
+        title_prefix = (f'Reconstruction Error from {self.trajectories[0].filename}\n' if from_other_traj
+                        else 'Reconstruction Error ')
         ArrayPlotter(
             interactive=False,
-            title_prefix=f'Reconstruction Error from {self.trajectories[0].filename}\n',
+            title_prefix=title_prefix,
             x_label='trajectories',
             y_label='score',
             y_range=(0, 1)
@@ -292,48 +298,55 @@ class MultiTrajectory:
         if isinstance(model, ParameterModel):
             return model.score(input_data)
         else:  # Only for Original Algorithms
-            mu = np.mean(input_data, axis=0)
             data_projection = model.transform(input_data)  # pca subtracts mean, at transformation step.
-            reconstructed_data = np.dot(data_projection, model.eigenvectors[:, :model.dim].T) + mu
+            reconstructed_data = reconstruct_matrix(data_projection, model.eigenvectors, model.dim,
+                                                    mean=np.mean(input_data, axis=0))
             return mean_squared_error(input_data, reconstructed_data, squared=False)
 
-    def compare_median_reconstruction_scores(self, model_params_list):
-        st = SingleTrajectory(self.trajectories[0])
+    def compare_median_reconstruction_scores(self, model_params_list, from_other_traj=True):
+        st = SingleTrajectoryAnalyser(self.trajectories[0])
         model_results: list = st.compare(model_params_list, plot_results=False)
 
         model_mean_scores = {}
-        for model_dict in model_results:
+        for model_index, model_dict in enumerate(model_results):
             model: [ParameterModel, StreamingEstimationTransformer] = model_dict[MODEL]
             print(f'Calculating median reconstruction errors ({model.describe()})...')
             mean_list = []
             for component in range(1, self.params[N_COMPONENTS] + 1):
                 score_list = []
                 for trajectory in self.trajectories:
-                    input_data = trajectory.data_input(model_dict[INPUT_PARAMS])
-                    matrix_projection = model.transform(input_data)
+                    if not from_other_traj:
+                        model_dict = trajectory.get_model_result(model_params_list[model_index])
+                        model = model_dict[MODEL]
+                        input_data = trajectory.data_input(model_dict[INPUT_PARAMS])
+                        matrix_projection = model_dict[PROJECTION][0]
+                    else:
+                        input_data = trajectory.data_input(model_dict[INPUT_PARAMS])
+                        matrix_projection = model.transform(input_data)
                     try:
                         if isinstance(model, ParameterModel):
-                            reconstructed_matrix_data = model.inverse_transform_definite(
-                                matrix_projection[:, :component], component)
-                            input_matrix = model.convert_to_matrix(input_data)
+                            reconstructed_data = model.reconstruct(matrix_projection[:, :component], component)
+                            input_data = model.convert_to_matrix(input_data)
+                            reconstructed_data = model.convert_to_matrix(reconstructed_data)
                         else:
-                            reconstructed_matrix_data = np.dot(matrix_projection[:, :component],
-                                                               model.eigenvectors[:, :component].T)
-                            input_matrix = input_data
-                        reconstructed_matrix_data += np.mean(input_matrix, axis=0)
-                        score = mean_squared_error(input_matrix, reconstructed_matrix_data, squared=False)
+                            reconstructed_data = reconstruct_matrix(matrix_projection, model.eigenvectors, component,
+                                                                    mean=np.mean(input_data, axis=0))
+                        score = mean_squared_error(input_data, reconstructed_data, squared=False)
                         score_list.append(score)
                     except IndexError:
                         warnings.warn(f"Examining eigenvector number ({component}) is missing in Model {model}")
-                        score_list.append(0)
+                        # score_list.append(0)
                 mean_list.append(np.median(score_list))
-            model_mean_scores[f'{str(model.describe()):25}'] = np.asarray(mean_list)
+            model_mean_scores[f'{str(model.describe()):35}'] = np.asarray(mean_list)
+
+        title_prefix = (f'Reconstruction Error (RE)' +
+                        (f'from {self.trajectories[0].filename}\n' if from_other_traj else '') +
+                        f'on {self.params[N_COMPONENTS]} Principal Components ')
         ArrayPlotter(
             interactive=False,
-            title_prefix=f'Reconstruction Error from {self.trajectories[0].filename}\n'
-                         f'on {self.params[N_COMPONENTS]} Principal Components ',
-            x_label='principal components',
-            y_label='median scores',
+            title_prefix=title_prefix,
+            x_label='number of principal components',
+            y_label='median REs of the trajectories',
             y_range=(0, 1)
         ).plot_merged_2ds(model_mean_scores)
 

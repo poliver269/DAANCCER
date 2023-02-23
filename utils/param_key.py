@@ -5,6 +5,7 @@ ATOMS = 'atoms'
 ATOM_DIM = 1
 COORDINATES = 'coordinates'
 COORDINATE_DIM = 2
+ALPHA_CARBONS = 'alpha_carbons'
 
 # Trajectory Params
 PLOT_TYPE = 'plot_type'
@@ -20,6 +21,7 @@ RANDOM_SEED = 'random_seed'
 USE_ANGLES = 'use_angles'
 TRAJECTORY_NAME = 'trajectory_name'
 FILE_ELEMENT = 'file_element'
+MAIN_MODEL_PARAMS = 'main_model_params'
 
 # Model Results
 MODEL = 'model'

@@ -1,10 +1,11 @@
 import json
+import warnings
 from datetime import datetime
 
 from my_tsne import TrajectoryTSNE
 from plotter import TrajectoryPlotter
 from trajectory import DataTrajectory, TopologyConverter
-from analyse import MultiTrajectory, SingleTrajectory
+from analyse import MultiTrajectoryAnalyser, SingleTrajectoryAnalyser
 from utils.param_key import *
 
 COMPARE = 'compare'
@@ -13,6 +14,7 @@ MULTI_COMPARE_COMBO_PCS = 'multi_compare_combo_pcs'
 MULTI_COMPARE_SOME_PCS = 'multi_compare_some_pcs'
 COMPARE_WITH_TLTSNE = 'compare_with_tltsne'
 PLOT_WITH_SLIDER = 'plot_with_slider'
+PLOT_RECONSTRUCTED_WITH_SLIDER = 'plot_reconstructed_with_slider'
 COMPARE_WITH_CA_ATOMS = 'compare_with_carbon_alpha_atoms'
 BASE_TRANSFORMATION = 'base_transformation'
 CALCULATE_PEARSON_CORRELATION_COEFFICIENT = 'calculate_pcc'
@@ -22,6 +24,8 @@ MULTI_GRID_SEARCH = 'multi_parameter_grid_search'
 MULTI_RECONSTRUCT_WITH_DIFFERENT_EV = 'multi_reconstruct_with_different_eigenvector'
 MULTI_MEDIAN_RECONSTRUCTION_SCORES = 'multi_median_reconstruction_scores'
 MULTI_KERNEL_COMPARE = 'multi_kernel_compare'
+MULTI_RECONSTRUCTION_ERROR_ON_SAME_TRAJ = 'multi_reconstruction_error_on_same_trajectory'
+MULTI_MEDIAN_RECONSTRUCTION_ERROR_ON_SAME_TRAJ = 'multi_median_reconstruction_error_on_same_trajectory'
 
 
 def main():
@@ -30,22 +34,22 @@ def main():
     run_params_json = None  # NotYetImplemented
     alg_params_json = None
     # alg_params_json = 'config_files/algorithm/pca+gaussian_kernels.json'  # None or filename
-    # alg_params_json = 'config_files/algorithm/pca+gaussian_kernels_with_2nd_layer.json'
+    alg_params_json = 'config_files/algorithm/pca+tica+evs.json'
     # alg_params_json = 'config_files/algorithm/pca+tica+all_kernels.json'  # None or filename
-    run_option = MULTI_KERNEL_COMPARE
+    run_option = MULTI_MEDIAN_RECONSTRUCTION_ERROR_ON_SAME_TRAJ
     run_params = {
         PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map', 'explained_var_plot'
         PLOT_TICS: True,  # True, False
-        STANDARDIZED_PLOT: False,  # True, False
+        STANDARDIZED_PLOT: True,  # True, False
         CARBON_ATOMS_ONLY: True,  # True, False
         INTERACTIVE: True,  # True, False
-        N_COMPONENTS: 2,
+        N_COMPONENTS: 105,
         LAG_TIME: 10,
         TRUNCATION_VALUE: 0,  # deprecated
         BASIS_TRANSFORMATION: False,
         USE_ANGLES: False,
         TRAJECTORY_NAME: '2f4k',
-        FILE_ELEMENT: 64,
+        FILE_ELEMENT: 0,
     }
 
     filename_list, kwargs = get_files_and_kwargs(run_params)
@@ -154,22 +158,27 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
         tr.compare('tsne')
     elif run_option == PLOT_WITH_SLIDER:
         tr = DataTrajectory(**kwargs)
-        TrajectoryPlotter(tr).original_data_with_timestep_slider(min_max=None)  # [0, 1000]
-    elif run_option == COMPARE:
+        TrajectoryPlotter(tr).data_with_timestep_slider(min_max=None)  # [0, 1000]
+    elif run_option == PLOT_RECONSTRUCTED_WITH_SLIDER:
         tr = DataTrajectory(**kwargs)
-        SingleTrajectory(tr).compare(model_params_list)
+        TrajectoryPlotter(tr, reconstruct_params=model_params_list[1]).data_with_timestep_slider()
+    elif run_option == COMPARE:
+        if kwargs['params'][N_COMPONENTS] != 2:
+            raise ValueError(f'The parameter `{N_COMPONENTS}` has to be 2')
+        tr = DataTrajectory(**kwargs)
+        SingleTrajectoryAnalyser(tr).compare(model_params_list)
     elif run_option == COMPARE_WITH_CA_ATOMS:
         tr = DataTrajectory(**kwargs)
-        SingleTrajectory(tr).compare_with_carbon_alpha_and_all_atoms('pca')
+        SingleTrajectoryAnalyser(tr).compare_with_carbon_alpha_and_all_atoms('pca')
     elif run_option == BASE_TRANSFORMATION:
         tr = DataTrajectory(**kwargs)
-        SingleTrajectory(tr).compare_with_basis_transformation(['tica'])
+        SingleTrajectoryAnalyser(tr).compare_with_basis_transformation(['tica'])
     elif run_option == CALCULATE_PEARSON_CORRELATION_COEFFICIENT:
         tr = DataTrajectory(**kwargs)
-        SingleTrajectory(tr).calculate_pearson_correlation_coefficient()
+        SingleTrajectoryAnalyser(tr).calculate_pearson_correlation_coefficient()
     elif run_option == PARAMETER_GRID_SEARCH:
         tr = DataTrajectory(**kwargs)
-        SingleTrajectory(tr).grid_search(param_grid)
+        SingleTrajectoryAnalyser(tr).grid_search(param_grid)
     elif run_option.startswith('multi'):
         kwargs_list = [kwargs]
         for filename in filename_list:
@@ -178,34 +187,40 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
             kwargs_list.append(new_kwargs)
 
         if run_option == 'multi_trajectory':
-            mtr = MultiTrajectory(kwargs_list, params)
-            mtr.compare_pcs(['tensor_ko_pca', 'tensor_ko_tica'])
+            mtr = MultiTrajectoryAnalyser(kwargs_list, params)
+            mtr.compare_pcs(model_params_list)
         elif run_option == MULTI_COMPARE_COMBO_PCS:
-            mtr = MultiTrajectory(kwargs_list, params)
+            mtr = MultiTrajectoryAnalyser(kwargs_list, params)
             mtr.compare_trajectory_combos(traj_nrs=[3, 8, 63, 64], model_params_list=model_params_list,
                                           pc_nr_list=[2, 9, 30])
         elif run_option == MULTI_COMPARE_ALL_PCS:
-            mtr = MultiTrajectory(kwargs_list, params)
+            mtr = MultiTrajectoryAnalyser(kwargs_list, params)
             mtr.compare_all_trajectory_eigenvectors(traj_nrs=None, model_params_list=model_params_list,
                                                     pc_nr_list=None, merged_plot=True)
         elif run_option == MULTI_COMPARE_SOME_PCS:
-            mtr = MultiTrajectory(kwargs_list, params)
+            mtr = MultiTrajectoryAnalyser(kwargs_list, params)
             mtr.compare_all_trajectory_eigenvectors(traj_nrs=None, model_params_list=model_params_list,
                                                     pc_nr_list=[2, 9, 30])
         elif run_option == MULTI_GRID_SEARCH:
-            mtr = MultiTrajectory(kwargs_list, params)
+            mtr = MultiTrajectoryAnalyser(kwargs_list, params)
             mtr.grid_search(param_grid)
         elif run_option == MULTI_RECONSTRUCT_WITH_DIFFERENT_EV:
-            mtr = MultiTrajectory(kwargs_list, params)
-            mtr.compare_reconstruction_scores_from_other_trajectory(model_params_list)
+            mtr = MultiTrajectoryAnalyser(kwargs_list, params)
+            mtr.compare_reconstruction_scores(model_params_list)
         elif run_option == MULTI_MEDIAN_RECONSTRUCTION_SCORES:
-            mtr = MultiTrajectory(kwargs_list, params)
+            mtr = MultiTrajectoryAnalyser(kwargs_list, params)
             mtr.compare_median_reconstruction_scores(model_params_list)
         elif run_option == MULTI_KERNEL_COMPARE:
             kernel_names = [MY_GAUSSIAN, MY_EXPONENTIAL, MY_EPANECHNIKOV]
             model_params = {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM}
-            mtr = MultiTrajectory(kwargs_list, params)
+            mtr = MultiTrajectoryAnalyser(kwargs_list, params)
             mtr.compare_kernel_fitting_scores(kernel_names, model_params)
+        elif run_option == MULTI_RECONSTRUCTION_ERROR_ON_SAME_TRAJ:
+            mtr = MultiTrajectoryAnalyser(kwargs_list, params)
+            mtr.compare_reconstruction_scores(model_params_list, from_other_traj=False)
+        elif run_option == MULTI_MEDIAN_RECONSTRUCTION_ERROR_ON_SAME_TRAJ:
+            mtr = MultiTrajectoryAnalyser(kwargs_list, params)
+            mtr.compare_median_reconstruction_scores(model_params_list, from_other_traj=False)
 
 
 if __name__ == '__main__':

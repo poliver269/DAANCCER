@@ -1,8 +1,11 @@
+import warnings
+
 import numpy as np
 import scipy
 from sklearn.metrics import mean_squared_error
 
 from plotter import ArrayPlotter
+from utils import ordinal
 from utils.algorithms import MyModel
 import pyemma.coordinates as coor
 
@@ -46,9 +49,14 @@ class TensorDR(MyModel):
         data_matrix = self.convert_to_matrix(data_tensor)
         return super(TensorDR, self).transform(data_matrix)
 
-    @staticmethod
-    def convert_to_matrix(tensor):
-        return tensor.reshape(tensor.shape[0], tensor.shape[1] * tensor.shape[2])
+    def convert_to_matrix(self, tensor):
+        return tensor.reshape(tensor.shape[TIME_DIM],
+                              self._standardized_data.shape[ATOM_DIM] * self._standardized_data.shape[COORDINATE_DIM])
+
+    def convert_to_tensor(self, matrix):
+        return matrix.reshape(matrix.shape[TIME_DIM],
+                              self._standardized_data.shape[ATOM_DIM],
+                              self._standardized_data.shape[COORDINATE_DIM])
 
 
 class ParameterModel(TensorDR):
@@ -67,7 +75,7 @@ class ParameterModel(TensorDR):
                  extra_dr_layer=False,
                  abs_eigenvalue_sorting=True,
                  analyze_plot_type=None,
-                 use_std=False,
+                 use_std=True,
                  center_over_time=True
                  ):
         super().__init__(cov_stat_func, kernel_stat_func)
@@ -90,15 +98,22 @@ class ParameterModel(TensorDR):
         self.analyze_plot_type = analyze_plot_type
         self.use_std = use_std
         self.center_over_time = center_over_time
+        self.__check_init_params__()
+
+    def __check_init_params__(self):
+        if self.nth_eigenvector < 1:
+            self.nth_eigenvector = 1
+
+        if self.extra_dr_layer and self.nth_eigenvector > 1:
+            warnings.warn(f'n-th eigenvector parameter is ignored '
+                          f'since the parameter `{EXTRA_DR_LAYER}` has a higher order.')
 
     def __str__(self):
         sb = self.describe()
-        sb += f' PCs={self.n_components}'
-        sb += '\n'
+        sb += f'\nPCs={self.n_components}'
         sb += f'lag-time={self.lag_time}, ' if self.lag_time > 0 else ''
+        # sb += '\n'
         # sb += f'abs_ew_sorting={self.abs_eigenvalue_sorting}, '
-        sb += f'2nd_layer={self.extra_dr_layer}' if self.extra_dr_layer else ''
-        sb += f'\nn-th_ev={self.nth_eigenvector}' if self.nth_eigenvector > 1 else ''
         return sb
         # f'{function_name(self.cov_function)}'
 
@@ -111,6 +126,11 @@ class ParameterModel(TensorDR):
         if self.kernel is not None:
             sb += (f', {self.kernel_type}-{self.kernel}' +
                    f'{f"-onCorr2" if self.corr_kernel else ""}')
+            if self.e_evs:
+                if self.extra_dr_layer:
+                    sb += f'-2nd_layer_eevd'
+                else:
+                    sb += f'-{ordinal(self.nth_eigenvector)}_ev_eevd'
         return sb
 
     @property
@@ -125,6 +145,14 @@ class ParameterModel(TensorDR):
 
     def _use_correlations_matrix(self) -> bool:
         return self._use_kernel_as_correlations_matrix() or self._is_time_lagged_algorithm()
+
+    @property
+    def e_evs(self) -> bool:
+        """
+        EEVD: Extended EigenVector Selection
+        :return:
+        """
+        return self.extra_dr_layer or self.nth_eigenvector > 1
 
     @property
     def _combine_dim(self) -> int:
@@ -146,13 +174,13 @@ class ParameterModel(TensorDR):
         return self
 
     def _standardize_data(self, tensor):
-        numerator = self._center_data(tensor)
+        centered_data = self._center_data(tensor)
 
         if self.use_std:
-            denominator = np.std(tensor, axis=0)
-            return numerator / denominator
+            self._std = np.std(tensor, axis=0)
         else:
-            return numerator
+            self._std = 1
+        return centered_data / self._std
 
     def _center_data(self, tensor):
         """
@@ -161,9 +189,10 @@ class ParameterModel(TensorDR):
         :return: centered data tensor or matrix
         """
         if self._is_matrix_model or not self.center_over_time:
-            return tensor - np.mean(tensor, axis=0)
+            self.mean = np.mean(tensor, axis=0)
         else:
-            return tensor - np.mean(tensor, axis=1)[:, np.newaxis, :]
+            self.mean = np.mean(tensor, axis=1)[:, np.newaxis, :]
+        return tensor - self.mean
 
     def get_covariance_matrix(self):
         if self._is_matrix_model:
@@ -240,7 +269,8 @@ class ParameterModel(TensorDR):
         if self.extra_dr_layer:
             return self._get_eigenvectors_with_dr_layer(eigenvectors)
         else:
-            return eigenvectors
+            self.eigenvalues = self.eigenvalues[::self.nth_eigenvector]
+            return eigenvectors[:, ::self.nth_eigenvector]
 
     def _get_eigenvectors_with_dr_layer(self, eigenvectors):
         eigenvalues2 = []
@@ -308,18 +338,7 @@ class ParameterModel(TensorDR):
     def transform(self, data_tensor):
         data_tensor_standardized = self._standardize_data(data_tensor)
         data_matrix = self.convert_to_matrix(data_tensor_standardized)
-
-        if self.nth_eigenvector < 1:
-            self.nth_eigenvector = self._combine_dim
-
-        if self.extra_dr_layer:
-            return np.dot(data_matrix, self.eigenvectors[:, :self.n_components])
-            # return self.transform_with_extra_layer(data_matrix)
-        else:
-            return np.dot(
-                data_matrix,
-                self.eigenvectors[:, :self.n_components * self.nth_eigenvector:self.nth_eigenvector]
-            )
+        return np.dot(data_matrix, self.eigenvectors[:, :self.n_components])
 
     def convert_to_matrix(self, tensor):
         if self._is_matrix_model:
@@ -327,14 +346,35 @@ class ParameterModel(TensorDR):
         else:
             return super().convert_to_matrix(tensor)
 
-    def inverse_transform(self, projection_data: np.ndarray):
-        return self.inverse_transform_definite(projection_data, self.n_components)
+    def convert_to_tensor(self, matrix):
+        if self._is_matrix_model:
+            return matrix
+        else:
+            return super().convert_to_tensor(matrix)
 
-    def inverse_transform_definite(self, projection_data: np.ndarray, inv_component: int):
+    def inverse_transform(self, projection_data: np.ndarray, component_count: int):
+        # Da orthogonal --> Transform = inverse
+        # TODO: for correlation-matrices with tica, the transformation is not the inverse, since not orthogonal
         return np.dot(
-                projection_data,
-                self.eigenvectors[:, :inv_component * self.nth_eigenvector:self.nth_eigenvector].T
-            )  # Da orthogonal --> Transform = inverse
+            projection_data,
+            self.eigenvectors[:, :component_count].T
+        )
+
+    def reconstruct(self, projection_matrix, component_count=None):
+        if component_count is None:
+            component_count = self._atom_dim * self._combine_dim
+        elif component_count > self.eigenvectors.shape[1]:
+            raise IndexError(f'Model does not have {component_count} many components. '
+                             f'Max: {self.eigenvectors.shape[1]}')
+
+        inverse_matrix = self.inverse_transform(projection_matrix, component_count)
+
+        reconstructed_tensor = self.convert_to_tensor(inverse_matrix)
+        if self.use_std:
+            reconstructed_tensor *= self._std
+        reconstructed_tensor += self.mean
+
+        return reconstructed_tensor
 
     def score(self, data_tensor, y=None):
         """
@@ -343,7 +383,7 @@ class ParameterModel(TensorDR):
 
         Parameters
         ----------
-        data_tensor : array-like of shape (n_samples, n_features)
+        data_tensor : (X) array-like of shape (n_samples, n_features)
             List of n_features-dimensional data points.  Each row
             corresponds to a single data point.
 
@@ -352,17 +392,16 @@ class ParameterModel(TensorDR):
             :class:`~sklearn.pipeline.Pipeline`.
         """
 
-        if y is not None:  # "use" variable, to not have a warning
+        if y is not None:  # "use" variable, to not have a PyCharm warning
             data_projection = y
         else:
             data_projection = self.transform(data_tensor)
 
-        reconstructed_matrix_data = self.inverse_transform(data_projection)
+        reconstructed_tensor = self.reconstruct(data_projection, self.n_components)
 
         data_matrix = self.convert_to_matrix(data_tensor)
+        reconstructed_matrix = self.convert_to_matrix(reconstructed_tensor)
 
-        reconstructed_matrix_data += np.mean(data_matrix, axis=0)
-
-        return mean_squared_error(data_matrix, reconstructed_matrix_data, squared=False)
+        return mean_squared_error(data_matrix, reconstructed_matrix, squared=False)
         # R2 Score probably not good for tensor data... Negative values for the scoring implies bad results.
         # return r2_score(data_matrix, reconstructed_matrix_data)
