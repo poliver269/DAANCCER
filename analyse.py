@@ -11,6 +11,7 @@ from scipy.optimize import linear_sum_assignment
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.model_selection import GridSearchCV
+from tqdm import tqdm
 
 from plotter import ArrayPlotter, MultiTrajectoryPlotter, TrajectoryPlotter
 from trajectory import DataTrajectory
@@ -311,19 +312,25 @@ class MultiTrajectoryAnalyser:
         for model_index, model_dict in enumerate(model_results):
             model: [ParameterModel, StreamingEstimationTransformer] = model_dict[MODEL]
             print(f'Calculating median reconstruction errors ({model.describe()})...')
+            model_dict_list = [model_dict]
+            if not from_other_traj:
+                for trajectory in self.trajectories[1:]:
+                    model_dict_list.append(trajectory.get_model_result(model_params_list[model_index], log=False))
+
             mean_list = []
-            for component in range(1, self.params[N_COMPONENTS] + 1):
+            for component in tqdm(range(1, self.params[N_COMPONENTS] + 1)):
                 score_list = []
-                for trajectory in self.trajectories:
-                    if not from_other_traj:
-                        model_dict = trajectory.get_model_result(model_params_list[model_index])
-                        model = model_dict[MODEL]
-                        input_data = trajectory.data_input(model_dict[INPUT_PARAMS])
-                        matrix_projection = model_dict[PROJECTION][0]
-                    else:
-                        input_data = trajectory.data_input(model_dict[INPUT_PARAMS])
-                        matrix_projection = model.transform(input_data)
-                    try:
+                try:
+                    for traj_index, trajectory in enumerate(self.trajectories):
+                        if not from_other_traj:
+                            model_dict = model_dict_list[traj_index]
+                            model = model_dict[MODEL]
+                            input_data = trajectory.data_input(model_dict[INPUT_PARAMS])
+                            matrix_projection = model_dict[PROJECTION][0]
+                        else:
+                            input_data = trajectory.data_input(model_dict[INPUT_PARAMS])
+                            matrix_projection = model.transform(input_data)
+
                         if isinstance(model, ParameterModel):
                             reconstructed_data = model.reconstruct(matrix_projection[:, :component], component)
                             input_data = model.convert_to_matrix(input_data)
@@ -333,13 +340,13 @@ class MultiTrajectoryAnalyser:
                                                                     mean=np.mean(input_data, axis=0))
                         score = mean_squared_error(input_data, reconstructed_data, squared=False)
                         score_list.append(score)
-                    except IndexError:
-                        warnings.warn(f"Examining eigenvector number ({component}) is missing in Model {model}")
-                        # score_list.append(0)
+                except IndexError as e:
+                    warnings.warn(str(e))
+                    break
                 mean_list.append(np.median(score_list))
             model_mean_scores[f'{str(model.describe()):35}'] = np.asarray(mean_list)
 
-        title_prefix = (f'Reconstruction Error (RE)' +
+        title_prefix = (f'Reconstruction Error (RE) ' +
                         (f'from {self.trajectories[0].filename}\n' if from_other_traj else '') +
                         f'on {self.params[N_COMPONENTS]} Principal Components ')
         ArrayPlotter(

@@ -121,16 +121,17 @@ class DataTrajectory(TrajectoryFile):
         coordinates_dict = self.alpha_carbon_coordinates if ac_only else self.atom_coordinates
         return coordinates_dict[:, :, element_list]
 
-    def get_model_result(self, model_parameters: [str, dict]) -> dict:
+    def get_model_result(self, model_parameters: [str, dict], log: bool = True) -> dict:
         """
         Returns a dict of all the important result values. Used for analysing the information
         :param model_parameters:
+        :param log:
         :return: dict of the results: {MODEL, PROJECTION, EXPLAINED_VAR, INPUT_PARAMS}
         """
         if isinstance(model_parameters, str):
             model, projection = self.get_model_and_projection_by_name(model_parameters)
         else:
-            model, projection = self.get_model_and_projection(model_parameters)
+            model, projection = self.get_model_and_projection(model_parameters, log=log)
         ex_var = explained_variance(model.eigenvalues, self.params[N_COMPONENTS])
         # TODO Add explained variance to the models, and if they don't have a parameter, than calculate here
         if self.params[PLOT_TYPE] == EXPL_VAR_PLOT:
@@ -210,8 +211,10 @@ class DataTrajectory(TrajectoryFile):
         else:
             raise ValueError(f'Model with name \"{model_name}\" does not exists.')
 
-    def get_model_and_projection(self, model_parameters: dict, inp: np.ndarray = None, ):
-        print(f'Running {model_parameters}...')
+    def get_model_and_projection(self, model_parameters: dict, inp: np.ndarray = None, log: bool = True):
+        if log:
+            print(f'Running {model_parameters}...')
+
         if inp is None:
             inp = self.data_input(model_parameters)
 
@@ -277,10 +280,9 @@ class DataTrajectory(TrajectoryFile):
         if isinstance(model, ParameterModel):
             return model.reconstruct(projection[0])
         else:
-            component = self.dim[ATOMS] * self.dim[COORDINATES]
             eigenvectors = model.eigenvectors
             input_data = self.data_input(model_parameters)
-            reconstructed_matrix = reconstruct_matrix(projection[0], eigenvectors, component,
+            reconstructed_matrix = reconstruct_matrix(projection[0], eigenvectors, self.params[N_COMPONENTS],
                                                       mean=np.mean(input_data, axis=0))
             return reconstructed_matrix.reshape((self.dim[TIME_FRAMES],
                                                 self.dim[ATOMS],

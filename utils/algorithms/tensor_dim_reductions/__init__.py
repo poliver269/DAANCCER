@@ -105,8 +105,8 @@ class ParameterModel(TensorDR):
             self.nth_eigenvector = 1
 
         if self.extra_dr_layer and self.nth_eigenvector > 1:
-            warnings.warn(f'n-th eigenvector parameter is ignored '
-                          f'since the parameter `{EXTRA_DR_LAYER}` has a higher order.')
+            warnings.warn(f'`{NTH_EIGENVECTOR}` parameter is ignored '
+                          f'since the parameter `{EXTRA_DR_LAYER}` has a higher priority.')
 
     def __str__(self):
         sb = self.describe()
