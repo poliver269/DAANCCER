@@ -5,7 +5,7 @@ from datetime import datetime
 from my_tsne import TrajectoryTSNE
 from plotter import TrajectoryPlotter
 from trajectory import DataTrajectory, TopologyConverter
-from analyse import MultiTrajectoryAnalyser, SingleTrajectoryAnalyser
+from analyse import MultiTrajectoryAnalyser, SingleTrajectoryAnalyser, AnalyseResultLoader
 from utils.param_key import *
 
 COMPARE = 'compare'
@@ -20,9 +20,10 @@ BASE_TRANSFORMATION = 'base_transformation'
 CALCULATE_PEARSON_CORRELATION_COEFFICIENT = 'calculate_pcc'
 GROMACS_PRODUCTION = 'gromacs_production'
 PARAMETER_GRID_SEARCH = 'parameter_grid_search'
+LOAD_ANALYSE_RESULTS_DICT = 'load_analyse_result_dict'
 MULTI_GRID_SEARCH = 'multi_parameter_grid_search'
 MULTI_RECONSTRUCT_WITH_DIFFERENT_EV = 'multi_reconstruct_with_different_eigenvector'
-MULTI_MEDIAN_RECONSTRUCTION_SCORES = 'multi_median_reconstruction_scores'
+MULTI_MEDIAN_RECONSTRUCTION_SCORES = 'multi_median_reconstruction_scores'  # TODO, dont set N_COMPONENTS manually
 MULTI_KERNEL_COMPARE = 'multi_kernel_compare'
 MULTI_RECONSTRUCTION_ERROR_ON_SAME_TRAJ = 'multi_reconstruction_error_on_same_trajectory'
 MULTI_MEDIAN_RECONSTRUCTION_ERROR_ON_SAME_TRAJ = 'multi_median_reconstruction_error_on_same_trajectory'
@@ -36,6 +37,8 @@ def main():
     # alg_params_json = 'config_files/algorithm/pca+gaussian_kernels.json'  # None or filename
     alg_params_json = 'config_files/algorithm/pca+tica+evs.json'
     # alg_params_json = 'config_files/algorithm/pca+tica+all_kernels.json'  # None or filename
+
+    result_load_file = None  # 'analyse_results/2f4k/2023-02-24_05.53.12/component_wise_RE_on_other_traj.npz'
     run_option = MULTI_MEDIAN_RECONSTRUCTION_ERROR_ON_SAME_TRAJ
     run_params = {
         PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map', 'explained_var_plot'
@@ -55,7 +58,7 @@ def main():
     filename_list, kwargs = get_files_and_kwargs(run_params)
     model_params_list = get_model_params_list(alg_params_json, run_params)
     param_grid = get_param_grid()
-    run(run_option, kwargs, run_params, model_params_list, filename_list, param_grid)
+    run(run_option, kwargs, run_params, model_params_list, filename_list, param_grid, result_load_file)
     print(f'Finishing time: {datetime.now()}')
 
 
@@ -147,7 +150,7 @@ def get_param_grid():
     return param_grid
 
 
-def run(run_option, kwargs, params, model_params_list, filename_list, param_grid):
+def run(run_option, kwargs, params, model_params_list, filename_list, param_grid, result_load_file):
     if run_option == 'covert_to_pdb':
         kwargs = {'filename': 'protein.xtc', 'topology_filename': 'protein.gro',
                   'goal_filename': 'protein.pdb', 'folder_path': 'data/ser-tr'}
@@ -179,12 +182,15 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
     elif run_option == PARAMETER_GRID_SEARCH:
         tr = DataTrajectory(**kwargs)
         SingleTrajectoryAnalyser(tr).grid_search(param_grid)
+    elif run_option == LOAD_ANALYSE_RESULTS_DICT:
+        pass
     elif run_option.startswith('multi'):
         kwargs_list = [kwargs]
-        for filename in filename_list:
-            new_kwargs = kwargs.copy()
-            new_kwargs['filename'] = filename
-            kwargs_list.append(new_kwargs)
+        if result_load_file is None:
+            for filename in filename_list:
+                new_kwargs = kwargs.copy()
+                new_kwargs['filename'] = filename
+                kwargs_list.append(new_kwargs)
 
         if run_option == 'multi_trajectory':
             mtr = MultiTrajectoryAnalyser(kwargs_list, params)
@@ -209,7 +215,7 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
             mtr.compare_reconstruction_scores(model_params_list)
         elif run_option == MULTI_MEDIAN_RECONSTRUCTION_SCORES:
             mtr = MultiTrajectoryAnalyser(kwargs_list, params)
-            mtr.compare_median_reconstruction_scores(model_params_list)
+            mtr.compare_median_reconstruction_scores(model_params_list, result_load_file)
         elif run_option == MULTI_KERNEL_COMPARE:
             kernel_names = [MY_GAUSSIAN, MY_EXPONENTIAL, MY_EPANECHNIKOV]
             model_params = {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM}

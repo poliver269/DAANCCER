@@ -3,6 +3,7 @@ from scipy.optimize import curve_fit
 from sklearn.model_selection import GridSearchCV, LeaveOneOut
 from sklearn.neighbors import KernelDensity
 from sklearn.metrics import mean_squared_error
+from scipy.spatial.transform import Rotation
 
 from plotter import ArrayPlotter
 from utils import function_name
@@ -263,3 +264,12 @@ def reconstruct_matrix(projection, eigenvectors, dim, mean, std=1):
     reconstructed_matrix *= std
     reconstructed_matrix += mean
     return reconstructed_matrix
+
+
+def expand_and_roll(matrix, expand_dim=3):
+    new_matrix = matrix.reshape((-1, expand_dim, matrix.shape[1]))
+    rotation_matrix = np.asarray(
+        [Rotation.from_euler('x', 0, degrees=True).as_matrix(),  # [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+         Rotation.from_euler('xz', [90, 90], degrees=True).as_matrix(),  # [[0, 1, 0], [0, 0, 1], [1, 0, 0]]
+         Rotation.from_euler('xy', [-90, -90], degrees=True).as_matrix()])   # [[0, 0, 1], [1, 0, 0], [0, 1, 0]]
+    return np.tensordot(new_matrix, rotation_matrix, [1, 0]).swapaxes(1, 2).reshape((-1, expand_dim * matrix.shape[1]))

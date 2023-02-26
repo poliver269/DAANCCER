@@ -9,7 +9,9 @@ from utils import ordinal
 from utils.algorithms import MyModel
 import pyemma.coordinates as coor
 
-from utils.matrix_tools import diagonal_block_expand, calculate_symmetrical_kernel_matrix, ensure_matrix_symmetry
+from utils.math import is_matrix_orthogonal
+from utils.matrix_tools import diagonal_block_expand, calculate_symmetrical_kernel_matrix, ensure_matrix_symmetry, \
+    expand_and_roll
 from utils.param_key import *
 
 
@@ -353,12 +355,16 @@ class ParameterModel(TensorDR):
             return super().convert_to_tensor(matrix)
 
     def inverse_transform(self, projection_data: np.ndarray, component_count: int):
-        # Da orthogonal --> Transform = inverse
-        # TODO: for correlation-matrices with tica, the transformation is not the inverse, since not orthogonal
-        return np.dot(
-            projection_data,
-            self.eigenvectors[:, :component_count].T
-        )
+        if is_matrix_orthogonal(self.eigenvectors):
+            return np.dot(
+                    projection_data,
+                    self.eigenvectors[:, :component_count].T
+                )  # Da orthogonal --> Transform = inverse
+        else:
+            return np.dot(
+                    projection_data,
+                    np.linalg.inv(self.eigenvectors)[:component_count]
+                )
 
     def reconstruct(self, projection_matrix, component_count=None):
         if component_count is None:

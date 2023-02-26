@@ -79,7 +79,7 @@ def is_matrix_orthogonal(matrix, rtol=1e-05, atol=1e-08):
     :return: bool
         Returns True if the matrix rows are orthogonal within a tolerance.
     """
-    return np.allclose(matrix.T @ matrix, np.eye(matrix.shape[0]), rtol=rtol, atol=atol)
+    return np.allclose(matrix.T @ matrix, np.eye(matrix.shape[1]), rtol=rtol, atol=atol)
 
 
 def exponential_2d(x, sigma):
