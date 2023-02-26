@@ -38,8 +38,8 @@ def main():
     alg_params_json = 'config_files/algorithm/pca+tica+evs.json'
     # alg_params_json = 'config_files/algorithm/pca+tica+all_kernels.json'  # None or filename
 
-    result_load_file = None  # 'analyse_results/2f4k/2023-02-24_05.53.12/component_wise_RE_on_other_traj.npz'
-    run_option = MULTI_MEDIAN_RECONSTRUCTION_ERROR_ON_SAME_TRAJ
+    result_load_file = 'analyse_results/2f4k/2023-02-24_05.53.12/median_RE_over_trajectories_on_other.npz'
+    run_option = MULTI_MEDIAN_RECONSTRUCTION_SCORES
     run_params = {
         PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map', 'explained_var_plot'
         PLOT_TICS: True,  # True, False
@@ -215,7 +215,7 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
             mtr.compare_reconstruction_scores(model_params_list)
         elif run_option == MULTI_MEDIAN_RECONSTRUCTION_SCORES:
             mtr = MultiTrajectoryAnalyser(kwargs_list, params)
-            mtr.compare_median_reconstruction_scores(model_params_list, result_load_file)
+            mtr.compare_median_reconstruction_scores(model_params_list, load_filename=result_load_file)
         elif run_option == MULTI_KERNEL_COMPARE:
             kernel_names = [MY_GAUSSIAN, MY_EXPONENTIAL, MY_EPANECHNIKOV]
             model_params = {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM}

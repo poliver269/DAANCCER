@@ -308,7 +308,24 @@ class MultiTrajectoryAnalyser:
                                                     mean=np.mean(input_data, axis=0))
             return mean_squared_error(input_data, reconstructed_data, squared=False)
 
-    def calculate_median_scores(self, model_params_list: list[dict], from_other_traj: bool = True):
+    def compare_median_reconstruction_scores(self, model_params_list: list[dict], from_other_traj: bool = True,
+                                             load_filename: [str, None] = None):
+        if load_filename is None:
+            model_median_scores = self._calculate_median_scores(model_params_list, from_other_traj)
+        else:
+            model_median_scores = AnalyseResultLoader().load_npz(load_filename)
+
+        ArrayPlotter(
+            interactive=False,
+            title_prefix=f'Reconstruction Error (RE) ' +
+                         (f'from {self.trajectories[0].filename}\n' if from_other_traj else '') +
+                         f'on {self.params[N_COMPONENTS]} Principal Components ',
+            x_label='number of principal components',
+            y_label='median REs of the trajectories',
+            y_range=(0, 1)
+        ).plot_merged_2ds(model_median_scores)
+
+    def _calculate_median_scores(self, model_params_list: list[dict], from_other_traj: bool = True):
         st = SingleTrajectoryAnalyser(self.trajectories[0])
         model_results: list = st.compare(model_params_list, plot_results=False)
 
@@ -359,24 +376,19 @@ class MultiTrajectoryAnalyser:
                                                'other' if from_other_traj else 'same')
         return model_median_scores
 
-    def compare_median_reconstruction_scores(self, model_params_list: list[dict], from_other_traj: bool = True,
-                                             load_filename: [str, None] = None):
+    def compare_kernel_fitting_scores(self, kernel_names, model_params, load_filename: [str, None] = None):
         if load_filename is None:
-            model_median_scores = self.calculate_median_scores(model_params_list, from_other_traj)
+            kernel_accuracies = self._calculate_kernel_accuracies(kernel_names, model_params)
         else:
-            model_median_scores = AnalyseResultLoader().load_npz(load_filename)
-
+            kernel_accuracies = AnalyseResultLoader().load_npz(load_filename)
         ArrayPlotter(
             interactive=False,
-            title_prefix=f'Reconstruction Error (RE) ' +
-                         (f'from {self.trajectories[0].filename}\n' if from_other_traj else '') +
-                         f'on {self.params[N_COMPONENTS]} Principal Components ',
-            x_label='number of principal components',
-            y_label='median REs of the trajectories',
-            y_range=(0, 1)
-        ).plot_merged_2ds(model_median_scores)
+            title_prefix=f'Compare Kernels',
+            x_label='trajectory Nr',
+            y_range=(0, 0.2),
+        ).plot_merged_2ds(kernel_accuracies, statistical_func=np.mean)
 
-    def calculate_kernel_accuracies(self, kernel_names, model_params):
+    def _calculate_kernel_accuracies(self, kernel_names, model_params):
         kernel_accuracies = {kernel_name: [] for kernel_name in kernel_names}
         for trajectory in self.trajectories:
             model, _ = trajectory.get_model_and_projection(model_params)
@@ -387,18 +399,6 @@ class MultiTrajectoryAnalyser:
                     analyse_mode=KERNEL_COMPARE)
                 kernel_accuracies[kernel_name].append(variance)
         return kernel_accuracies
-
-    def compare_kernel_fitting_scores(self, kernel_names, model_params, load_filename: [str, None] = None):
-        if load_filename is None:
-            kernel_accuracies = self.calculate_kernel_accuracies(kernel_names, model_params)
-        else:
-            kernel_accuracies = AnalyseResultLoader().load_npz(load_filename)
-        ArrayPlotter(
-            interactive=False,
-            title_prefix=f'Compare Kernels',
-            x_label='trajectory Nr',
-            y_range=(0, 0.2),
-        ).plot_merged_2ds(kernel_accuracies, statistical_func=np.mean)
 
 
 class AnalyseResultsSaver:
@@ -439,4 +439,4 @@ class AnalyseResultLoader:
 
     @staticmethod
     def load_npz(filename: str) -> dict:
-        return np.load(filename)
+        return np.load(filename, allow_pickle=True)
