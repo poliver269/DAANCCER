@@ -35,7 +35,7 @@ HEAT_MAP = 'heat_map'
 COLOR_MAP = 'color_map'
 PLOT_3D_MAP = '3d_map'
 EXPL_VAR_PLOT = 'explained_variance_plot'
-ANALYSE_PLOT_TYPE = 'analyze_plot_type'
+ANALYSE_PLOT_TYPE = 'analyse_plot_type'
 
 # Analysing Types
 WEIGHTED_DIAGONAL = 'weighted_diagonal'

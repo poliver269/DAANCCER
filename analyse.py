@@ -401,10 +401,11 @@ class MultiTrajectoryAnalyser:
             kernel_accuracies = AnalyseResultLoader(self.params[TRAJECTORY_NAME]).load_npz(load_filename)
         ArrayPlotter(
             interactive=False,
-            title_prefix=f'Compare Kernels',
+            title_prefix=f'Compare Kernels ',
             x_label='trajectory Nr',
+            y_label='RMSE of the fitting kernel',
             y_range=(0, 0.2),
-        ).plot_merged_2ds(kernel_accuracies, statistical_func=np.mean)
+        ).plot_merged_2ds(kernel_accuracies, statistical_func=np.median)
 
     def _calculate_kernel_accuracies(self, kernel_names, model_params):
         kernel_accuracies = {kernel_name: [] for kernel_name in kernel_names}
@@ -416,6 +417,7 @@ class MultiTrajectoryAnalyser:
                     matrix, statistical_zero, kernel_name,
                     analyse_mode=KERNEL_COMPARE)
                 kernel_accuracies[kernel_name].append(variance)
+        AnalyseResultsSaver(self.params[TRAJECTORY_NAME], filename='compare_rmse_kernel').save_to_npz(kernel_accuracies)
         return kernel_accuracies
 
 

@@ -34,9 +34,10 @@ def main():
     run_params_json = None  # NotYetImplemented
     alg_params_json = None
     # alg_params_json = 'config_files/algorithm/pca+gaussian_kernels.json'  # None or filename
-    alg_params_json = 'config_files/algorithm/algorithm_parameters_list.json'
+    # alg_params_json = 'config_files/algorithm/algorithm_parameters_list.json'
     # alg_params_json = 'config_files/algorithm/tica_models.json'
     # alg_params_json = 'config_files/algorithm/pca+tica+all_kernels.json'  # None or filename
+    alg_params_json = 'config_files/algorithm/all_my_kernels_only.json'  # None or filename
 
     result_load_file = None  # '2023-02-26_23.02.56_RE_diff_traj_evs/median_RE_over_trajectories_on_other.npz'
     run_option = COMPARE
@@ -191,28 +192,33 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
         plot_dict = AnalyseResultLoader(params[TRAJECTORY_NAME]).load_npz(
             '2023-03-01_02.45.30_RE-same_all-models/median_RE_over_trajectories_on_same.npz'
         )
-        update_dict = False
+        update_dict = True
         if update_dict:
             plot_dict.update(AnalyseResultLoader(params[TRAJECTORY_NAME]).load_npz(
                 # '2023-02-27_03.04.39_RE_diff-evs_mean-ax0_use-original-mean/median_RE_over_trajectories_on_other.npz'
                 # '2023-02-27_02.37.27_RE_diff-evs_mean-ax1_use-original-mean/median_RE_over_trajectories_on_other.npz'
                 # '2023-02-27_03.36.13_RE_diff-evs_mean-ax0_use-fitted-mean+original-std/median_RE_over_trajectories_on_other.npz'
-                '2023-02-25_06.01.36_RE_diff_traj/median_RE_over_trajectories_on_same.npz'
+                # '2023-02-25_06.01.36_RE_diff_traj/median_RE_over_trajectories_on_same.npz'
+                '2023-03-01_22.19.05_RE-same_my-tica-models/median_RE_over_trajectories_on_same.npz'
             ))
 
         filter_by_indices = True
         if filter_by_indices:
             indices = [
-                '[PCA, output dimension = 105]      ',
+                # '[PCA, output dimension = 105]      ',
                 '[TICA, lag = 10; max. output dim. = 105]',
-                'Tensor-pca, my_gaussian-only       ',
+                # 'Tensor-pca, my_gaussian-only       ',
                 # 'Tensor-pca, my_gaussian-diff       ',
-                'Tensor-pca, my_gaussian-multi      ',
-                'Tensor-pca, my_gaussian-only-3rd_ev_eevd',
-                # 'Tensor-pca, my_gaussian-only-2nd_layer_eevd'
+                # 'Tensor-pca, my_gaussian-multi      ',
+                # 'Tensor-pca, my_gaussian-only-3rd_ev_eevd',
+                # 'Tensor-pca, my_gaussian-only-2nd_layer_eevd',
+                'Tensor-tica, my_gaussian-only      ',
+                'Tensor-tica, my_gaussian-diff      ',
+                'Tensor-tica, my_gaussian-multi     ',
+                # 'Tensor-tica, my_gaussian-only-3rd_ev_eevd',
+                # 'Tensor-tica, my_gaussian-only-2nd_layer_eevd'
             ]
             plot_dict = {k: plot_dict[k] for k in indices}
-
 
         ArrayPlotter(
             interactive=False,
@@ -221,7 +227,7 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
                          f'on {params[N_COMPONENTS]} Principal Components ',
             x_label='number of principal components',
             y_label='median REs of the trajectories',
-            y_range=(0, 0.5)
+            y_range=(0, 1)
         ).plot_merged_2ds(plot_dict)
     elif run_option.startswith('multi'):
         kwargs_list = [kwargs]
@@ -257,7 +263,7 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
             mtr.compare_median_reconstruction_scores(model_params_list, other_traj_index=params[FILE_ELEMENT])
         elif run_option == MULTI_KERNEL_COMPARE:
             kernel_names = [MY_GAUSSIAN, MY_EXPONENTIAL, MY_EPANECHNIKOV]
-            model_params = {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM}
+            model_params = {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, ANALYSE_PLOT_TYPE: 'something'}
             mtr = MultiTrajectoryAnalyser(kwargs_list, params)
             mtr.compare_kernel_fitting_scores(kernel_names, model_params)
         elif run_option == MULTI_RECONSTRUCTION_ERROR_ON_SAME_TRAJ:

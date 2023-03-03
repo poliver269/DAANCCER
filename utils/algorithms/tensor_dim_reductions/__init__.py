@@ -77,7 +77,7 @@ class ParameterModel(TensorDR):
                  nth_eigenvector=1,
                  extra_dr_layer=False,
                  abs_eigenvalue_sorting=True,
-                 analyze_plot_type=None,
+                 analyse_plot_type=None,
                  use_std=True,
                  center_over_time=True
                  ):
@@ -98,7 +98,7 @@ class ParameterModel(TensorDR):
         self.extra_dr_layer = extra_dr_layer
 
         self.abs_eigenvalue_sorting = abs_eigenvalue_sorting
-        self.analyze_plot_type = analyze_plot_type
+        self.analyse_plot_type = analyse_plot_type
         self.use_std = use_std
         self.center_over_time = center_over_time
         self.__check_init_params__()
@@ -243,7 +243,7 @@ class ParameterModel(TensorDR):
     def _map_kernel(self, matrix):
         kernel_matrix = calculate_symmetrical_kernel_matrix(
             matrix, self.kernel_stat_func, self.kernel_type,
-            analyse_mode=self.analyze_plot_type, flattened=self._is_matrix_model)
+            analyse_mode=self.analyse_plot_type, flattened=self._is_matrix_model)
         if self.kernel == KERNEL_ONLY:
             matrix = kernel_matrix
         elif self.kernel == KERNEL_DIFFERENCE:
@@ -315,7 +315,7 @@ class ParameterModel(TensorDR):
             tensor_corr = self._get_tensor_correlation()
             corr = self.cov_stat_func(tensor_corr, axis=0)
 
-            if self.analyze_plot_type:  # plot the correlation matrix
+            if self.analyse_plot_type:  # plot the correlation matrix
                 for i in range(tensor_corr.shape[0]):  # for each axis
                     ArrayPlotter(interactive=False).matrix_plot(tensor_corr[i])
                 ArrayPlotter(interactive=False).matrix_plot(corr)  # and for the mean-ed
@@ -348,7 +348,6 @@ class ParameterModel(TensorDR):
 
     def transform(self, data_tensor):
         data_tensor_standardized = self._standardize_data(data_tensor)
-        # data_tensor_standardized = self._standardize(data_tensor)
         data_matrix = self.convert_to_matrix(data_tensor_standardized)
         return np.dot(data_matrix, self.eigenvectors[:, :self.n_components])
 
