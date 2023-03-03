@@ -80,6 +80,11 @@ class DataTrajectory(TrajectoryFile):
         self.z_coordinates = self._filter_coordinates_by_coordinates(2)
         self.coordinate_mins = {X: self.x_coordinates.min(), Y: self.y_coordinates.min(), Z: self.z_coordinates.min()}
         self.coordinate_maxs = {X: self.x_coordinates.max(), Y: self.y_coordinates.max(), Z: self.z_coordinates.max()}
+        self.__check_init_params()
+
+    def __check_init_params(self):
+        if self.params[N_COMPONENTS] is None:
+            self.params[N_COMPONENTS] = self.max_components
 
     @property
     def atom_coordinates(self) -> np.ndarray:
@@ -96,6 +101,15 @@ class DataTrajectory(TrajectoryFile):
                                                          self.dim[ATOMS] * self.dim[COORDINATES])
         else:
             return self.atom_coordinates.reshape(self.dim[TIME_FRAMES], self.dim[ATOMS] * self.dim[COORDINATES])
+
+    @property
+    def max_components(self) -> int:
+        if self.params[USE_ANGLES]:
+            return self.phi[ANGLE_INDICES].shape[0] * 2
+        else:
+            if self.params[CARBON_ATOMS_ONLY]:
+                self.dim[ATOMS] = len(self.alpha_carbon_indexes)
+            return self.dim[ATOMS] * self.dim[COORDINATES]
 
     @property
     def alpha_carbon_indexes(self) -> list:
@@ -128,7 +142,7 @@ class DataTrajectory(TrajectoryFile):
         :param log:
         :return: dict of the results: {MODEL, PROJECTION, EXPLAINED_VAR, INPUT_PARAMS}
         """
-        if isinstance(model_parameters, str):
+        if isinstance(model_parameters, str):  # TODO: dont allow string
             model, projection = self.get_model_and_projection_by_name(model_parameters)
         else:
             model, projection = self.get_model_and_projection(model_parameters, log=log)
@@ -224,6 +238,7 @@ class DataTrajectory(TrajectoryFile):
         if model_parameters[ALGORITHM_NAME].startswith('original'):
             try:
                 if model_parameters[ALGORITHM_NAME] == 'original_pca':
+                    from sklearn.decomposition import PCA
                     pca = coor.pca(data=inp, dim=self.params[N_COMPONENTS])
                     return pca, pca.get_output()
                 elif model_parameters[ALGORITHM_NAME] == 'original_tica':
@@ -249,10 +264,10 @@ class DataTrajectory(TrajectoryFile):
 
         if self.params[USE_ANGLES]:
             if n_dim == MATRIX_NDIM:
-                return np.concatenate([self.phi[DIHEDRAL_ANGEL_VALUES], self.psi[DIHEDRAL_ANGEL_VALUES]], axis=1)
+                return np.concatenate([self.phi[DIHEDRAL_ANGLE_VALUES], self.psi[DIHEDRAL_ANGLE_VALUES]], axis=1)
             else:
-                return np.concatenate([self.phi[DIHEDRAL_ANGEL_VALUES][:, :, np.newaxis],
-                                       self.psi[DIHEDRAL_ANGEL_VALUES][:, :, np.newaxis]], axis=2)
+                return np.concatenate([self.phi[DIHEDRAL_ANGLE_VALUES][:, :, np.newaxis],
+                                       self.psi[DIHEDRAL_ANGLE_VALUES][:, :, np.newaxis]], axis=2)
         else:
             if n_dim == MATRIX_NDIM:
                 return self.flattened_coordinates
@@ -295,8 +310,8 @@ class DataTrajectory(TrajectoryFile):
         elif mode == 'calculate_mean_of_dimensions_to_matrix_than_correlation_coefficient':
             print('Calculate mean matrix...')
             if self.params[USE_ANGLES]:
-                mean_matrix = np.mean(np.array([self.phi[DIHEDRAL_ANGEL_VALUES],
-                                                self.psi[DIHEDRAL_ANGEL_VALUES]]),
+                mean_matrix = np.mean(np.array([self.phi[DIHEDRAL_ANGLE_VALUES],
+                                                self.psi[DIHEDRAL_ANGLE_VALUES]]),
                                       axis=0)
             else:
                 mean_matrix = np.mean(self.alpha_carbon_coordinates, axis=2)
@@ -304,7 +319,7 @@ class DataTrajectory(TrajectoryFile):
             coefficient_mean = np.corrcoef(mean_matrix.T)
         elif mode == 'calculate_coefficients_than_mean_dimensions':
             if self.params[USE_ANGLES]:
-                input_list = [self.phi[DIHEDRAL_ANGEL_VALUES], self.psi[DIHEDRAL_ANGEL_VALUES]]
+                input_list = [self.phi[DIHEDRAL_ANGLE_VALUES], self.psi[DIHEDRAL_ANGLE_VALUES]]
             else:
                 input_list = [self._filter_coordinates_by_coordinates(c, ac_only=self.params[CARBON_ATOMS_ONLY]) for c
                               in range(len(self.dim))]

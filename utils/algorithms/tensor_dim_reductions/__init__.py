@@ -9,6 +9,7 @@ from utils import ordinal
 from utils.algorithms import MyModel
 import pyemma.coordinates as coor
 
+from utils.errors import InvalidComponentNumberException, NonInvertibleEigenvectorException
 from utils.math import is_matrix_orthogonal
 from utils.matrix_tools import diagonal_block_expand, calculate_symmetrical_kernel_matrix, ensure_matrix_symmetry, \
     expand_and_roll
@@ -193,8 +194,16 @@ class ParameterModel(TensorDR):
         if self._is_matrix_model or not self.center_over_time:
             self.mean = np.mean(tensor, axis=0)
         else:
-            self.mean = np.mean(tensor, axis=1)[:, np.newaxis, :]
+            # self.mean = np.mean(tensor, axis=1)[:, np.newaxis, :]
+            self.mean = np.mean(tensor, axis=0)[np.newaxis, :, :]
         return tensor - self.mean
+
+    def _standardize(self, tensor):
+        tensor -= self.mean
+        # tensor -= np.mean(tensor, axis=0)[np.newaxis, :, :]
+        tensor /= self._std  # fitted std
+        # tensor /= np.std(tensor, axis=0)  # original std
+        return tensor
 
     def get_covariance_matrix(self):
         if self._is_matrix_model:
@@ -339,6 +348,7 @@ class ParameterModel(TensorDR):
 
     def transform(self, data_tensor):
         data_tensor_standardized = self._standardize_data(data_tensor)
+        # data_tensor_standardized = self._standardize(data_tensor)
         data_matrix = self.convert_to_matrix(data_tensor_standardized)
         return np.dot(data_matrix, self.eigenvectors[:, :self.n_components])
 
@@ -357,11 +367,14 @@ class ParameterModel(TensorDR):
     def inverse_transform(self, projection_data: np.ndarray, component_count: int):
         if is_matrix_orthogonal(self.eigenvectors):
             return np.dot(
-                    projection_data,
-                    self.eigenvectors[:, :component_count].T
-                )  # Da orthogonal --> Transform = inverse
+                projection_data,
+                self.eigenvectors[:, :component_count].T
+            )  # Da orthogonal --> Transform = inverse
         else:
-            return np.dot(
+            if self.e_evs:
+                raise NonInvertibleEigenvectorException('Eigenvectors are Non-Orthogonal and Non-Squared. ')
+            else:
+                return np.dot(
                     projection_data,
                     np.linalg.inv(self.eigenvectors)[:component_count]
                 )
@@ -370,13 +383,14 @@ class ParameterModel(TensorDR):
         if component_count is None:
             component_count = self._atom_dim * self._combine_dim
         elif component_count > self.eigenvectors.shape[1]:
-            raise IndexError(f'Model does not have {component_count} many components. '
-                             f'Max: {self.eigenvectors.shape[1]}')
+            raise InvalidComponentNumberException(f'Model does not have {component_count} many components. '
+                                                  f'Max: {self.eigenvectors.shape[1]}')
 
         inverse_matrix = self.inverse_transform(projection_matrix, component_count)
 
         reconstructed_tensor = self.convert_to_tensor(inverse_matrix)
         if self.use_std:
+            # reconstructed_tensor *= self._std
             reconstructed_tensor *= self._std
         reconstructed_tensor += self.mean
 

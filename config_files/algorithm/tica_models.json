@@ -1,0 +1,29 @@
+[
+  {
+    "algorithm_name": "tica",
+    "ndim": 3,
+    "kernel": "only"
+  },
+  {
+    "algorithm_name": "tica",
+    "ndim": 3,
+    "kernel": "diff"
+  },
+  {
+    "algorithm_name": "tica",
+    "ndim": 3,
+    "kernel": "multi"
+  },
+  {
+    "algorithm_name": "tica",
+    "ndim": 3,
+    "kernel": "only",
+    "nth_eigenvector": 3
+  },
+  {
+    "algorithm_name": "tica",
+    "ndim": 3,
+    "kernel": "only",
+    "extra_dr_layer": true
+  }
+]

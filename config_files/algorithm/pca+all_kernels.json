@@ -1,86 +1,71 @@
 [
   {
-    "algorithm_name": "original_pca",
-    "ndim": 2
+    "algorithm_name": "pca",
+    "ndim": 3,
+    "kernel": "only",
+    "kernel_type": "my_gaussian"
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "use_std": true,
-    "kernel": "only"
-  },
-  {
-    "algorithm_name": "pca",
-    "ndim": 3,
-    "use_std": true,
     "kernel": "only",
     "kernel_type": "my_linear"
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "use_std": true,
     "kernel": "only",
     "kernel_type": "my_exponential"
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "use_std": true,
     "kernel": "only",
     "kernel_type": "my_epanechnikov"
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "use_std": true,
     "kernel": "diff"
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "use_std": true,
     "kernel": "diff",
     "kernel_type": "my_linear"
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "use_std": true,
     "kernel": "diff",
     "kernel_type": "my_exponential"
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "use_std": true,
     "kernel": "diff",
     "kernel_type": "my_epanechnikov"
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "use_std": true,
     "kernel": "multi"
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "use_std": true,
     "kernel": "multi",
     "kernel_type": "my_linear"
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "use_std": true,
     "kernel": "multi",
     "kernel_type": "my_exponential"
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "use_std": true,
     "kernel": "multi",
     "kernel_type": "my_epanechnikov"
   }

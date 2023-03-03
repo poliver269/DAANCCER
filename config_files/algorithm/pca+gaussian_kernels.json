@@ -6,19 +6,16 @@
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "use_std": false,
     "kernel": "only"
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "use_std": false,
     "kernel": "diff"
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "use_std": false,
     "kernel": "multi"
   }
 ]

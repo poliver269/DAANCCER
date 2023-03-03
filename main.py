@@ -1,9 +1,8 @@
 import json
-import warnings
 from datetime import datetime
 
 from my_tsne import TrajectoryTSNE
-from plotter import TrajectoryPlotter
+from plotter import TrajectoryPlotter, ArrayPlotter
 from trajectory import DataTrajectory, TopologyConverter
 from analyse import MultiTrajectoryAnalyser, SingleTrajectoryAnalyser, AnalyseResultLoader
 from utils.param_key import *
@@ -23,7 +22,7 @@ PARAMETER_GRID_SEARCH = 'parameter_grid_search'
 LOAD_ANALYSE_RESULTS_DICT = 'load_analyse_result_dict'
 MULTI_GRID_SEARCH = 'multi_parameter_grid_search'
 MULTI_RECONSTRUCT_WITH_DIFFERENT_EV = 'multi_reconstruct_with_different_eigenvector'
-MULTI_MEDIAN_RECONSTRUCTION_SCORES = 'multi_median_reconstruction_scores'  # TODO, dont set N_COMPONENTS manually
+MULTI_MEDIAN_RECONSTRUCTION_SCORES_ON_DIFF_FITTED = 'multi_median_reconstruction_scores'
 MULTI_KERNEL_COMPARE = 'multi_kernel_compare'
 MULTI_RECONSTRUCTION_ERROR_ON_SAME_TRAJ = 'multi_reconstruction_error_on_same_trajectory'
 MULTI_MEDIAN_RECONSTRUCTION_ERROR_ON_SAME_TRAJ = 'multi_median_reconstruction_error_on_same_trajectory'
@@ -35,18 +34,19 @@ def main():
     run_params_json = None  # NotYetImplemented
     alg_params_json = None
     # alg_params_json = 'config_files/algorithm/pca+gaussian_kernels.json'  # None or filename
-    alg_params_json = 'config_files/algorithm/pca+tica+evs.json'
+    alg_params_json = 'config_files/algorithm/algorithm_parameters_list.json'
+    # alg_params_json = 'config_files/algorithm/tica_models.json'
     # alg_params_json = 'config_files/algorithm/pca+tica+all_kernels.json'  # None or filename
 
-    result_load_file = 'analyse_results/2f4k/2023-02-24_05.53.12/median_RE_over_trajectories_on_other.npz'
-    run_option = MULTI_MEDIAN_RECONSTRUCTION_SCORES
+    result_load_file = None  # '2023-02-26_23.02.56_RE_diff_traj_evs/median_RE_over_trajectories_on_other.npz'
+    run_option = COMPARE
     run_params = {
         PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map', 'explained_var_plot'
         PLOT_TICS: True,  # True, False
         STANDARDIZED_PLOT: True,  # True, False
         CARBON_ATOMS_ONLY: True,  # True, False
         INTERACTIVE: True,  # True, False
-        N_COMPONENTS: 105,
+        N_COMPONENTS: 2,
         LAG_TIME: 10,
         TRUNCATION_VALUE: 0,  # deprecated
         BASIS_TRANSFORMATION: False,
@@ -79,13 +79,17 @@ def get_files_and_kwargs(params):
         kwargs = {'filename': filename_list[file_element], 'topology_filename': 'savinase.pdb',
                   'folder_path': 'data/Savinase', 'params': params}
     elif trajectory_name == '2wav':
-        filename_list = [f'2WAV-0-protein-{i:03d}.dcd' for i in range(0, 136)]
+        filename_list = [f'2WAV-0-protein-{i:03d}.dcd' for i in range(36, 100)]
         kwargs = {'filename': filename_list[file_element], 'topology_filename': '2wav.pdb',
                   'folder_path': 'data/2WAV-0-protein', 'params': params, 'atoms': list(range(710))}
     elif trajectory_name == '5i6x':
         filename_list = ['protein.xtc', 'system.xtc']
         kwargs = {'filename': filename_list[file_element], 'topology_filename': 'protein.pdb',
                   'folder_path': 'data/ser-tr', 'params': params}
+    elif trajectory_name == 'fs-peptide':
+        filename_list = [f'trajectory-{i}.xtc' for i in range(1, 28 + 1)]
+        kwargs = {'filename': filename_list[file_element], 'topology_filename': 'fs-peptide.pdb',
+                  'folder_path': 'data/fs-peptide', 'params': params}
     else:
         raise ValueError(f'No data trajectory was found with the name `{trajectory_name}`.')
     filename_list.pop(file_element)
@@ -183,7 +187,42 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
         tr = DataTrajectory(**kwargs)
         SingleTrajectoryAnalyser(tr).grid_search(param_grid)
     elif run_option == LOAD_ANALYSE_RESULTS_DICT:
-        pass
+        from_other_traj = False
+        plot_dict = AnalyseResultLoader(params[TRAJECTORY_NAME]).load_npz(
+            '2023-03-01_02.45.30_RE-same_all-models/median_RE_over_trajectories_on_same.npz'
+        )
+        update_dict = False
+        if update_dict:
+            plot_dict.update(AnalyseResultLoader(params[TRAJECTORY_NAME]).load_npz(
+                # '2023-02-27_03.04.39_RE_diff-evs_mean-ax0_use-original-mean/median_RE_over_trajectories_on_other.npz'
+                # '2023-02-27_02.37.27_RE_diff-evs_mean-ax1_use-original-mean/median_RE_over_trajectories_on_other.npz'
+                # '2023-02-27_03.36.13_RE_diff-evs_mean-ax0_use-fitted-mean+original-std/median_RE_over_trajectories_on_other.npz'
+                '2023-02-25_06.01.36_RE_diff_traj/median_RE_over_trajectories_on_same.npz'
+            ))
+
+        filter_by_indices = True
+        if filter_by_indices:
+            indices = [
+                '[PCA, output dimension = 105]      ',
+                '[TICA, lag = 10; max. output dim. = 105]',
+                'Tensor-pca, my_gaussian-only       ',
+                # 'Tensor-pca, my_gaussian-diff       ',
+                'Tensor-pca, my_gaussian-multi      ',
+                'Tensor-pca, my_gaussian-only-3rd_ev_eevd',
+                # 'Tensor-pca, my_gaussian-only-2nd_layer_eevd'
+            ]
+            plot_dict = {k: plot_dict[k] for k in indices}
+
+
+        ArrayPlotter(
+            interactive=False,
+            title_prefix=f'Reconstruction Error (RE) ' +
+                         (f'from {filename_list[0]}\n' if from_other_traj else '') +
+                         f'on {params[N_COMPONENTS]} Principal Components ',
+            x_label='number of principal components',
+            y_label='median REs of the trajectories',
+            y_range=(0, 0.5)
+        ).plot_merged_2ds(plot_dict)
     elif run_option.startswith('multi'):
         kwargs_list = [kwargs]
         if result_load_file is None:
@@ -212,10 +251,10 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
             mtr.grid_search(param_grid)
         elif run_option == MULTI_RECONSTRUCT_WITH_DIFFERENT_EV:
             mtr = MultiTrajectoryAnalyser(kwargs_list, params)
-            mtr.compare_reconstruction_scores(model_params_list)
-        elif run_option == MULTI_MEDIAN_RECONSTRUCTION_SCORES:
+            mtr.compare_reconstruction_scores(model_params_list, other_traj_index=params[FILE_ELEMENT])
+        elif run_option == MULTI_MEDIAN_RECONSTRUCTION_SCORES_ON_DIFF_FITTED:
             mtr = MultiTrajectoryAnalyser(kwargs_list, params)
-            mtr.compare_median_reconstruction_scores(model_params_list, load_filename=result_load_file)
+            mtr.compare_median_reconstruction_scores(model_params_list, other_traj_index=params[FILE_ELEMENT])
         elif run_option == MULTI_KERNEL_COMPARE:
             kernel_names = [MY_GAUSSIAN, MY_EXPONENTIAL, MY_EPANECHNIKOV]
             model_params = {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM}
@@ -223,10 +262,10 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
             mtr.compare_kernel_fitting_scores(kernel_names, model_params)
         elif run_option == MULTI_RECONSTRUCTION_ERROR_ON_SAME_TRAJ:
             mtr = MultiTrajectoryAnalyser(kwargs_list, params)
-            mtr.compare_reconstruction_scores(model_params_list, from_other_traj=False)
+            mtr.compare_reconstruction_scores(model_params_list)
         elif run_option == MULTI_MEDIAN_RECONSTRUCTION_ERROR_ON_SAME_TRAJ:
             mtr = MultiTrajectoryAnalyser(kwargs_list, params)
-            mtr.compare_median_reconstruction_scores(model_params_list, from_other_traj=False)
+            mtr.compare_median_reconstruction_scores(model_params_list)
 
 
 if __name__ == '__main__':

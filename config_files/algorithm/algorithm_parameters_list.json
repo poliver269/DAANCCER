@@ -4,28 +4,35 @@
     "ndim": 2
   },
   {
-    "algorithm_name": "pca",
-    "ndim": 2
-  },
-  {
-    "algorithm_name": "tica",
+    "algorithm_name": "original_tica",
     "ndim": 2,
     "lag_time": 10
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "extra_dimension_reduction_layer": false
+    "kernel": "only"
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "extra_dimension_reduction_layer": false,
+    "kernel": "diff"
+  },
+  {
+    "algorithm_name": "pca",
+    "ndim": 3,
+    "kernel": "multi"
+  },
+  {
+    "algorithm_name": "pca",
+    "ndim": 3,
+    "kernel": "only",
     "nth_eigenvector": 3
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "extra_dimension_reduction_layer": true
+    "kernel": "only",
+    "extra_dr_layer": true
   }
 ]

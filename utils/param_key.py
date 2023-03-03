@@ -46,9 +46,9 @@ X = 'x'
 Y = 'y'
 Z = 'z'
 
-# Angel Tuple Index
-ANGEL_INDICES = 0
-DIHEDRAL_ANGEL_VALUES = 1
+# Angle Tuple Index
+ANGLE_INDICES = 0
+DIHEDRAL_ANGLE_VALUES = 1
 
 # Model Parameters
 COV_STAT_FUNC = 'cov_stat_func'
