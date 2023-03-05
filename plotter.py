@@ -277,7 +277,8 @@ class MultiTrajectoryPlotter(MyPlotter):
 
 
 class ArrayPlotter(MyPlotter):
-    def __init__(self, interactive=False, title_prefix='', x_label='', y_label='', bottom_text=None, y_range=None):
+    def __init__(self, interactive=False, title_prefix='', x_label='', y_label='', bottom_text=None, y_range=None,
+                 show_grid=False, xtick_start=0):
         super().__init__(interactive)
         self.title_prefix = title_prefix
         self.x_label = x_label
@@ -285,6 +286,8 @@ class ArrayPlotter(MyPlotter):
         self.bottom_text = bottom_text
         self.range_tuple = y_range
         self._activate_legend = False
+        self.show_grid = show_grid
+        self.xtick_start = xtick_start
 
     def _post_processing(self, legend_outside=False):
         self.axes.set_title(self.title_prefix)
@@ -307,17 +310,22 @@ class ArrayPlotter(MyPlotter):
         if self.range_tuple is not None:
             self.axes.set_ylim(self.range_tuple)
 
+        if self.show_grid:
+            plt.grid(True, which='both')
+            plt.minorticks_on()
         plt.show()
 
-    def matrix_plot(self, matrix, as_surface='2d'):
+    def matrix_plot(self, matrix, as_surface='2d', show_values=False):
         """
         Plots the values of a matrix on a 2d or a 3d axes
         :param matrix: ndarray (2-ndim)
             matrix, which should be plotted
         :param as_surface: str
             Plot as a 3d-surface if value PLOT_3D_MAP else 2d-axes
+        :param show_values: If true, then show the values in the matrix
         """
         c_map = plt.cm.viridis
+        c_map = plt.cm.seismic
         if as_surface == PLOT_3D_MAP:
             x_coordinates = np.arange(matrix.shape[0])
             y_coordinates = np.arange(matrix.shape[1])
@@ -327,10 +335,13 @@ class ArrayPlotter(MyPlotter):
             self.axes.set_zlabel('covariance values')
             im = self.axes.plot_surface(x_coordinates, y_coordinates, matrix, cmap=c_map)
         else:
-            self.fig, self.axes = plt.subplots(1, 1, dpi=320)
+            self.fig, self.axes = plt.subplots(1, 1, dpi=80)
             im = self.axes.matshow(matrix, cmap=c_map)
+            if show_values:
+                for (i, j), value in np.ndenumerate(matrix):
+                    self.axes.text(j, i, '{:0.2f}'.format(value), ha='center', va='center', fontsize=8)
         self.fig.colorbar(im, ax=self.axes)
-        # print(f'{title_prefix}: {matrix}')
+        plt.xticks(np.arange(matrix.shape[1]), np.arange(self.xtick_start, matrix.shape[1]+self.xtick_start))
         self._post_processing()
 
     def plot_gauss2d(self,
@@ -357,7 +368,7 @@ class ArrayPlotter(MyPlotter):
             Some statistical numpy function
         :return:
         """
-        self.fig, self.axes = plt.subplots(1, 1, dpi=320)
+        self.fig, self.axes = plt.subplots(1, 1, dpi=80)
         self.axes.plot(x_index, gauss_fitted, '-', label=f'fit {fit_method}')
         self.axes.plot(x_index, ydata, '.', label='original data')
         statistical_value = np.full(x_index.shape, statistical_function(ydata))
@@ -381,7 +392,7 @@ class ArrayPlotter(MyPlotter):
         self._post_processing()
 
     def plot_merged_2ds(self, ndarray_dict: dict, statistical_func=None):
-        self.fig, self.axes = plt.subplots(1, 1, dpi=320)
+        self.fig, self.axes = plt.subplots(1, 1, dpi=80)
         self.title_prefix += f'with {function_name(statistical_func)}' if statistical_func is not None else ''
         for key, ndarray_data in ndarray_dict.items():
             # noinspection PyProtectedMember

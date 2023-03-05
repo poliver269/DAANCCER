@@ -174,6 +174,14 @@ class ParameterModel(TensorDR):
         self._standardized_data = self._standardize_data(data_tensor)
         self._covariance_matrix = self.get_covariance_matrix()
         self.eigenvectors = self.get_eigenvectors()
+        if self.analyse_plot_type == EIGENVECTOR_MATRIX_ANALYSE:
+            ArrayPlotter(
+                interactive=False,
+                title_prefix=EIGENVECTOR_MATRIX_ANALYSE,
+                x_label='EigenvectorNr',
+                y_label='Eigenvector dimension',
+                xtick_start=1
+            ).matrix_plot(self.eigenvectors[:12, :15], show_values=True)
         return self
 
     def _standardize_data(self, tensor):

@@ -10,7 +10,7 @@ from utils import function_name
 from utils.array_tools import rescale_array, rescale_center
 from utils.math import is_matrix_symmetric, exponential_2d, epanechnikov_2d, gaussian_2d, is_matrix_orthogonal
 from utils.param_key import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL, MY_LINEAR_NORM, MY_LINEAR_INVERSE_NORM, \
-    MY_LINEAR, MY_LINEAR_INVERSE_P1, PLOT_3D_MAP, WEIGHTED_DIAGONAL, KERNEL_COMPARE
+    MY_LINEAR, MY_LINEAR_INVERSE_P1, PLOT_3D_MAP, WEIGHTED_DIAGONAL, KERNEL_COMPARE, FITTED_KERNEL_CURVES
 
 
 def diagonal_indices(matrix: np.ndarray):
@@ -159,7 +159,7 @@ def calculate_symmetrical_kernel_matrix(
                 interactive=False,
                 title_prefix=f'{WEIGHTED_DIAGONAL} of {function_name(stat_func)}'
             ).plot_gauss2d(xdata, original_ydata - fit_y, rescaled_ydata, fit_y, kernel_name, stat_func)
-        else:
+        elif analyse_mode == FITTED_KERNEL_CURVES:
             ArrayPlotter(
                 interactive=False,
                 title_prefix=f'Trajectory: {analyse_mode}, on diagonal of cov',

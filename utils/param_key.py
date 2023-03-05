@@ -39,7 +39,9 @@ ANALYSE_PLOT_TYPE = 'analyse_plot_type'
 
 # Analysing Types
 WEIGHTED_DIAGONAL = 'weighted_diagonal'
+FITTED_KERNEL_CURVES = 'fitted_kernel_curves'
 KERNEL_COMPARE = 'kernel_compare'
+EIGENVECTOR_MATRIX_ANALYSE = 'eigenvector_matrix_analyse'
 
 # Coordinates
 X = 'x'
