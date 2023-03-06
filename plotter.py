@@ -11,14 +11,22 @@ from utils.param_key import *
 
 
 class MyPlotter:
-    def __init__(self, interactive=True):
+    def __init__(self, interactive=True, title_prefix=''):
         self.fig = None
         self.axes = None
         self.interactive = interactive
+        self.title_prefix = title_prefix
         self.colors = mcolors.TABLEAU_COLORS
 
         if self.interactive:
             mpl.use('TkAgg')
+
+    def _set_figure_title(self):
+        self.fig.suptitle(self.title_prefix)
+
+    def _post_processing(self):
+        self._set_figure_title()
+        plt.show()
 
 
 class TrajectoryPlotter(MyPlotter):
@@ -94,7 +102,7 @@ class TrajectoryPlotter(MyPlotter):
 
             if self.data_trajectory.params[STANDARDIZED_PLOT]:
                 # numerator = data_tensor - np.mean(data_tensor, axis=0)[np.newaxis, :, :]  # PCA - center by atoms
-                numerator = data_tensor - np.mean(data_tensor, axis=1)[:, np.newaxis, :]  # correct: center over time
+                numerator = data_tensor - np.mean(data_tensor, axis=1)[:, np.newaxis, :]  # center over time
                 # numerator = data_tensor - np.mean(data_tensor, axis=2)[:, :, np.newaxis]  # Raumdiagonale gleich
                 denominator = np.std(data_tensor, axis=0)
                 data_tensor = numerator / denominator
@@ -121,15 +129,14 @@ class TrajectoryPlotter(MyPlotter):
         else:
             raise IndexError('Timestep does not exist')
 
-    def plot_models(self, model_results, data_elements, plot_type='', plot_tics=False, components=None):
+
+class ModelResultPlotter(MyPlotter):
+    def plot_models(self, model_results, plot_type='', plot_tics=False, components=None):
         """
         Plots the model results in 2d-coordinate system next to each other.
         Alternatively with tics of the components can be plotted under the figures when `plot_tics` is True
         :param model_results: list of dictionary
             dict should contain the keys: 'model', 'projection', 'title_prefix' (optional)
-        :param data_elements: List of elements
-            The result of the models can contain a list of results,
-            from which is possible to choose with this parameter
         :param plot_type: param_key.plot_type
         :param plot_tics: bool (default: False)
             Plots the component tics under the base figures if True
@@ -141,75 +148,67 @@ class TrajectoryPlotter(MyPlotter):
             main_axes = self.axes[0]  # axes[row][column]
             if len(model_results) == 1:
                 for component_nr in range(components + 1)[1:]:
-                    self._plot_time_tics(self.axes[component_nr], model_results[0][PROJECTION], data_elements,
-                                         component=component_nr)
+                    self._plot_time_tics(self.axes[component_nr], model_results[0][PROJECTION], component=component_nr)
             else:
                 for i, result in enumerate(model_results):
                     for component_nr in range(components + 1)[1:]:
-                        self._plot_time_tics(self.axes[component_nr][i], result[PROJECTION], data_elements,
-                                             component=component_nr)
+                        self._plot_time_tics(self.axes[component_nr][i], result[PROJECTION], component=component_nr)
         else:
             self.fig, self.axes = plt.subplots(1, len(model_results))
             main_axes = self.axes
-        self._set_figure_title()
         if plot_type == HEAT_MAP:
             if len(model_results) == 1:
-                self._plot_transformed_data_heat_map(main_axes, model_results[0], data_elements)
+                self._plot_transformed_data_heat_map(main_axes, model_results[0])
             else:
                 for i, result in enumerate(model_results):
-                    self._plot_transformed_data_heat_map(main_axes[i], result, data_elements)
+                    self._plot_transformed_data_heat_map(main_axes[i], result)
         else:
             if len(model_results) == 1:
-                self._plot_transformed_trajectory(main_axes, model_results[0], data_elements, color_map=plot_type)
+                self._plot_transformed_trajectory(main_axes, model_results[0], color_map=plot_type,
+                                                  show_model_properties=True)
             else:
                 for i, result in enumerate(model_results):
-                    self._plot_transformed_trajectory(main_axes[i], result, data_elements, color_map=plot_type)
+                    self._plot_transformed_trajectory(main_axes[i], result, color_map=plot_type,
+                                                      show_model_properties=True)
         plt.show()
 
-    def _plot_transformed_trajectory(self, ax, projection, data_elements, color_map):
+    def _plot_transformed_trajectory(self, ax, result_dict, color_map, show_model_properties=False):
         """
         Plot the projection results of the transformed trajectory on an axis
         :param ax: Which axis the result should be plotted on
-        :param projection: dictionary
+        :param result_dict: dictionary
             dict should contain the keys: 'model', 'projection',
             and optional keys: 'title_prefix', 'explained_variance'
-        :param data_elements: List of elements
-            The result of the models can contain a list of results,
-            from which is possible to choose with this parameter
         :param color_map: str
             String value of the plot mapping type
         """
         ax.cla()
-        ex_var = projection.get(EXPLAINED_VAR, None)
-        ax.set_title(projection.get(TITLE_PREFIX, '') +
-                     str(projection[MODEL]) +
-                     (f'\nExplained var: {ex_var:.4f}' if ex_var is not None else ''),
-                     fontsize=8, wrap=True)
-        ax.set_xlabel('1st component')
-        ax.set_ylabel('2nd component')
-        data_list = projection[PROJECTION]
-        for index, element in enumerate(data_elements):
-            if color_map == COLOR_MAP:
-                color_array = np.arange(data_list[element].shape[0])
-                c_map = plt.cm.viridis
-                im = ax.scatter(data_list[element][:, 0], data_list[element][:, 1], c=color_array,
-                                cmap=c_map, marker='.')
-                if index == 0:
-                    self.fig.colorbar(im, ax=ax)
-            else:
-                color = list(self.colors.values())[element]
-                ax.scatter(data_list[element][:, 0], data_list[element][:, 1], c=color, marker='.')
+        if show_model_properties:
+            ex_var = result_dict.get(EXPLAINED_VAR, None)
+            ax.set_title(result_dict.get(TITLE_PREFIX, '') +
+                         str(result_dict[MODEL]) +
+                         (f'\nExplained var: {ex_var:.4f}' if ex_var is not None else ''),
+                         fontsize=8, wrap=True)
+            ax.set_xlabel('1st component')
+            ax.set_ylabel('2nd component')
+        if color_map == COLOR_MAP:
+            color_array = np.arange(result_dict[PROJECTION].shape[0])
+            c_map = plt.cm.viridis
+            im = ax.scatter(result_dict[PROJECTION][:, 0], result_dict[PROJECTION][:, 1], c=color_array,
+                            cmap=c_map, marker='.')
+            self.fig.colorbar(im, ax=ax)
+        else:
+            ax.scatter(result_dict[PROJECTION][:, 0], result_dict[PROJECTION][:, 1], marker='.')
 
-        self._print_model_properties(projection)
+        if show_model_properties:
+            self._print_model_properties(result_dict)
 
-    def _plot_time_tics(self, ax, projections, data_elements, component):
+    @staticmethod
+    def _plot_time_tics(ax, projection, component):
         """
         Plot the time tics on a specific axis
         :param ax: axis
-        :param projections:
-        :param data_elements: List of elements
-            The result of the models can contain a list of results,
-            from which is possible to choose with this parameter.
+        :param projection:
         :param component:
         :return:
         """
@@ -217,34 +216,28 @@ class TrajectoryPlotter(MyPlotter):
         ax.set_xlabel('Time step')
         ax.set_ylabel('Component {}'.format(component))
 
-        for i in data_elements:
-            ax.plot(projections[i][:, component - 1], c=list(self.colors.values())[i])
+        ax.plot(projection[:, component - 1])
 
-    def _plot_transformed_data_heat_map(self, ax, projection_dict, data_elements):
+    def _plot_transformed_data_heat_map(self, ax, result_dict):
         """
-
         :param ax:
-        :param projection_dict:
-        :param data_elements: List of elements
-            The result of the models can contain a list of results,
-            from which is possible to choose with this parameter.
+        :param result_dict:
         :return:
         """
         ax.cla()
-        ax.set_title(str(projection_dict[MODEL]))
+        ax.set_title(str(result_dict[MODEL]))
         ax.set_xlabel('Component 1')
         ax.set_ylabel('Component 2')
-        projections = projection_dict[PROJECTION]
-        for i in data_elements:
-            xi = projections[i][:, 0]
-            yi = projections[i][:, 1]
-            bins = 50
-            z, x, y = np.histogram2d(xi, yi, bins)
-            np.seterr(divide='ignore')
-            free_energies = -np.log(z, dtype='float')
-            np.seterr(divide='warn')
-            ax.contourf(free_energies.T, bins, cmap=plt.cm.hot, extent=[x[0], x[-1], y[0], y[-1]])
-        self._print_model_properties(projection_dict)
+        projection = result_dict[PROJECTION]
+        xi = projection[:, 0]
+        yi = projection[:, 1]
+        bins = 50
+        z, x, y = np.histogram2d(xi, yi, bins)
+        np.seterr(divide='ignore')
+        free_energies = -np.log(z, dtype='float')
+        np.seterr(divide='warn')
+        ax.contourf(free_energies.T, bins, cmap=plt.cm.hot, extent=[x[0], x[-1], y[0], y[-1]])
+        self._print_model_properties(result_dict)
 
     @staticmethod
     def _print_model_properties(projection_dict):
@@ -260,6 +253,16 @@ class TrajectoryPlotter(MyPlotter):
             print('EV:', model.eigenvectors, 'EW:', model.eigenvalues)
         except AttributeError as e:
             print('{}: {}'.format(e, model))
+
+    def plot_multi_projections(self, model_result_list_in_list, plot_type):
+        self.fig, self.axes = plt.subplots(len(model_result_list_in_list), len(model_result_list_in_list[0]))
+        for row_index, model_results in enumerate(model_result_list_in_list):
+            if len(model_results) == 1:
+                self._plot_transformed_trajectory(self.axes[row_index], model_results[0], color_map=plot_type)
+            else:
+                for column_index, result in enumerate(model_results):
+                    self._plot_transformed_trajectory(self.axes[row_index][column_index], result, color_map=plot_type)
+        self._post_processing()
 
 
 class MultiTrajectoryPlotter(MyPlotter):
@@ -279,8 +282,7 @@ class MultiTrajectoryPlotter(MyPlotter):
 class ArrayPlotter(MyPlotter):
     def __init__(self, interactive=False, title_prefix='', x_label='', y_label='', bottom_text=None, y_range=None,
                  show_grid=False, xtick_start=0):
-        super().__init__(interactive)
-        self.title_prefix = title_prefix
+        super().__init__(interactive, title_prefix)
         self.x_label = x_label
         self.y_label = y_label
         self.bottom_text = bottom_text
@@ -290,7 +292,7 @@ class ArrayPlotter(MyPlotter):
         self.xtick_start = xtick_start
 
     def _post_processing(self, legend_outside=False):
-        self.axes.set_title(self.title_prefix)
+        # self.axes.set_title(self.title_prefix)
         self.axes.set_xlabel(self.x_label)
         self.axes.set_ylabel(self.y_label)
 
@@ -313,7 +315,7 @@ class ArrayPlotter(MyPlotter):
         if self.show_grid:
             plt.grid(True, which='both')
             plt.minorticks_on()
-        plt.show()
+        super()._post_processing()
 
     def matrix_plot(self, matrix, as_surface='2d', show_values=False):
         """
@@ -324,7 +326,7 @@ class ArrayPlotter(MyPlotter):
             Plot as a 3d-surface if value PLOT_3D_MAP else 2d-axes
         :param show_values: If true, then show the values in the matrix
         """
-        c_map = plt.cm.viridis
+        # c_map = plt.cm.viridis
         c_map = plt.cm.seismic
         if as_surface == PLOT_3D_MAP:
             x_coordinates = np.arange(matrix.shape[0])
@@ -341,7 +343,7 @@ class ArrayPlotter(MyPlotter):
                 for (i, j), value in np.ndenumerate(matrix):
                     self.axes.text(j, i, '{:0.2f}'.format(value), ha='center', va='center', fontsize=8)
         self.fig.colorbar(im, ax=self.axes)
-        plt.xticks(np.arange(matrix.shape[1]), np.arange(self.xtick_start, matrix.shape[1]+self.xtick_start))
+        plt.xticks(np.arange(matrix.shape[1]), np.arange(self.xtick_start, matrix.shape[1] + self.xtick_start))
         self._post_processing()
 
     def plot_gauss2d(self,

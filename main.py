@@ -1,16 +1,18 @@
 import json
+import os
 from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 
 from my_tsne import TrajectoryTSNE
-from plotter import TrajectoryPlotter, ArrayPlotter
+from plotter import TrajectoryPlotter, ArrayPlotter, ModelResultPlotter
 from trajectory import DataTrajectory, TopologyConverter
 from analyse import MultiTrajectoryAnalyser, SingleTrajectoryAnalyser, AnalyseResultLoader
 from utils.param_key import *
 
 COMPARE = 'compare'
-COMPARE_TRANSFORMATION_ON_SAME_FITTING = 'compare_transformation_on_same_fitting'
+MULTI_QUALITATIVE_TRANSFORMATION_ON_SAME_FITTING = 'multi_qualitative_compare_transformation_on_same_fitting'
 MULTI_COMPARE_ALL_PCS = 'multi_compare_all_pcs'
 MULTI_COMPARE_COMBO_PCS = 'multi_compare_combo_pcs'
 MULTI_COMPARE_SOME_PCS = 'multi_compare_some_pcs'
@@ -22,6 +24,7 @@ BASE_TRANSFORMATION = 'base_transformation'
 CALCULATE_PEARSON_CORRELATION_COEFFICIENT = 'calculate_pcc'
 PARAMETER_GRID_SEARCH = 'parameter_grid_search'
 LOAD_ANALYSE_RESULTS_DICT = 'load_analyse_result_dict'
+LOAD_LIST_OF_DICTS = 'load_list_of_dicts'
 MULTI_GRID_SEARCH = 'multi_parameter_grid_search'
 MULTI_RECONSTRUCT_WITH_DIFFERENT_EV = 'multi_reconstruct_with_different_eigenvector'
 MULTI_MEDIAN_RECONSTRUCTION_SCORES_ON_DIFF_FITTED = 'multi_median_reconstruction_scores'
@@ -42,11 +45,11 @@ def main():
     # alg_params_json = 'config_files/algorithm/all_my_kernels_only.json'  # None or filename
 
     result_load_file = None  # '2023-02-26_23.02.56_RE_diff_traj_evs/median_RE_over_trajectories_on_other.npz'
-    run_option = COMPARE
+    run_option = LOAD_LIST_OF_DICTS
 
     run_params = {
         PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map', 'explained_var_plot'
-        PLOT_TICS: True,  # True, False
+        PLOT_TICS: False,  # True, False
         STANDARDIZED_PLOT: True,  # True, False
         CARBON_ATOMS_ONLY: True,  # True, False
         INTERACTIVE: True,  # True, False
@@ -56,7 +59,7 @@ def main():
         BASIS_TRANSFORMATION: False,
         USE_ANGLES: False,
         TRAJECTORY_NAME: '2f4k',
-        FILE_ELEMENT: 64,
+        FILE_ELEMENT: 0,
     }
 
     filename_list, kwargs = get_files_and_kwargs(run_params)
@@ -70,7 +73,7 @@ def get_files_and_kwargs(params):
     trajectory_name = params[TRAJECTORY_NAME]
     file_element = params[FILE_ELEMENT]
     if trajectory_name == '2f4k':
-        filename_list = [f'2F4K-0-protein-{i:03d}.dcd' for i in range(0, 62 + 1)] + ['tr3_unfolded.xtc',
+        filename_list = [f'2F4K-0-protein-{i:03d}.dcd' for i in range(0, 2 + 1)] + ['tr3_unfolded.xtc',
                                                                                      'tr8_folded.xtc']
         kwargs = {'filename': filename_list[file_element], 'topology_filename': '2f4k.pdb', 'folder_path': 'data/2f4k',
                   'params': params}
@@ -134,9 +137,8 @@ def get_model_params_list(alg_json_file, params):
             # *** Boolean Parameters:
             # CORR_KERNEL, ONES_ON_KERNEL_DIAG, USE_STD, CENTER_OVER_TIME, EXTRA_DR_LAYER
 
-            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY,
-             ANALYSE_PLOT_TYPE: EIGENVECTOR_MATRIX_ANALYSE},
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, ANALYSE_PLOT_TYPE: 'CMM', USE_STD: False},
+            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY},
+            {ALGORITHM_NAME: 'tica', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY},
         ]
 
 
@@ -192,40 +194,41 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
         tr = DataTrajectory(**kwargs)
         SingleTrajectoryAnalyser(tr).grid_search(param_grid)
     elif run_option == LOAD_ANALYSE_RESULTS_DICT:
-        from_other_traj = False
+        from_other_traj = True
         plot_dict = AnalyseResultLoader(params[TRAJECTORY_NAME]).load_npz(
-            # '2023-03-01_02.45.30_RE-same_all-models/median_RE_over_trajectories_on_same.npz'
+            # '2023-03-01_02.45.30_RE-same_all-models/median_RE_over_trajectories_on_other.npz'
             '2023-02-26_20.31.59_RE_diff_pca+tica/median_RE_over_trajectories_on_other.npz'
         )
         update_dict = True
         if update_dict:
             plot_dict.update(AnalyseResultLoader(params[TRAJECTORY_NAME]).load_npz(
-                '2023-02-27_03.04.39_RE_diff-evs_mean-ax0_use-original-mean/median_RE_over_trajectories_on_other.npz'
-                # '2023-02-25_06.01.36_RE_diff_traj/median_RE_over_trajectories_on_same.npz'
-                # '2023-03-01_22.19.05_RE-same_my-tica-models/median_RE_over_trajectories_on_same.npz'
+                # '2023-02-27_03.04.39_RE_diff-evs_mean-ax0_use-original-mean/median_RE_over_trajectories_on_other.npz'
+                # '2023-02-25_06.01.36_RE_diff_traj/median_RE_over_trajectories_on_other.npz'
+                # '2023-03-01_22.19.05_RE-same_my-tica-models/median_RE_over_trajectories_on_other.npz'
+                '2023-03-02_01.20.26_RE-diff_my-tica-models/median_RE_over_trajectories_on_other.npz'
                 # '2023-03-03_23.53.55_RMSE-kernel_compare/compare_rmse_kernel.npz'
             ))
 
         filter_by_indices = True
         if filter_by_indices:
             indices = [
-                '[PCA, output dimension = 105]      ',
+                # '[PCA, output dimension = 105]      ',
                 '[TICA, lag = 10; max. output dim. = 105]',
-                'Tensor-pca, my_gaussian-only       ',
+                # 'Tensor-pca, my_gaussian-only       ',
                 # 'Tensor-pca, my_gaussian-diff       ',
                 # 'Tensor-pca, my_gaussian-multi      ',
-                'Tensor-pca, my_gaussian-only-3rd_ev_eevd',
-                'Tensor-pca, my_gaussian-only-2nd_layer_eevd',
-                # 'Tensor-tica, my_gaussian-only      ',
-                # 'Tensor-tica, my_gaussian-diff      ',
-                # 'Tensor-tica, my_gaussian-multi     ',
+                # 'Tensor-pca, my_gaussian-only-3rd_ev_eevd',
+                # 'Tensor-pca, my_gaussian-only-2nd_layer_eevd',
+                'Tensor-tica, my_gaussian-only      ',
+                'Tensor-tica, my_gaussian-diff      ',
+                'Tensor-tica, my_gaussian-multi     ',
                 # BIN 'Tensor-tica, my_gaussian-only-3rd_ev_eevd',
                 # BIN 'Tensor-tica, my_gaussian-only-2nd_layer_eevd'
                 # 'my_gaussian', 'my_exponential', 'my_epanechnikov'
             ]
             plot_dict = {k: plot_dict[k] for k in indices}
 
-        load_option = MULTI_KERNEL_COMPARE
+        load_option = MULTI_QUALITATIVE_TRANSFORMATION_ON_SAME_FITTING
         if load_option == MULTI_RECONSTRUCTION_ERROR_ON_SAME_TRAJ:
             ArrayPlotter(
                 interactive=False,
@@ -238,12 +241,28 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
             ArrayPlotter(
                 interactive=False,
                 title_prefix=f'Reconstruction Error (RE) ' +
-                             (f'from {filename_list[0]}\n' if from_other_traj else '') +
+                             (f'from {kwargs["filename"]}\n' if from_other_traj else '') +
                              f'on {params[N_COMPONENTS]} Principal Components ',
                 x_label='number of principal components',
                 y_label='median REs of the trajectories',
                 y_range=(0, 1)
             ).plot_merged_2ds(plot_dict)
+    elif run_option == LOAD_LIST_OF_DICTS:
+        # directories = ['2023-03-05_23.44.24', '2023-03-05_21.51.49', '2023-03-05_23.46.32']  # prot2
+        sub_dir = 'fit-on-one-transform-on-all_tensor-tica-gaussian-only'
+        sub_dir_path = Path('analyse_results/2f4k') / sub_dir
+        # directories = ['2023-03-06_00.29.08', '2023-03-06_00.29.25', '2023-03-06_00.29.42',
+        # '2023-03-06_00.29.56', '2023-03-06_00.30.15']  # 2f4k
+        directories = os.listdir(sub_dir_path)
+        list_of_list = []
+        for directory in directories:
+            list_of_list.append(
+                AnalyseResultLoader(
+                    trajectory_name=params[TRAJECTORY_NAME],
+                    sub_dir=sub_dir
+                ).load_npz_files_in_directory(directory)
+            )
+        ModelResultPlotter(interactive=False, title_prefix=sub_dir).plot_multi_projections(list_of_list, params[PLOT_TYPE])
     elif run_option.startswith('multi'):
         kwargs_list = [kwargs]
         if result_load_file is None:
@@ -287,6 +306,9 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
         elif run_option == MULTI_MEDIAN_RECONSTRUCTION_ERROR_ON_SAME_TRAJ:
             mtr = MultiTrajectoryAnalyser(kwargs_list, params)
             mtr.compare_median_reconstruction_scores(model_params_list)
+        elif run_option == MULTI_QUALITATIVE_TRANSFORMATION_ON_SAME_FITTING:
+            mtr = MultiTrajectoryAnalyser(kwargs_list, params)
+            mtr.compare_results_on_same_fitting(model_params_list[0], 0)
 
 
 if __name__ == '__main__':

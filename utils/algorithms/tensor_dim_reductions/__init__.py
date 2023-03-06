@@ -11,8 +11,7 @@ import pyemma.coordinates as coor
 
 from utils.errors import InvalidComponentNumberException, NonInvertibleEigenvectorException
 from utils.math import is_matrix_orthogonal
-from utils.matrix_tools import diagonal_block_expand, calculate_symmetrical_kernel_matrix, ensure_matrix_symmetry, \
-    expand_and_roll
+from utils.matrix_tools import diagonal_block_expand, calculate_symmetrical_kernel_matrix, ensure_matrix_symmetry
 from utils.param_key import *
 
 

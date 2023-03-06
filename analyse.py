@@ -14,7 +14,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.model_selection import GridSearchCV
 from tqdm import tqdm
 
-from plotter import ArrayPlotter, MultiTrajectoryPlotter, TrajectoryPlotter
+from plotter import ArrayPlotter, MultiTrajectoryPlotter, ModelResultPlotter
 from trajectory import DataTrajectory
 from utils import statistical_zero
 from utils.algorithms.tensor_dim_reductions import ParameterModel
@@ -57,10 +57,9 @@ class SingleTrajectoryAnalyser:
         model_results = self.trajectory.get_model_results_with_changing_param(model_params_list, BASIS_TRANSFORMATION)
         self.compare_with_plot(model_results)
 
-    def compare_with_plot(self, model_projection_list):
-        TrajectoryPlotter(self.trajectory).plot_models(
-            model_projection_list,
-            data_elements=[0],  # [0, 1, 2]
+    def compare_with_plot(self, model_results_list):
+        ModelResultPlotter(self.trajectory).plot_models(
+            model_results_list,
             plot_type=self.trajectory.params[PLOT_TYPE],
             plot_tics=self.trajectory.params[PLOT_TICS],
             components=self.trajectory.params[N_COMPONENTS]
@@ -371,7 +370,7 @@ class MultiTrajectoryAnalyser:
                         model_dict = model_dict_list[traj_index]
                         model = model_dict[MODEL]
                         input_data = trajectory.data_input(model_dict[INPUT_PARAMS])
-                        matrix_projection = model_dict[PROJECTION][0]
+                        matrix_projection = model_dict[PROJECTION]
                     else:
                         model_dict = model_dict_list[0]
                         model = model_dict[MODEL]
@@ -420,6 +419,26 @@ class MultiTrajectoryAnalyser:
         AnalyseResultsSaver(self.params[TRAJECTORY_NAME], filename='compare_rmse_kernel').save_to_npz(kernel_accuracies)
         return kernel_accuracies
 
+    def compare_results_on_same_fitting(self, model_params, traj_index):
+        fitting_trajectory = self.trajectories[traj_index]
+        fitting_results = fitting_trajectory.get_model_result(model_params)
+        model_results_list = []
+        for trajectory_nr, trajectory in enumerate(self.trajectories):
+            if trajectory_nr == traj_index:
+                model_results_list.append(fitting_results)
+            else:
+                transform_results = fitting_results.copy()
+                transform_results[PROJECTION] = fitting_results[MODEL].transform(trajectory.data_input(model_params))
+                model_results_list.append(transform_results)
+        st = SingleTrajectoryAnalyser(fitting_trajectory)
+        st.compare_with_plot(model_results_list)
+        saver = AnalyseResultsSaver(self.params[TRAJECTORY_NAME])
+        for result_index, model_result in enumerate(model_results_list):
+            saver.save_to_npz(
+                model_result,
+                new_filename=f'{self.trajectories[result_index].filename[:-4]}_transformed_on_{fitting_trajectory.filename[:-4]}'
+            )
+
 
 class AnalyseResultsSaver:
     def __init__(self, trajectory_name, filename=''):
@@ -453,8 +472,10 @@ class AnalyseResultsSaver:
 
 
 class AnalyseResultLoader:
-    def __init__(self, trajectory_name):
+    def __init__(self, trajectory_name, sub_dir=None):
         self.current_result_path: Path = Path('analyse_results') / trajectory_name
+        if sub_dir is not None:
+            self.current_result_path = self.current_result_path / sub_dir
 
     def get_load_path(self, filename):
         return self.current_result_path / filename
@@ -466,3 +487,14 @@ class AnalyseResultLoader:
     def load_npz(self, filename: str) -> dict:
         load_path = self.get_load_path(filename)
         return dict(np.load(load_path, allow_pickle=True))
+
+    def load_npz_files_in_directory(self, directory_name):
+        directory_path = self.get_load_path(directory_name)
+        filename_list = os.listdir(directory_path)
+        return self.load_npz_list(directory_name, filename_list)
+
+    def load_npz_list(self, root_dir, filename_list):
+        loaded_list = []
+        for filename in filename_list:
+            loaded_list.append(self.load_npz(Path(root_dir) / filename))
+        return loaded_list

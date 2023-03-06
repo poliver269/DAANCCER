@@ -163,65 +163,65 @@ class DataTrajectory(TrajectoryFile):
             inp = self.data_input(model_name)
         if model_name == 'pca':
             pca = coor.pca(data=inp, dim=self.params[N_COMPONENTS])
-            return pca, pca.get_output()
+            return pca, pca.get_output()[0]
         elif model_name == 'mypca':
             pca = MyPCA()
-            return pca, [pca.fit_transform(inp, n_components=self.params[N_COMPONENTS])]
+            return pca, pca.fit_transform(inp, n_components=self.params[N_COMPONENTS])
         elif model_name == 'trunc_pca':
             pca = TruncatedPCA(self.params[TRUNCATION_VALUE])
-            return pca, [pca.fit_transform(inp, n_components=self.params[N_COMPONENTS])]
+            return pca, pca.fit_transform(inp, n_components=self.params[N_COMPONENTS])
         elif model_name == 'pca_kernel_only':
             pca = KernelFromCovPCA()
-            return pca, [pca.fit_transform(inp, n_components=self.params[N_COMPONENTS])]
+            return pca, pca.fit_transform(inp, n_components=self.params[N_COMPONENTS])
         elif model_name == 'tensor_pca':
             pca = TensorPCA()
-            return pca, [pca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
+            return pca, pca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])
         elif model_name == 'tensor_pearson_pca':
             ppca = TensorPearsonCovPCA()
-            return ppca, [ppca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
+            return ppca, ppca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])
         elif model_name == 'tensor_pearson_kernel_pca':
             pkpca = TensorKernelOnPearsonCovPCA()
-            return pkpca, [pkpca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
+            return pkpca, pkpca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])
         elif model_name == 'tensor_kernel_pca':
             ckpca = TensorKernelOnCovPCA()
-            return ckpca, [ckpca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
+            return ckpca, ckpca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])
         elif model_name == 'tensor_ko_pca':
             ko_pca = TensorKernelFromCovPCA()
-            return ko_pca, [ko_pca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
+            return ko_pca, ko_pca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])
         elif model_name == 'tensor_kernel_mad_pca':
             ko_med_pca = TensorKernelFromComadPCA()
-            return ko_med_pca, [ko_med_pca.fit_transform(self.alpha_carbon_coordinates,
-                                                         n_components=self.params[N_COMPONENTS])]
+            return ko_med_pca, ko_med_pca.fit_transform(self.alpha_carbon_coordinates,
+                                                         n_components=self.params[N_COMPONENTS])
         elif model_name == 'tica':
             tica = coor.tica(data=inp, lag=self.params[LAG_TIME], dim=self.params[N_COMPONENTS])
-            return tica, tica.get_output()
+            return tica, tica.get_output()[0]
         elif model_name == 'mytica':
             tica = MyTICA(lag_time=self.params[LAG_TIME])
-            return tica, [tica.fit_transform(inp, n_components=self.params[N_COMPONENTS])]
+            return tica, tica.fit_transform(inp, n_components=self.params[N_COMPONENTS])
         elif model_name == 'trunc_tica':
             tica = TruncatedTICA(lag_time=self.params[LAG_TIME], trunc_value=self.params[TRUNCATION_VALUE])
-            return tica, [tica.fit_transform(inp, n_components=self.params[N_COMPONENTS])]
+            return tica, tica.fit_transform(inp, n_components=self.params[N_COMPONENTS])
         elif model_name == 'kernel_only_tica':
             tica = KernelFromCovTICA(lag_time=self.params[LAG_TIME])
-            return tica, [tica.fit_transform(inp, n_components=self.params[N_COMPONENTS])]
+            return tica, tica.fit_transform(inp, n_components=self.params[N_COMPONENTS])
         elif model_name == 'tensor_tica':
             tica = TensorTICA(lag_time=self.params[LAG_TIME])
-            return tica, [tica.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
+            return tica, tica.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])
         elif model_name == 'tensor_kernel_tica':
             tica = TensorKernelOnCovTICA(lag_time=self.params[LAG_TIME])
-            return tica, [tica.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
+            return tica, tica.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])
         elif model_name == 'tensor_kp_tica':
             tica = TensorKernelOnPearsonCovTICA(lag_time=self.params[LAG_TIME])
-            return tica, [tica.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
+            return tica, tica.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])
         elif model_name == 'tensor_ko_tica':
             tica = TensorKernelFromCovTICA(lag_time=self.params[LAG_TIME])
-            return tica, [tica.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
+            return tica, tica.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])
         elif model_name == 'tensor_comad_tica':
             tica = TensorKernelFromCoMadTICA(lag_time=self.params[LAG_TIME])
-            return tica, [tica.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
+            return tica, tica.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])
         elif model_name == 'tensor_comad_kernel_tica':
             tica = TensorKernelOnCoMadTICA(lag_time=self.params[LAG_TIME])
-            return tica, [tica.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])]
+            return tica, tica.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])
         else:
             raise ValueError(f'Model with name \"{model_name}\" does not exists.')
 
@@ -240,10 +240,10 @@ class DataTrajectory(TrajectoryFile):
                 if model_parameters[ALGORITHM_NAME] == 'original_pca':
                     from sklearn.decomposition import PCA
                     pca = coor.pca(data=inp, dim=self.params[N_COMPONENTS])
-                    return pca, pca.get_output()
+                    return pca, pca.get_output()[0]
                 elif model_parameters[ALGORITHM_NAME] == 'original_tica':
                     tica = coor.tica(data=inp, lag=self.params[LAG_TIME], dim=self.params[N_COMPONENTS])
-                    return tica, tica.get_output()
+                    return tica, tica.get_output()[0]
                 else:
                     warnings.warn(f'No original algorithm was found with name: {model_parameters[ALGORITHM_NAME]}')
             except TypeError:
@@ -251,7 +251,7 @@ class DataTrajectory(TrajectoryFile):
                                 f'Original algorithms take only 2-n-dimensional ndarray')
         else:
             model = ParameterModel(**model_parameters)
-            return model, [model.fit_transform(inp, n_components=self.params[N_COMPONENTS])]
+            return model, model.fit_transform(inp, n_components=self.params[N_COMPONENTS])
 
     def data_input(self, model_parameters: [str, dict] = None) -> np.ndarray:
         try:
