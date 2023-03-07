@@ -58,7 +58,7 @@ def main():
         TRUNCATION_VALUE: 0,  # deprecated
         BASIS_TRANSFORMATION: False,
         USE_ANGLES: False,
-        TRAJECTORY_NAME: '2f4k',
+        TRAJECTORY_NAME: 'prot2',
         FILE_ELEMENT: 0,
     }
 
@@ -73,7 +73,7 @@ def get_files_and_kwargs(params):
     trajectory_name = params[TRAJECTORY_NAME]
     file_element = params[FILE_ELEMENT]
     if trajectory_name == '2f4k':
-        filename_list = [f'2F4K-0-protein-{i:03d}.dcd' for i in range(0, 2 + 1)] + ['tr3_unfolded.xtc',
+        filename_list = [f'2F4K-0-protein-{i:03d}.dcd' for i in range(0, 62 + 1)] + ['tr3_unfolded.xtc',
                                                                                      'tr8_folded.xtc']
         kwargs = {'filename': filename_list[file_element], 'topology_filename': '2f4k.pdb', 'folder_path': 'data/2f4k',
                   'params': params}
@@ -137,8 +137,8 @@ def get_model_params_list(alg_json_file, params):
             # *** Boolean Parameters:
             # CORR_KERNEL, ONES_ON_KERNEL_DIAG, USE_STD, CENTER_OVER_TIME, EXTRA_DR_LAYER
 
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY},
-            {ALGORITHM_NAME: 'tica', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY},
+            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY},
+            # {ALGORITHM_NAME: 'tica', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, LAG_TIME: params[LAG_TIME]},
         ]
 
 
@@ -196,32 +196,33 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
     elif run_option == LOAD_ANALYSE_RESULTS_DICT:
         from_other_traj = True
         plot_dict = AnalyseResultLoader(params[TRAJECTORY_NAME]).load_npz(
-            # '2023-03-01_02.45.30_RE-same_all-models/median_RE_over_trajectories_on_other.npz'
+            # '2023-03-01_02.45.30_RE-same_all-models/median_RE_over_trajectories_on_same.npz'
             '2023-02-26_20.31.59_RE_diff_pca+tica/median_RE_over_trajectories_on_other.npz'
         )
         update_dict = True
         if update_dict:
             plot_dict.update(AnalyseResultLoader(params[TRAJECTORY_NAME]).load_npz(
-                # '2023-02-27_03.04.39_RE_diff-evs_mean-ax0_use-original-mean/median_RE_over_trajectories_on_other.npz'
+                '2023-02-27_03.04.39_RE_diff-evs/median_RE_over_trajectories_on_other.npz'
+                # '2023-02-27_03.04.39_RE_diff-evs/median_RE_over_trajectories_on_other.npz'
                 # '2023-02-25_06.01.36_RE_diff_traj/median_RE_over_trajectories_on_other.npz'
                 # '2023-03-01_22.19.05_RE-same_my-tica-models/median_RE_over_trajectories_on_other.npz'
-                '2023-03-02_01.20.26_RE-diff_my-tica-models/median_RE_over_trajectories_on_other.npz'
+                # '2023-03-02_01.20.26_RE-diff_my-tica-models/median_RE_over_trajectories_on_other.npz'
                 # '2023-03-03_23.53.55_RMSE-kernel_compare/compare_rmse_kernel.npz'
             ))
 
         filter_by_indices = True
         if filter_by_indices:
             indices = [
-                # '[PCA, output dimension = 105]      ',
-                '[TICA, lag = 10; max. output dim. = 105]',
-                # 'Tensor-pca, my_gaussian-only       ',
-                # 'Tensor-pca, my_gaussian-diff       ',
-                # 'Tensor-pca, my_gaussian-multi      ',
+                '[PCA, output dimension = 105]      ',
+                # '[TICA, lag = 10; max. output dim. = 105]',
+                'Tensor-pca, my_gaussian-only       ',
+                'Tensor-pca, my_gaussian-diff       ',
+                'Tensor-pca, my_gaussian-multi      ',
                 # 'Tensor-pca, my_gaussian-only-3rd_ev_eevd',
                 # 'Tensor-pca, my_gaussian-only-2nd_layer_eevd',
-                'Tensor-tica, my_gaussian-only      ',
-                'Tensor-tica, my_gaussian-diff      ',
-                'Tensor-tica, my_gaussian-multi     ',
+                # 'Tensor-tica, my_gaussian-only      ',
+                # 'Tensor-tica, my_gaussian-diff      ',
+                # 'Tensor-tica, my_gaussian-multi     ',
                 # BIN 'Tensor-tica, my_gaussian-only-3rd_ev_eevd',
                 # BIN 'Tensor-tica, my_gaussian-only-2nd_layer_eevd'
                 # 'my_gaussian', 'my_exponential', 'my_epanechnikov'
@@ -249,10 +250,9 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
             ).plot_merged_2ds(plot_dict)
     elif run_option == LOAD_LIST_OF_DICTS:
         # directories = ['2023-03-05_23.44.24', '2023-03-05_21.51.49', '2023-03-05_23.46.32']  # prot2
-        sub_dir = 'fit-on-one-transform-on-all_tensor-tica-gaussian-only'
-        sub_dir_path = Path('analyse_results/2f4k') / sub_dir
-        # directories = ['2023-03-06_00.29.08', '2023-03-06_00.29.25', '2023-03-06_00.29.42',
-        # '2023-03-06_00.29.56', '2023-03-06_00.30.15']  # 2f4k
+        # sub_dir = 'fit-on-one-transform-on-all_original-pca'
+        sub_dir = 'fit-on-one-transform-on-all_tensor-pca-gaussian-only'
+        sub_dir_path = Path('analyse_results') / params[TRAJECTORY_NAME] / sub_dir
         directories = os.listdir(sub_dir_path)
         list_of_list = []
         for directory in directories:
@@ -262,7 +262,8 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
                     sub_dir=sub_dir
                 ).load_npz_files_in_directory(directory)
             )
-        ModelResultPlotter(interactive=False, title_prefix=sub_dir).plot_multi_projections(list_of_list, params[PLOT_TYPE])
+        ModelResultPlotter(interactive=True, title_prefix=sub_dir).plot_multi_projections(list_of_list,
+                                                                                           params[PLOT_TYPE])
     elif run_option.startswith('multi'):
         kwargs_list = [kwargs]
         if result_load_file is None:

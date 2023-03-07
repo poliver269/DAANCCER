@@ -48,6 +48,8 @@ class DataTrajectory(TrajectoryFile):
             else:
                 self.traj: Trajectory = md.load(self.filepath, top=self.topology_path)
             self.traj: Trajectory = self.traj.superpose(self.traj).center_coordinates(mass_weighted=True)
+            self.traj.xyz = (self.traj.xyz - np.mean(self.traj.xyz, axis=0)[np.newaxis, :, :]) / np.std(self.traj.xyz,
+                                                                                                        axis=0)
             self.dim: dict = {TIME_FRAMES: self.traj.xyz.shape[TIME_DIM],
                               ATOMS: self.traj.xyz.shape[ATOM_DIM],
                               COORDINATES: self.traj.xyz.shape[COORDINATE_DIM]}
@@ -70,7 +72,7 @@ class DataTrajectory(TrajectoryFile):
             LAG_TIME: params.get(LAG_TIME, 10),
             TRUNCATION_VALUE: params.get(TRUNCATION_VALUE, 0),
             BASIS_TRANSFORMATION: params.get(BASIS_TRANSFORMATION, False),
-            RANDOM_SEED: params.get(RANDOM_SEED, 30),
+            RANDOM_SEED: params.get(RANDOM_SEED, 42),
             USE_ANGLES: params.get(USE_ANGLES, True),
             TRAJECTORY_NAME: params.get(TRAJECTORY_NAME, 'Not Found')
         }
@@ -150,7 +152,7 @@ class DataTrajectory(TrajectoryFile):
         # TODO Add explained variance to the models, and if they don't have a parameter, than calculate here
         if self.params[PLOT_TYPE] == EXPL_VAR_PLOT:
             ArrayPlotter(
-                interactive=False,
+                interactive=self.params[INTERACTIVE],
                 title_prefix=f'Eigenvalues of\n{model}',
                 x_label='ComponentNr',
                 y_label='Eigenvalue'
@@ -191,7 +193,7 @@ class DataTrajectory(TrajectoryFile):
         elif model_name == 'tensor_kernel_mad_pca':
             ko_med_pca = TensorKernelFromComadPCA()
             return ko_med_pca, ko_med_pca.fit_transform(self.alpha_carbon_coordinates,
-                                                         n_components=self.params[N_COMPONENTS])
+                                                        n_components=self.params[N_COMPONENTS])
         elif model_name == 'tica':
             tica = coor.tica(data=inp, lag=self.params[LAG_TIME], dim=self.params[N_COMPONENTS])
             return tica, tica.get_output()[0]
@@ -300,8 +302,8 @@ class DataTrajectory(TrajectoryFile):
             reconstructed_matrix = reconstruct_matrix(projection[0], eigenvectors, self.params[N_COMPONENTS],
                                                       mean=np.mean(input_data, axis=0))
             return reconstructed_matrix.reshape((self.dim[TIME_FRAMES],
-                                                self.dim[ATOMS],
-                                                self.dim[COORDINATES]))
+                                                 self.dim[ATOMS],
+                                                 self.dim[COORDINATES]))
 
     def determine_coefficient_mean(self, mode):
         if mode == 'coordinates_mean_first':  # Not used currently

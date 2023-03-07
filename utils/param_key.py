@@ -36,6 +36,7 @@ COLOR_MAP = 'color_map'
 PLOT_3D_MAP = '3d_map'
 EXPL_VAR_PLOT = 'explained_variance_plot'
 ANALYSE_PLOT_TYPE = 'analyse_plot_type'
+CORRELATION_MATRIX_PLOT = 'correlation_matrix_plot'
 
 # Analysing Types
 WEIGHTED_DIAGONAL = 'weighted_diagonal'

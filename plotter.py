@@ -172,7 +172,7 @@ class ModelResultPlotter(MyPlotter):
                                                       show_model_properties=True)
         plt.show()
 
-    def _plot_transformed_trajectory(self, ax, result_dict, color_map, show_model_properties=False):
+    def _plot_transformed_trajectory(self, ax, result_dict, color_map, show_model_properties=False, center_plot=False):
         """
         Plot the projection results of the transformed trajectory on an axis
         :param ax: Which axis the result should be plotted on
@@ -202,6 +202,20 @@ class ModelResultPlotter(MyPlotter):
 
         if show_model_properties:
             self._print_model_properties(result_dict)
+
+        if center_plot:
+            # Move left y-axis and bottom x-axis to centre, passing through (0,0)
+            ax.spines['left'].set_position('zero')
+            # ax.spines['bottom'].set_position('center')
+            ax.spines['bottom'].set_position('zero')
+
+            # Eliminate upper and right axes
+            ax.spines['right'].set_color('none')
+            ax.spines['top'].set_color('none')
+
+            # Show ticks in the left and lower axes only
+            ax.xaxis.set_ticks_position('bottom')
+            ax.yaxis.set_ticks_position('left')
 
     @staticmethod
     def _plot_time_tics(ax, projection, component):
@@ -258,10 +272,12 @@ class ModelResultPlotter(MyPlotter):
         self.fig, self.axes = plt.subplots(len(model_result_list_in_list), len(model_result_list_in_list[0]))
         for row_index, model_results in enumerate(model_result_list_in_list):
             if len(model_results) == 1:
-                self._plot_transformed_trajectory(self.axes[row_index], model_results[0], color_map=plot_type)
+                self._plot_transformed_trajectory(self.axes[row_index], model_results[0], color_map=plot_type,
+                                                  center_plot=True)
             else:
                 for column_index, result in enumerate(model_results):
-                    self._plot_transformed_trajectory(self.axes[row_index][column_index], result, color_map=plot_type)
+                    self._plot_transformed_trajectory(self.axes[row_index][column_index], result, color_map=plot_type,
+                                                      center_plot=True)
         self._post_processing()
 
 

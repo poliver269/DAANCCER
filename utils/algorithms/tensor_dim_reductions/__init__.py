@@ -322,7 +322,7 @@ class ParameterModel(TensorDR):
             tensor_corr = self._get_tensor_correlation()
             corr = self.cov_stat_func(tensor_corr, axis=0)
 
-            if self.analyse_plot_type:  # plot the correlation matrix
+            if self.analyse_plot_type == CORRELATION_MATRIX_PLOT:
                 for i in range(tensor_corr.shape[0]):  # for each axis
                     ArrayPlotter(interactive=False).matrix_plot(tensor_corr[i])
                 ArrayPlotter(interactive=False).matrix_plot(corr)  # and for the mean-ed
