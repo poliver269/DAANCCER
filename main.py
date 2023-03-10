@@ -26,11 +26,11 @@ PARAMETER_GRID_SEARCH = 'parameter_grid_search'
 LOAD_ANALYSE_RESULTS_DICT = 'load_analyse_result_dict'
 LOAD_LIST_OF_DICTS = 'load_list_of_dicts'
 MULTI_GRID_SEARCH = 'multi_parameter_grid_search'
-MULTI_RECONSTRUCT_WITH_DIFFERENT_EV = 'multi_reconstruct_with_different_eigenvector'
-MULTI_MEDIAN_RECONSTRUCTION_SCORES_ON_DIFF_FITTED = 'multi_median_reconstruction_scores'
+MULTI_RE_FIT_ON_ONE_TRANSFORM_ON_ALL = 'multi_reconstruction_error_fit_on_one_transform_on_all'
+MULTI_MEDIAN_RE_FIT_ON_ONE_TRANSFORM_ON_ALL = 'multi_median_reconstruction_error_fit_on_one_transform_on_all'
 MULTI_KERNEL_COMPARE = 'multi_kernel_compare'
-MULTI_RECONSTRUCTION_ERROR_ON_SAME_TRAJ = 'multi_reconstruction_error_on_same_trajectory'
-MULTI_MEDIAN_RECONSTRUCTION_ERROR_ON_SAME_TRAJ = 'multi_median_reconstruction_error_on_same_trajectory'
+MULTI_RE_FIT_TRANSFORMED = 'multi_reconstruction_error_fit_transform'
+MULTI_MEDIAN_RE_FIT_TRANSFORMED = 'multi_median_reconstruction_error_fit_transform'
 
 
 def main():
@@ -38,28 +38,28 @@ def main():
     # TODO: Argsparser for options
     run_params_json = None  # NotYetImplemented
     alg_params_json = None
-    # alg_params_json = 'config_files/algorithm/pca+gaussian_kernels.json'  # None or filename
-    # alg_params_json = 'config_files/algorithm/algorithm_parameters_list.json'
-    # alg_params_json = 'config_files/algorithm/tica_models.json'
+    # alg_params_json = 'config_files/algorithm/pca+gaussian-kernels.json'  # None or filename
+    # alg_params_json = 'config_files/algorithm/pca+tica+gaussians+evs.json'
+    alg_params_json = 'config_files/algorithm/tica+tensor-tica-gaussian-kernels.json'
     # alg_params_json = 'config_files/algorithm/pca+tica+all_kernels.json'  # None or filename
-    # alg_params_json = 'config_files/algorithm/all_my_kernels_only.json'  # None or filename
+    # alg_params_json = 'config_files/algorithm/my-pca-kernel-types-only.json'  # None or filename
 
     result_load_file = None  # '2023-02-26_23.02.56_RE_diff_traj_evs/median_RE_over_trajectories_on_other.npz'
-    run_option = LOAD_LIST_OF_DICTS
+    run_option = MULTI_MEDIAN_RE_FIT_ON_ONE_TRANSFORM_ON_ALL
 
     run_params = {
         PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map', 'explained_var_plot'
-        PLOT_TICS: False,  # True, False
+        PLOT_TICS: True,  # True, False
         STANDARDIZED_PLOT: True,  # True, False
         CARBON_ATOMS_ONLY: True,  # True, False
         INTERACTIVE: True,  # True, False
-        N_COMPONENTS: 2,
+        N_COMPONENTS: None,
         LAG_TIME: 10,
         TRUNCATION_VALUE: 0,  # deprecated
         BASIS_TRANSFORMATION: False,
         USE_ANGLES: False,
-        TRAJECTORY_NAME: 'prot2',
-        FILE_ELEMENT: 0,
+        TRAJECTORY_NAME: '2f4k',
+        FILE_ELEMENT: 1,
     }
 
     filename_list, kwargs = get_files_and_kwargs(run_params)
@@ -73,8 +73,8 @@ def get_files_and_kwargs(params):
     trajectory_name = params[TRAJECTORY_NAME]
     file_element = params[FILE_ELEMENT]
     if trajectory_name == '2f4k':
-        filename_list = [f'2F4K-0-protein-{i:03d}.dcd' for i in range(0, 62 + 1)] + ['tr3_unfolded.xtc',
-                                                                                     'tr8_folded.xtc']
+        filename_list = [f'2F4K-0-protein-{i:03d}.dcd' for i in range(0, 62 + 1)]  # + ['tr3_unfolded.xtc',
+                                                                                   #   'tr8_folded.xtc']
         kwargs = {'filename': filename_list[file_element], 'topology_filename': '2f4k.pdb', 'folder_path': 'data/2f4k',
                   'params': params}
     elif trajectory_name == 'prot2':
@@ -106,7 +106,7 @@ def get_files_and_kwargs(params):
 def get_model_params_list(alg_json_file, params):
     if alg_json_file is not None:
         return json.load(open(alg_json_file))
-        # return json.load(open('algorithm_parameters_list.json'))
+        # return json.load(open('pca+tica+gaussians+evs.json'))
     else:
         return [
             # Old Class-algorithms with parameters, not strings:
@@ -114,7 +114,7 @@ def get_model_params_list(alg_json_file, params):
             # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, CENTER_OVER_TIME: False},
 
             # Original Algorithms
-            # {ALGORITHM_NAME: 'original_pca', NDIM: MATRIX_NDIM},
+            {ALGORITHM_NAME: 'original_pca', NDIM: MATRIX_NDIM},
             # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: False, ABS_EVAL_SORT: False},
             # {ALGORITHM_NAME: 'original_tica', NDIM: MATRIX_NDIM},
             # {ALGORITHM_NAME: 'tica', LAG_TIME: params[LAG_TIME], NDIM: MATRIX_NDIM, USE_STD: False,
@@ -137,7 +137,7 @@ def get_model_params_list(alg_json_file, params):
             # *** Boolean Parameters:
             # CORR_KERNEL, ONES_ON_KERNEL_DIAG, USE_STD, CENTER_OVER_TIME, EXTRA_DR_LAYER
 
-            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY},
+            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY},
             # {ALGORITHM_NAME: 'tica', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, LAG_TIME: params[LAG_TIME]},
         ]
 
@@ -202,8 +202,8 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
         update_dict = True
         if update_dict:
             plot_dict.update(AnalyseResultLoader(params[TRAJECTORY_NAME]).load_npz(
-                '2023-02-27_03.04.39_RE_diff-evs/median_RE_over_trajectories_on_other.npz'
                 # '2023-02-27_03.04.39_RE_diff-evs/median_RE_over_trajectories_on_other.npz'
+                '2023-02-28_01.40.02_RE_diff_gaussian_kernels/median_RE_over_trajectories_on_other.npz'
                 # '2023-02-25_06.01.36_RE_diff_traj/median_RE_over_trajectories_on_other.npz'
                 # '2023-03-01_22.19.05_RE-same_my-tica-models/median_RE_over_trajectories_on_other.npz'
                 # '2023-03-02_01.20.26_RE-diff_my-tica-models/median_RE_over_trajectories_on_other.npz'
@@ -230,7 +230,7 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
             plot_dict = {k: plot_dict[k] for k in indices}
 
         load_option = MULTI_QUALITATIVE_TRANSFORMATION_ON_SAME_FITTING
-        if load_option == MULTI_RECONSTRUCTION_ERROR_ON_SAME_TRAJ:
+        if load_option == MULTI_RE_FIT_TRANSFORMED:
             ArrayPlotter(
                 interactive=False,
                 title_prefix=f'Compare Kernels ',
@@ -238,7 +238,7 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
                 y_label='RMSE of the fitting kernel',
                 y_range=(0, 0.2),
             ).plot_merged_2ds(plot_dict, statistical_func=np.median)
-        elif MULTI_RECONSTRUCTION_ERROR_ON_SAME_TRAJ:
+        elif MULTI_RE_FIT_TRANSFORMED:
             ArrayPlotter(
                 interactive=False,
                 title_prefix=f'Reconstruction Error (RE) ' +
@@ -290,21 +290,21 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
         elif run_option == MULTI_GRID_SEARCH:
             mtr = MultiTrajectoryAnalyser(kwargs_list, params)
             mtr.grid_search(param_grid)
-        elif run_option == MULTI_RECONSTRUCT_WITH_DIFFERENT_EV:
+        elif run_option == MULTI_RE_FIT_ON_ONE_TRANSFORM_ON_ALL:
             mtr = MultiTrajectoryAnalyser(kwargs_list, params)
-            mtr.compare_reconstruction_scores(model_params_list, other_traj_index=params[FILE_ELEMENT])
-        elif run_option == MULTI_MEDIAN_RECONSTRUCTION_SCORES_ON_DIFF_FITTED:
+            mtr.compare_reconstruction_scores(model_params_list, fit_transform_re=False)
+        elif run_option == MULTI_MEDIAN_RE_FIT_ON_ONE_TRANSFORM_ON_ALL:
             mtr = MultiTrajectoryAnalyser(kwargs_list, params)
-            mtr.compare_median_reconstruction_scores(model_params_list, other_traj_index=params[FILE_ELEMENT])
+            mtr.compare_median_reconstruction_scores(model_params_list, fit_transform_re=False)
         elif run_option == MULTI_KERNEL_COMPARE:
             kernel_names = [MY_GAUSSIAN, MY_EXPONENTIAL, MY_EPANECHNIKOV]
             model_params = {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, ANALYSE_PLOT_TYPE: 'something'}
             mtr = MultiTrajectoryAnalyser(kwargs_list, params)
             mtr.compare_kernel_fitting_scores(kernel_names, model_params)
-        elif run_option == MULTI_RECONSTRUCTION_ERROR_ON_SAME_TRAJ:
+        elif run_option == MULTI_RE_FIT_TRANSFORMED:
             mtr = MultiTrajectoryAnalyser(kwargs_list, params)
             mtr.compare_reconstruction_scores(model_params_list)
-        elif run_option == MULTI_MEDIAN_RECONSTRUCTION_ERROR_ON_SAME_TRAJ:
+        elif run_option == MULTI_MEDIAN_RE_FIT_TRANSFORMED:
             mtr = MultiTrajectoryAnalyser(kwargs_list, params)
             mtr.compare_median_reconstruction_scores(model_params_list)
         elif run_option == MULTI_QUALITATIVE_TRANSFORMATION_ON_SAME_FITTING:

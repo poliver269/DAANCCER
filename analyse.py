@@ -7,7 +7,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from pyemma.coordinates.data._base.transformer import StreamingEstimationTransformer
 from scipy.optimize import linear_sum_assignment
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics.pairwise import cosine_similarity
@@ -264,127 +263,137 @@ class MultiTrajectoryAnalyser:
             filename='grid_search_all'
         ).save_to_csv(grid.cv_results_, header=['params', 'mean_test_score', 'std_test_score', 'rank_test_score'])
 
-    def compare_reconstruction_scores(self, model_params_list, other_traj_index: [int, None] = None):
+    def compare_reconstruction_scores(self, model_params_list: list, fit_transform_re: bool = True):
         """
         Calculate the reconstruction error of the trajectories
         if from_other_traj is True than reconstruct from the model fitted on specific trajectory
         (0th-element in self trajectories)
-        :param other_traj_index:
+        :param fit_transform_re:
         :param model_params_list:
         """
 
-        st = SingleTrajectoryAnalyser(self.trajectories[other_traj_index])
-        model_results: list = st.compare(model_params_list, plot_results=False)
+        # st = SingleTrajectoryAnalyser(self.trajectories[other_traj_index])
+        # model_results: list = st.compare(model_params_list, plot_results=False)
 
         model_scores = {}
-        for model_index, model_dict in enumerate(model_results):
-            model: [ParameterModel, StreamingEstimationTransformer] = model_dict[MODEL]
-            print(f'Calculating reconstruction errors ({model})...')
+        for model_index, model_params in enumerate(model_params_list):
+            # model: [ParameterModel, StreamingEstimationTransformer] = model_dict[MODEL]
+            print(f'Calculating reconstruction errors ({model_params})...')
+            model_dict_list = self._get_model_result_list(model_params)
+            model_description = str(model_dict_list[DUMMY_ZERO][MODEL].describe())
             score_list = []
-            for trajectory in self.trajectories:
-                if other_traj_index is None:
-                    model_dict = trajectory.get_model_result(model_params_list[model_index])
+            for traj_index, trajectory in enumerate(self.trajectories):
+                if fit_transform_re:
+                    model_dict = model_dict_list[traj_index]
                     model = model_dict[MODEL]
-                input_data = trajectory.data_input(model_parameters=model_dict[INPUT_PARAMS])
-                score = self._get_reconstruction_score(model, input_data)
+                    matrix_projection = model_dict[PROJECTION]
+                else:
+                    model_dict = model_dict_list[DUMMY_ZERO]
+                    model = model_dict[MODEL]
+                    matrix_projection = None
+                input_data = trajectory.data_input(model_dict[INPUT_PARAMS])
+                score = self._get_reconstruction_score(model, input_data, matrix_projection)
                 score_list.append(score)
             score_list = np.asarray(score_list)
-            model_scores[f'{str(model):25}'] = score_list
+            model_scores[f'{model_description:35}'] = score_list
 
         ArrayPlotter(
             interactive=False,
-            title_prefix=('Reconstruction Error (RE) ' if other_traj_index is None
-                          else f'Reconstruction Error from {self.trajectories[other_traj_index].filename}\n'),
+            title_prefix='Reconstruction Error (RE) ' + (
+                '' if fit_transform_re else f'fit-on-one-transform-on-all\n'),
             x_label='trajectories',
             y_label='score',
             y_range=(0, 1)
         ).plot_merged_2ds(model_scores, np.median)
 
     @staticmethod
-    def _get_reconstruction_score(model, input_data):
+    def _get_reconstruction_score(model, input_data, data_projection=None, component=None):
         if isinstance(model, ParameterModel):
-            return model.score(input_data)
-        else:  # Only for Original Algorithms
-            data_projection = model.transform(input_data)  # pca subtracts mean, at transformation step.
-            reconstructed_data = reconstruct_matrix(data_projection, model.eigenvectors, model.dim,
-                                                    mean=np.mean(input_data, axis=0))
-            return mean_squared_error(input_data, reconstructed_data, squared=False)
+            if component is None:
+                return model.score(input_data, data_projection)
+            else:
+                if data_projection is None:
+                    data_projection = model.transform(input_data)
+                reconstructed_tensor = model.reconstruct(data_projection[:, :component], component)
+                input_data = model.convert_to_matrix(input_data)
+                reconstructed_data = model.convert_to_matrix(reconstructed_tensor)
+        else:
+            if data_projection is None:
+                data_projection = model.transform(input_data)
+            if component is None:
+                component = model.dim
+            reconstructed_data = reconstruct_matrix(data_projection, model.eigenvectors, component,
+                                                    mean=model.mean)
+        return mean_squared_error(input_data, reconstructed_data, squared=False)
 
-    def compare_median_reconstruction_scores(self, model_params_list: list[dict], other_traj_index: [int, None] = None):
-        model_median_scores = self._calculate_median_scores(model_params_list, other_traj_index)
+    def compare_median_reconstruction_scores(self, model_params_list: list[dict], fit_transform_re: bool = True):
+        model_median_scores = self._calculate_median_scores(model_params_list, fit_transform_re)
         ArrayPlotter(
             interactive=False,
             title_prefix=f'Reconstruction Error (RE) ' +
-                         ('' if other_traj_index is None
-                          else f'from {self.trajectories[other_traj_index].filename}\n') +
-                         f'on {self.trajectories[0].max_components} Principal Components ',
+                         ('' if fit_transform_re
+                          else f'fit-on-one-transform-on-all\n') +
+                         f'on {self.trajectories[DUMMY_ZERO].max_components} Principal Components ',
             x_label='number of principal components',
             y_label='median REs of the trajectories',
-            y_range=(0, 1)
+            y_range=(0, 1),
+            xtick_start=1
         ).plot_merged_2ds(model_median_scores)
 
-    def _calculate_median_scores(self, model_params_list: list[dict], other_traj_index: [int, None] = None):
+    def _calculate_median_scores(self, model_params_list: list[dict], fit_transform_re: bool = True):
         saver = AnalyseResultsSaver(trajectory_name=self.params[TRAJECTORY_NAME])
 
         model_median_scores = {}
         component_wise_scores = {}
         for model_params in model_params_list:
-            # model: [ParameterModel, StreamingEstimationTransformer] = model_dict[MODEL]
             print(f'Calculating median reconstruction errors ({model_params})...')
-            model_dict_list = self._get_model_result_list(model_params, other_traj_index)
-            model_description = str(model_dict_list[0][MODEL].describe())
+            model_dict_list = self._get_model_result_list(model_params)
+            model_description = str(model_dict_list[DUMMY_ZERO][MODEL].describe())
 
             median_list = self._get_median_over_components_for_trajectories(model_dict_list,
                                                                             component_wise_scores,
                                                                             model_description,
-                                                                            other_traj_index)
+                                                                            fit_transform_re)
             model_median_scores[f'{model_description:35}'] = np.asarray(median_list)
             saver.save_to_npz(model_median_scores, 'median_RE_over_trajectories_on_' +
-                              ('other' if other_traj_index else 'same'))
+                              ('fit-transform' if fit_transform_re else 'FooToa'))
             saver.save_to_npz(component_wise_scores, 'component_wise_RE_on_' +
-                              ('other' if other_traj_index else 'same') + '_traj')
+                              ('fit-transform' if fit_transform_re else 'FooToa') + '_traj')
         return model_median_scores
 
-    def _get_model_result_list(self, model_params: dict, other_traj_index: [int, None] = None):
+    def _get_model_result_list(self, model_params: dict):
         model_dict_list = []
-        if other_traj_index is None:
-            for trajectory in self.trajectories:
-                model_dict_list.append(trajectory.get_model_result(model_params, log=False))
-        else:
-            model_dict_list.append(self.trajectories[other_traj_index].get_model_result(model_params, log=False))
+        for trajectory in self.trajectories:
+            model_dict_list.append(trajectory.get_model_result(model_params, log=False))
         return model_dict_list
 
     def _get_median_over_components_for_trajectories(self,
                                                      model_dict_list: list[dict],
                                                      component_wise_scores: dict,
                                                      model_description: str,
-                                                     other_traj_index: [int, None] = None) -> list:
+                                                     fit_transform_re: bool = True) -> list:
         median_list = []
-        for component in tqdm(range(1, self.trajectories[0].max_components + 1)):
+        for component in tqdm(range(1, self.trajectories[DUMMY_ZERO].max_components + 1)):
             score_list = []
             if str(component) not in component_wise_scores:
                 component_wise_scores[str(component)] = {}
             try:
-                for traj_index, trajectory in enumerate(self.trajectories):
-                    if other_traj_index is None:
-                        model_dict = model_dict_list[traj_index]
-                        model = model_dict[MODEL]
-                        input_data = trajectory.data_input(model_dict[INPUT_PARAMS])
+                for traj_index, fitted_trajectory in enumerate(self.trajectories):
+                    model_dict = model_dict_list[traj_index]
+                    model = model_dict[MODEL]
+                    if fit_transform_re:
+                        input_data = fitted_trajectory.data_input(model_dict[INPUT_PARAMS])
                         matrix_projection = model_dict[PROJECTION]
+                        score = self._get_reconstruction_score(model, input_data, matrix_projection, component)
                     else:
-                        model_dict = model_dict_list[0]
-                        model = model_dict[MODEL]
-                        input_data = trajectory.data_input(model_dict[INPUT_PARAMS])
-                        matrix_projection = model.transform(input_data)
+                        transform_score = []
+                        for transform_trajectory in self.trajectories:
+                            input_data = transform_trajectory.data_input(model_dict[INPUT_PARAMS])
+                            matrix_projection = model.transform(input_data)
 
-                    if isinstance(model, ParameterModel):
-                        reconstructed_tensor = model.reconstruct(matrix_projection[:, :component], component)
-                        input_data = model.convert_to_matrix(input_data)
-                        reconstructed_data = model.convert_to_matrix(reconstructed_tensor)
-                    else:
-                        reconstructed_data = reconstruct_matrix(matrix_projection, model.eigenvectors, component,
-                                                                mean=model.mean)
-                    score = mean_squared_error(input_data, reconstructed_data, squared=False)
+                            transform_score.append(
+                                self._get_reconstruction_score(model, input_data, matrix_projection, component))
+                        score = np.median(transform_score)
                     score_list.append(score)
             except InvalidReconstructionException as e:
                 warnings.warn(str(e))

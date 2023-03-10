@@ -1,5 +1,9 @@
 [
   {
+    "algorithm_name": "original_tica",
+    "ndim": 2
+  },
+  {
     "algorithm_name": "tica",
     "ndim": 3,
     "kernel": "only"
