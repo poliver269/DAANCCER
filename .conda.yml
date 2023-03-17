@@ -1,11 +1,14 @@
-name: villum_project
+name: daanccer
 channels:
   - conda-forge
   - bioconda
 dependencies:
   - python=3.9
+  - numpy
+  - scikit-learn
+  - scipy
+  - pandas
   - mdtraj
-  - sklearn
   - pyemma
   - mdanalysis
-  - gromacs_py
+  - matplotlib
