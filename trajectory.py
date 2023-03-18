@@ -137,17 +137,14 @@ class DataTrajectory(TrajectoryFile):
         coordinates_dict = self.alpha_carbon_coordinates if ac_only else self.atom_coordinates
         return coordinates_dict[:, :, element_list]
 
-    def get_model_result(self, model_parameters: [str, dict], log: bool = True) -> dict:
+    def get_model_result(self, model_parameters: dict, log: bool = True) -> dict:
         """
         Returns a dict of all the important result values. Used for analysing the information
         :param model_parameters:
         :param log:
         :return: dict of the results: {MODEL, PROJECTION, EXPLAINED_VAR, INPUT_PARAMS}
         """
-        if isinstance(model_parameters, str):  # TODO: dont allow string
-            model, projection = self.get_model_and_projection_by_name(model_parameters)
-        else:
-            model, projection = self.get_model_and_projection(model_parameters, log=log)
+        model, projection = self.get_model_and_projection(model_parameters, log=log)
         ex_var = explained_variance(model.eigenvalues, self.params[N_COMPONENTS])
         # TODO Add explained variance to the models, and if they don't have a parameter, than calculate here
         if self.params[PLOT_TYPE] == EXPL_VAR_PLOT:
@@ -158,74 +155,6 @@ class DataTrajectory(TrajectoryFile):
                 y_label='Eigenvalue'
             ).plot_2d(ndarray_data=model.eigenvalues)
         return {MODEL: model, PROJECTION: projection, EXPLAINED_VAR: ex_var, INPUT_PARAMS: model_parameters}
-
-    @deprecated
-    def get_model_and_projection_by_name(self, model_name: str, inp: np.ndarray = None):
-        if inp is None:
-            inp = self.data_input(model_name)
-        if model_name == 'pca':
-            pca = coor.pca(data=inp, dim=self.params[N_COMPONENTS])
-            return pca, pca.get_output()[0]
-        elif model_name == 'mypca':
-            pca = MyPCA()
-            return pca, pca.fit_transform(inp, n_components=self.params[N_COMPONENTS])
-        elif model_name == 'trunc_pca':
-            pca = TruncatedPCA(self.params[TRUNCATION_VALUE])
-            return pca, pca.fit_transform(inp, n_components=self.params[N_COMPONENTS])
-        elif model_name == 'pca_kernel_only':
-            pca = KernelFromCovPCA()
-            return pca, pca.fit_transform(inp, n_components=self.params[N_COMPONENTS])
-        elif model_name == 'tensor_pca':
-            pca = TensorPCA()
-            return pca, pca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])
-        elif model_name == 'tensor_pearson_pca':
-            ppca = TensorPearsonCovPCA()
-            return ppca, ppca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])
-        elif model_name == 'tensor_pearson_kernel_pca':
-            pkpca = TensorKernelOnPearsonCovPCA()
-            return pkpca, pkpca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])
-        elif model_name == 'tensor_kernel_pca':
-            ckpca = TensorKernelOnCovPCA()
-            return ckpca, ckpca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])
-        elif model_name == 'tensor_ko_pca':
-            ko_pca = TensorKernelFromCovPCA()
-            return ko_pca, ko_pca.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])
-        elif model_name == 'tensor_kernel_mad_pca':
-            ko_med_pca = TensorKernelFromComadPCA()
-            return ko_med_pca, ko_med_pca.fit_transform(self.alpha_carbon_coordinates,
-                                                        n_components=self.params[N_COMPONENTS])
-        elif model_name == 'tica':
-            tica = coor.tica(data=inp, lag=self.params[LAG_TIME], dim=self.params[N_COMPONENTS])
-            return tica, tica.get_output()[0]
-        elif model_name == 'mytica':
-            tica = MyTICA(lag_time=self.params[LAG_TIME])
-            return tica, tica.fit_transform(inp, n_components=self.params[N_COMPONENTS])
-        elif model_name == 'trunc_tica':
-            tica = TruncatedTICA(lag_time=self.params[LAG_TIME], trunc_value=self.params[TRUNCATION_VALUE])
-            return tica, tica.fit_transform(inp, n_components=self.params[N_COMPONENTS])
-        elif model_name == 'kernel_only_tica':
-            tica = KernelFromCovTICA(lag_time=self.params[LAG_TIME])
-            return tica, tica.fit_transform(inp, n_components=self.params[N_COMPONENTS])
-        elif model_name == 'tensor_tica':
-            tica = TensorTICA(lag_time=self.params[LAG_TIME])
-            return tica, tica.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])
-        elif model_name == 'tensor_kernel_tica':
-            tica = TensorKernelOnCovTICA(lag_time=self.params[LAG_TIME])
-            return tica, tica.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])
-        elif model_name == 'tensor_kp_tica':
-            tica = TensorKernelOnPearsonCovTICA(lag_time=self.params[LAG_TIME])
-            return tica, tica.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])
-        elif model_name == 'tensor_ko_tica':
-            tica = TensorKernelFromCovTICA(lag_time=self.params[LAG_TIME])
-            return tica, tica.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])
-        elif model_name == 'tensor_comad_tica':
-            tica = TensorKernelFromCoMadTICA(lag_time=self.params[LAG_TIME])
-            return tica, tica.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])
-        elif model_name == 'tensor_comad_kernel_tica':
-            tica = TensorKernelOnCoMadTICA(lag_time=self.params[LAG_TIME])
-            return tica, tica.fit_transform(self.alpha_carbon_coordinates, n_components=self.params[N_COMPONENTS])
-        else:
-            raise ValueError(f'Model with name \"{model_name}\" does not exists.')
 
     def get_model_and_projection(self, model_parameters: dict, inp: np.ndarray = None, log: bool = True):
         if log:
@@ -279,14 +208,14 @@ class DataTrajectory(TrajectoryFile):
                 else:
                     return self.atom_coordinates
 
-    def get_model_results_with_changing_param(self, model_names, parameter) -> list[dict]:
+    def get_model_results_with_changing_param(self, model_params_list, parameter) -> list[dict]:
         model_results = []
-        for model_name in model_names:
-            model, projection = self.get_model_and_projection_by_name(model_name)
+        for model_params in model_params_list:
+            model, projection = self.get_model_and_projection(model_params)
             model_results.append({MODEL: model, PROJECTION: projection,
                                   TITLE_PREFIX: f'{parameter}: {self.params[parameter]}\n'})
             self.params[parameter] = not self.params[parameter]
-            model, projection = self.get_model_and_projection_by_name(model_name)
+            model, projection = self.get_model_and_projection(model_params)
             model_results.append({MODEL: model, PROJECTION: projection,
                                   TITLE_PREFIX: f'{parameter}: {self.params[parameter]}\n'})
             self.params[parameter] = not self.params[parameter]

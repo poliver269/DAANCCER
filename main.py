@@ -5,7 +5,6 @@ from pathlib import Path
 
 import numpy as np
 
-from my_tsne import TrajectoryTSNE
 from plotter import TrajectoryPlotter, ArrayPlotter, ModelResultPlotter
 from trajectory import DataTrajectory, TopologyConverter
 from analyse import MultiTrajectoryAnalyser, SingleTrajectoryAnalyser, AnalyseResultLoader
@@ -167,9 +166,6 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
                   'goal_filename': 'protein.pdb', 'folder_path': 'data/ser-tr'}
         tc = TopologyConverter(**kwargs)
         tc.convert()
-    elif run_option == COMPARE_WITH_TLTSNE:
-        tr = TrajectoryTSNE(**kwargs)
-        tr.compare('tsne')
     elif run_option == PLOT_WITH_SLIDER:
         tr = DataTrajectory(**kwargs)
         TrajectoryPlotter(tr).data_with_timestep_slider(min_max=None)  # [0, 1000]
@@ -183,10 +179,10 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
         SingleTrajectoryAnalyser(tr).compare(model_params_list)
     elif run_option == COMPARE_WITH_CA_ATOMS:
         tr = DataTrajectory(**kwargs)
-        SingleTrajectoryAnalyser(tr).compare_with_carbon_alpha_and_all_atoms('pca')
+        SingleTrajectoryAnalyser(tr).compare_with_carbon_alpha_and_all_atoms(model_params_list)
     elif run_option == BASE_TRANSFORMATION:
         tr = DataTrajectory(**kwargs)
-        SingleTrajectoryAnalyser(tr).compare_with_basis_transformation(['tica'])
+        SingleTrajectoryAnalyser(tr).compare_with_basis_transformation(model_params_list)
     elif run_option == CALCULATE_PEARSON_CORRELATION_COEFFICIENT:
         tr = DataTrajectory(**kwargs)
         SingleTrajectoryAnalyser(tr).calculate_pearson_correlation_coefficient()

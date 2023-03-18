@@ -48,8 +48,8 @@ class SingleTrajectoryAnalyser:
 
         return model_results
 
-    def compare_with_carbon_alpha_and_all_atoms(self, model_names):
-        model_results = self.trajectory.get_model_results_with_changing_param(model_names, CARBON_ATOMS_ONLY)
+    def compare_with_carbon_alpha_and_all_atoms(self, model_params_list):
+        model_results = self.trajectory.get_model_results_with_changing_param(model_params_list, CARBON_ATOMS_ONLY)
         self.compare_with_plot(model_results)
 
     def compare_with_basis_transformation(self, model_params_list):
