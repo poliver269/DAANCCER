@@ -153,16 +153,21 @@ def calculate_symmetrical_kernel_matrix(
                 title_prefix='Combined Covariance Matrix',
                 x_label='carbon-alpha-atom index',
                 y_label='carbon-alpha-atom index',
+                for_paper=True
             ).matrix_plot(matrix, as_surface=PLOT_3D_MAP)
         elif analyse_mode == WEIGHTED_DIAGONAL:
             ArrayPlotter(
                 interactive=False,
-                title_prefix=f'{WEIGHTED_DIAGONAL} of {function_name(stat_func)}'
+                title_prefix=f'{WEIGHTED_DIAGONAL} of {function_name(stat_func)}',
+                for_paper=True
             ).plot_gauss2d(xdata, original_ydata - fit_y, rescaled_ydata, fit_y, kernel_name, stat_func)
         elif analyse_mode == FITTED_KERNEL_CURVES:
             ArrayPlotter(
-                interactive=False,
+                interactive=True,
                 title_prefix=f'Trajectory: {analyse_mode}, on diagonal of cov',
+                x_label='Off-Diagonal Index',
+                y_label='Correlation Value',
+                for_paper=True
             ).plot_gauss2d(xdata, original_ydata, rescaled_ydata, fit_y, kernel_name, stat_func)
     return kernel_matrix
 

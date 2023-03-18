@@ -12,7 +12,7 @@ from utils.param_key import *
 
 COMPARE = 'compare'
 MULTI_QUALITATIVE_TRANSFORMATION_ON_SAME_FITTING = 'multi_qualitative_compare_transformation_on_same_fitting'
-MULTI_COMPARE_ALL_PCS = 'multi_compare_all_pcs'
+MULTI_COMPARE_ALL_PCS = 'multi_compare_all_pcs'  # delete manual PC span
 MULTI_COMPARE_COMBO_PCS = 'multi_compare_combo_pcs'
 MULTI_COMPARE_SOME_PCS = 'multi_compare_some_pcs'
 COMPARE_WITH_TLTSNE = 'compare_with_tltsne'
@@ -38,13 +38,14 @@ def main():
     run_params_json = None  # NotYetImplemented
     alg_params_json = None
     # alg_params_json = 'config_files/algorithm/pca+gaussian-kernels.json'  # None or filename
+    # alg_params_json = 'config_files/algorithm/evs-gaussian-kernels-only.json'
     # alg_params_json = 'config_files/algorithm/pca+tica+gaussians+evs.json'
-    alg_params_json = 'config_files/algorithm/tica+tensor-tica-gaussian-kernels.json'
+    # alg_params_json = 'config_files/algorithm/tica+tensor-tica-gaussian-kernels.json'
     # alg_params_json = 'config_files/algorithm/pca+tica+all_kernels.json'  # None or filename
     # alg_params_json = 'config_files/algorithm/my-pca-kernel-types-only.json'  # None or filename
 
     result_load_file = None  # '2023-02-26_23.02.56_RE_diff_traj_evs/median_RE_over_trajectories_on_other.npz'
-    run_option = MULTI_MEDIAN_RE_FIT_ON_ONE_TRANSFORM_ON_ALL
+    run_option = COMPARE
 
     run_params = {
         PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map', 'explained_var_plot'
@@ -52,13 +53,13 @@ def main():
         STANDARDIZED_PLOT: True,  # True, False
         CARBON_ATOMS_ONLY: True,  # True, False
         INTERACTIVE: True,  # True, False
-        N_COMPONENTS: None,
+        N_COMPONENTS: 2,
         LAG_TIME: 10,
         TRUNCATION_VALUE: 0,  # deprecated
         BASIS_TRANSFORMATION: False,
         USE_ANGLES: False,
         TRAJECTORY_NAME: '2f4k',
-        FILE_ELEMENT: 1,
+        FILE_ELEMENT: 0,
     }
 
     filename_list, kwargs = get_files_and_kwargs(run_params)
@@ -113,7 +114,7 @@ def get_model_params_list(alg_json_file, params):
             # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: True, CENTER_OVER_TIME: False},
 
             # Original Algorithms
-            {ALGORITHM_NAME: 'original_pca', NDIM: MATRIX_NDIM},
+            # {ALGORITHM_NAME: 'original_pca', NDIM: MATRIX_NDIM},
             # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, USE_STD: False, ABS_EVAL_SORT: False},
             # {ALGORITHM_NAME: 'original_tica', NDIM: MATRIX_NDIM},
             # {ALGORITHM_NAME: 'tica', LAG_TIME: params[LAG_TIME], NDIM: MATRIX_NDIM, USE_STD: False,
@@ -136,7 +137,7 @@ def get_model_params_list(alg_json_file, params):
             # *** Boolean Parameters:
             # CORR_KERNEL, ONES_ON_KERNEL_DIAG, USE_STD, CENTER_OVER_TIME, EXTRA_DR_LAYER
 
-            # {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY},
+            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, ANALYSE_PLOT_TYPE: FITTED_KERNEL_CURVES, KERNEL_TYPE: MY_GAUSSIAN},
             # {ALGORITHM_NAME: 'tica', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, LAG_TIME: params[LAG_TIME]},
         ]
 
@@ -190,16 +191,18 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
         tr = DataTrajectory(**kwargs)
         SingleTrajectoryAnalyser(tr).grid_search(param_grid)
     elif run_option == LOAD_ANALYSE_RESULTS_DICT:
-        from_other_traj = True
+        from_other_traj = False
         plot_dict = AnalyseResultLoader(params[TRAJECTORY_NAME]).load_npz(
-            # '2023-03-01_02.45.30_RE-same_all-models/median_RE_over_trajectories_on_same.npz'
-            '2023-02-26_20.31.59_RE_diff_pca+tica/median_RE_over_trajectories_on_other.npz'
+            '2023-03-07_12.35.46_RE_fit-transform_pca+tensor-pca-gaussian-kernels/median_RE_over_trajectories_on_same.npz'
+            # '2023-03-11_08.03.19_RE_footoa-all_pca+tensor-pca-gaussian/median_RE_over_trajectories_on_FooToa.npz'
+
+            # '2023-03-08_13.21.12_RE_footoa-all_tica+tensor-tica-gaussian/median_RE_over_trajectories_on_FooToa.npz'
         )
-        update_dict = True
+        update_dict = False
         if update_dict:
             plot_dict.update(AnalyseResultLoader(params[TRAJECTORY_NAME]).load_npz(
                 # '2023-02-27_03.04.39_RE_diff-evs/median_RE_over_trajectories_on_other.npz'
-                '2023-02-28_01.40.02_RE_diff_gaussian_kernels/median_RE_over_trajectories_on_other.npz'
+                '2023-03-17_01.18.58_RE_fit-transform_evs/median_RE_over_trajectories_on_fit-transform.npz'
                 # '2023-02-25_06.01.36_RE_diff_traj/median_RE_over_trajectories_on_other.npz'
                 # '2023-03-01_22.19.05_RE-same_my-tica-models/median_RE_over_trajectories_on_other.npz'
                 # '2023-03-02_01.20.26_RE-diff_my-tica-models/median_RE_over_trajectories_on_other.npz'
@@ -232,9 +235,10 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
                 title_prefix=f'Compare Kernels ',
                 x_label='trajectory Nr',
                 y_label='RMSE of the fitting kernel',
-                y_range=(0, 0.2),
+                y_range=(0, 1),
+                show_grid=True
             ).plot_merged_2ds(plot_dict, statistical_func=np.median)
-        elif MULTI_RE_FIT_TRANSFORMED:
+        elif load_option == MULTI_QUALITATIVE_TRANSFORMATION_ON_SAME_FITTING:
             ArrayPlotter(
                 interactive=False,
                 title_prefix=f'Reconstruction Error (RE) ' +
@@ -242,7 +246,8 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
                              f'on {params[N_COMPONENTS]} Principal Components ',
                 x_label='number of principal components',
                 y_label='median REs of the trajectories',
-                y_range=(0, 1)
+                y_range=(0, 1),
+                show_grid=True
             ).plot_merged_2ds(plot_dict)
     elif run_option == LOAD_LIST_OF_DICTS:
         # directories = ['2023-03-05_23.44.24', '2023-03-05_21.51.49', '2023-03-05_23.46.32']  # prot2

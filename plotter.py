@@ -11,27 +11,34 @@ from utils.param_key import *
 
 
 class MyPlotter:
-    def __init__(self, interactive=True, title_prefix=''):
+    def __init__(self, interactive=True, title_prefix='', for_paper=False):
         self.fig = None
         self.axes = None
         self.interactive = interactive
         self.title_prefix = title_prefix
         self.colors = mcolors.TABLEAU_COLORS
+        self.for_paper = for_paper
 
         if self.interactive:
             mpl.use('TkAgg')
+
+        if self.for_paper:
+            self.fontsize = 18
+        else:
+            self.fontsize = 10
 
     def _set_figure_title(self):
         self.fig.suptitle(self.title_prefix)
 
     def _post_processing(self):
-        self._set_figure_title()
+        if not self.for_paper:
+            self._set_figure_title()
         plt.show()
 
 
 class TrajectoryPlotter(MyPlotter):
-    def __init__(self, trajectory, reconstruct_params=None, interactive=True):
-        super().__init__(interactive)
+    def __init__(self, trajectory, reconstruct_params=None, interactive=True, for_paper=False):
+        super().__init__(interactive, for_paper=for_paper)
         self.data_trajectory = trajectory
         if reconstruct_params is not None:
             self.reconstructed = self.data_trajectory.get_reconstructed_traj(reconstruct_params)
@@ -297,8 +304,8 @@ class MultiTrajectoryPlotter(MyPlotter):
 
 class ArrayPlotter(MyPlotter):
     def __init__(self, interactive=False, title_prefix='', x_label='', y_label='', bottom_text=None, y_range=None,
-                 show_grid=False, xtick_start=0):
-        super().__init__(interactive, title_prefix)
+                 show_grid=False, xtick_start=0, for_paper=False):
+        super().__init__(interactive, title_prefix, for_paper)
         self.x_label = x_label
         self.y_label = y_label
         self.bottom_text = bottom_text
@@ -309,11 +316,13 @@ class ArrayPlotter(MyPlotter):
 
     def _post_processing(self, legend_outside=False):
         # self.axes.set_title(self.title_prefix)
-        self.axes.set_xlabel(self.x_label)
-        self.axes.set_ylabel(self.y_label)
+        self.axes.set_xlabel(self.x_label, fontsize=self.fontsize)
+        self.axes.set_ylabel(self.y_label, fontsize=self.fontsize)
+        plt.xticks(fontsize=self.fontsize)
+        plt.yticks(fontsize=self.fontsize)
 
         if self.bottom_text is not None:
-            self.fig.text(0.01, 0.01, self.bottom_text, fontsize=10)
+            self.fig.text(0.01, 0.01, self.bottom_text, fontsize=self.fontsize)
             self.fig.tight_layout()
             self.fig.subplots_adjust(bottom=(self.bottom_text.count('\n') + 1) * 0.1)
         else:
@@ -323,7 +332,7 @@ class ArrayPlotter(MyPlotter):
             self.axes.legend(bbox_to_anchor=(0.5, -0.05), loc='upper center', fontsize=8)
             plt.subplots_adjust(bottom=0.25)
         elif self._activate_legend:
-            self.axes.legend(fontsize=8)
+            self.axes.legend(fontsize=self.fontsize)
 
         if self.range_tuple is not None:
             self.axes.set_ylim(self.range_tuple)
@@ -342,15 +351,15 @@ class ArrayPlotter(MyPlotter):
             Plot as a 3d-surface if value PLOT_3D_MAP else 2d-axes
         :param show_values: If true, then show the values in the matrix
         """
-        # c_map = plt.cm.viridis
-        c_map = plt.cm.seismic
+        c_map = plt.cm.viridis
+        # c_map = plt.cm.seismic
         if as_surface == PLOT_3D_MAP:
             x_coordinates = np.arange(matrix.shape[0])
             y_coordinates = np.arange(matrix.shape[1])
             x_coordinates, y_coordinates = np.meshgrid(x_coordinates, y_coordinates)
             self.fig = plt.figure()
             self.axes = self.fig.gca(projection='3d')
-            self.axes.set_zlabel('covariance values')
+            self.axes.set_zlabel('Covariance Values', fontsize=self.fontsize)
             im = self.axes.plot_surface(x_coordinates, y_coordinates, matrix, cmap=c_map)
         else:
             self.fig, self.axes = plt.subplots(1, 1, dpi=80)
@@ -358,8 +367,11 @@ class ArrayPlotter(MyPlotter):
             if show_values:
                 for (i, j), value in np.ndenumerate(matrix):
                     self.axes.text(j, i, '{:0.2f}'.format(value), ha='center', va='center', fontsize=8)
-        self.fig.colorbar(im, ax=self.axes)
-        plt.xticks(np.arange(matrix.shape[1]), np.arange(self.xtick_start, matrix.shape[1] + self.xtick_start))
+        if not self.for_paper:
+            self.fig.colorbar(im, ax=self.axes)
+            plt.xticks(np.arange(matrix.shape[1]), np.arange(self.xtick_start, matrix.shape[1] + self.xtick_start))
+            # plt.xticks(np.arange(matrix.shape[1], step=5),
+            #            np.arange(self.xtick_start, matrix.shape[1] + self.xtick_start, step=5))
         self._post_processing()
 
     def plot_gauss2d(self,
@@ -388,14 +400,18 @@ class ArrayPlotter(MyPlotter):
         """
         self.fig, self.axes = plt.subplots(1, 1, dpi=80)
         self.axes.plot(x_index, gauss_fitted, '-', label=f'fit {fit_method}')
-        self.axes.plot(x_index, ydata, '.', label='original data')
+        # self.axes.plot(x_index, gauss_fitted, ' ')
+        # self.axes.plot(x_index, ydata, '.', label='original data')
+        self.axes.plot(x_index, ydata, ' ')
         statistical_value = np.full(x_index.shape, statistical_function(ydata))
-        function_label = function_name(statistical_function)
-        self.axes.plot(x_index, statistical_value, '-', label=function_label)
-        self.axes.plot(x_index, new_ydata, '.', label='interpolated data')
-        self.axes.set_xlabel('matrix diagonal indexes')
-        self.axes.set_ylabel(f'{function_label}-ed correlation values')
-        self.axes.legend()
+        if self.for_paper:
+            function_label = 'threshold'
+        else:
+            function_label = function_name(statistical_function)
+        # self.axes.plot(x_index, statistical_value, '-', label=function_label)
+        self.axes.plot(x_index, statistical_value, ' ')
+        self.axes.plot(x_index, new_ydata, '.', label='re-scaled data')
+        self._activate_legend = True
         self._post_processing()
 
     def plot_2d(self, ndarray_data, statistical_func=None):

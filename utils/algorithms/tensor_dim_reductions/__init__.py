@@ -5,7 +5,7 @@ import scipy
 from sklearn.metrics import mean_squared_error
 
 from plotter import ArrayPlotter
-from utils import ordinal
+from utils import ordinal, statistical_zero
 from utils.algorithms import MyModel
 import pyemma.coordinates as coor
 
@@ -64,7 +64,7 @@ class TensorDR(MyModel):
 class ParameterModel(TensorDR):
     def __init__(self,
                  cov_stat_func=np.mean,
-                 kernel_stat_func=np.median,
+                 kernel_stat_func=statistical_zero,
                  algorithm_name='pca',  # pca, tica, kica
                  ndim=TENSOR_NDIM,  # 3: tensor, 2: matrix
                  kernel=None,  # diff, multi, only, None
