@@ -15,7 +15,7 @@ from tqdm import tqdm
 
 from plotter import ArrayPlotter, MultiTrajectoryPlotter, ModelResultPlotter
 from trajectory import DataTrajectory
-from utils import statistical_zero
+from utils import statistical_zero, pretify_dict_model
 from utils.algorithms.tensor_dim_reductions import ParameterModel
 from utils.errors import InvalidReconstructionException
 from utils.matrix_tools import calculate_symmetrical_kernel_matrix, reconstruct_matrix
@@ -191,6 +191,7 @@ class MultiTrajectoryAnalyser:
         :param merged_plot:
         :return:
         """
+        # TODO: Implement the Save Similarites and Load them
         trajectories = self._get_trajectories_by_index(traj_nrs)
 
         model_similarities = {}
@@ -208,6 +209,7 @@ class MultiTrajectoryAnalyser:
                                      'Similarity value of all trajectories',
                         x_label='Principal component number',
                         y_label='Similarity value',
+                        for_paper=True
                     ).plot_2d(np.mean(all_sim_matrix, axis=0))
                 else:
                     for pc_index in pc_nr_list:
@@ -217,20 +219,24 @@ class MultiTrajectoryAnalyser:
                         tria[np.triu_indices(len(trajectories), 1)] = all_sim_matrix[:, pc_index]
                         tria = tria + tria.T
                         ArrayPlotter(
-                            interactive=False,
+                            interactive=True,
                             title_prefix=f'{self.params[TRAJECTORY_NAME]}\n{model_params}\n'
                                          f'Trajectory Similarities for {pc_index}-Components',
                             x_label='Trajectory number',
                             y_label='Trajectory number',
-                            bottom_text=sim_text
+                            bottom_text=sim_text,
+                            for_paper=True
                         ).matrix_plot(tria)
         if merged_plot:
+            AnalyseResultsSaver(self.params[TRAJECTORY_NAME]).save_to_npz(
+                model_similarities, 'eigenvector_similarities')
             ArrayPlotter(
                 interactive=False,
                 title_prefix=f'Eigenvector Similarities',
                 x_label='Principal Component Number',
                 y_label='Similarity value',
-                y_range=(0, 1)
+                y_range=(0, 1),
+                for_paper=True
             ).plot_merged_2ds(model_similarities)
 
     def compare_trajectory_combos(self, traj_nrs, model_params_list, pc_nr_list):
@@ -268,12 +274,9 @@ class MultiTrajectoryAnalyser:
         Calculate the reconstruction error of the trajectories
         if from_other_traj is True than reconstruct from the model fitted on specific trajectory
         (0th-element in self trajectories)
-        :param fit_transform_re:
+        :param fit_transform_re: Fit-transform reconstruction error or Fit-on-all-Transform-on-one
         :param model_params_list:
         """
-
-        # st = SingleTrajectoryAnalyser(self.trajectories[other_traj_index])
-        # model_results: list = st.compare(model_params_list, plot_results=False)
 
         model_scores = {}
         for model_index, model_params in enumerate(model_params_list):
@@ -297,13 +300,15 @@ class MultiTrajectoryAnalyser:
             score_list = np.asarray(score_list)
             model_scores[f'{model_description:35}'] = score_list
 
+        model_scores = pretify_dict_model(model_scores)
         ArrayPlotter(
-            interactive=False,
+            interactive=True,
             title_prefix='Reconstruction Error (RE) ' + (
                 '' if fit_transform_re else f'fit-on-one-transform-on-all\n'),
             x_label='trajectories',
             y_label='score',
-            y_range=(0, 1)
+            y_range=(0, 1),
+            for_paper=True
         ).plot_merged_2ds(model_scores, np.median)
 
     @staticmethod
@@ -408,11 +413,12 @@ class MultiTrajectoryAnalyser:
         else:
             kernel_accuracies = AnalyseResultLoader(self.params[TRAJECTORY_NAME]).load_npz(load_filename)
         ArrayPlotter(
-            interactive=False,
+            interactive=True,
             title_prefix=f'Compare Kernels ',
-            x_label='trajectory Nr',
+            x_label='Trajectory Number',
             y_label='RMSE of the fitting kernel',
             y_range=(0, 0.2),
+            for_paper=True
         ).plot_merged_2ds(kernel_accuracies, statistical_func=np.median)
 
     def _calculate_kernel_accuracies(self, kernel_names, model_params):

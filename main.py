@@ -8,6 +8,7 @@ import numpy as np
 from plotter import TrajectoryPlotter, ArrayPlotter, ModelResultPlotter
 from trajectory import DataTrajectory, TopologyConverter
 from analyse import MultiTrajectoryAnalyser, SingleTrajectoryAnalyser, AnalyseResultLoader
+from utils import pretify_dict_model
 from utils.param_key import *
 
 COMPARE = 'compare'
@@ -25,10 +26,10 @@ PARAMETER_GRID_SEARCH = 'parameter_grid_search'
 LOAD_ANALYSE_RESULTS_DICT = 'load_analyse_result_dict'
 LOAD_LIST_OF_DICTS = 'load_list_of_dicts'
 MULTI_GRID_SEARCH = 'multi_parameter_grid_search'
-MULTI_RE_FIT_ON_ONE_TRANSFORM_ON_ALL = 'multi_reconstruction_error_fit_on_one_transform_on_all'
+MULTI_RE_FIT_ON_ONE_TRANSFORM_ON_ALL = 'multi_reconstruction_error_fit_on_one_transform_on_all'  # Set component Nr
 MULTI_MEDIAN_RE_FIT_ON_ONE_TRANSFORM_ON_ALL = 'multi_median_reconstruction_error_fit_on_one_transform_on_all'
 MULTI_KERNEL_COMPARE = 'multi_kernel_compare'
-MULTI_RE_FIT_TRANSFORMED = 'multi_reconstruction_error_fit_transform'
+MULTI_RE_FIT_TRANSFORMED = 'multi_reconstruction_error_fit_transform'  # Set component Nr
 MULTI_MEDIAN_RE_FIT_TRANSFORMED = 'multi_median_reconstruction_error_fit_transform'
 
 
@@ -59,7 +60,7 @@ def main():
         BASIS_TRANSFORMATION: False,
         USE_ANGLES: False,
         TRAJECTORY_NAME: '2f4k',
-        FILE_ELEMENT: 0,
+        FILE_ELEMENT: 3,
     }
 
     filename_list, kwargs = get_files_and_kwargs(run_params)
@@ -86,7 +87,7 @@ def get_files_and_kwargs(params):
         kwargs = {'filename': filename_list[file_element], 'topology_filename': 'savinase.pdb',
                   'folder_path': 'data/Savinase', 'params': params}
     elif trajectory_name == '2wav':
-        filename_list = [f'2WAV-0-protein-{i:03d}.dcd' for i in range(36, 100)]
+        filename_list = [f'2WAV-0-protein-{i:03d}.dcd' for i in range(0, 136)]
         kwargs = {'filename': filename_list[file_element], 'topology_filename': '2wav.pdb',
                   'folder_path': 'data/2WAV-0-protein', 'params': params, 'atoms': list(range(710))}
     elif trajectory_name == '5i6x':
@@ -137,7 +138,7 @@ def get_model_params_list(alg_json_file, params):
             # *** Boolean Parameters:
             # CORR_KERNEL, ONES_ON_KERNEL_DIAG, USE_STD, CENTER_OVER_TIME, EXTRA_DR_LAYER
 
-            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, ANALYSE_PLOT_TYPE: FITTED_KERNEL_CURVES, KERNEL_TYPE: MY_GAUSSIAN},
+            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, ANALYSE_PLOT_TYPE: PLOT_KERNEL_MATRIX_3D, KERNEL_TYPE: MY_GAUSSIAN},
             # {ALGORITHM_NAME: 'tica', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, LAG_TIME: params[LAG_TIME]},
         ]
 
@@ -197,13 +198,15 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
             # '2023-03-11_08.03.19_RE_footoa-all_pca+tensor-pca-gaussian/median_RE_over_trajectories_on_FooToa.npz'
 
             # '2023-03-08_13.21.12_RE_footoa-all_tica+tensor-tica-gaussian/median_RE_over_trajectories_on_FooToa.npz'
+            # '2023-03-08_00.58.57_RE_fit-transform_tica+tensor-tica-gaussian/median_RE_over_trajectories_on_same.npz'
         )
         update_dict = False
         if update_dict:
             plot_dict.update(AnalyseResultLoader(params[TRAJECTORY_NAME]).load_npz(
-                # '2023-02-27_03.04.39_RE_diff-evs/median_RE_over_trajectories_on_other.npz'
-                '2023-03-17_01.18.58_RE_fit-transform_evs/median_RE_over_trajectories_on_fit-transform.npz'
+                # '2023-03-17_01.18.58_RE_fit-transform_evs/median_RE_over_trajectories_on_fit-transform.npz'
+
                 # '2023-02-25_06.01.36_RE_diff_traj/median_RE_over_trajectories_on_other.npz'
+
                 # '2023-03-01_22.19.05_RE-same_my-tica-models/median_RE_over_trajectories_on_other.npz'
                 # '2023-03-02_01.20.26_RE-diff_my-tica-models/median_RE_over_trajectories_on_other.npz'
                 # '2023-03-03_23.53.55_RMSE-kernel_compare/compare_rmse_kernel.npz'
@@ -215,10 +218,10 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
                 '[PCA, output dimension = 105]      ',
                 # '[TICA, lag = 10; max. output dim. = 105]',
                 'Tensor-pca, my_gaussian-only       ',
-                'Tensor-pca, my_gaussian-diff       ',
-                'Tensor-pca, my_gaussian-multi      ',
-                # 'Tensor-pca, my_gaussian-only-3rd_ev_eevd',
-                # 'Tensor-pca, my_gaussian-only-2nd_layer_eevd',
+                # 'Tensor-pca, my_gaussian-diff       ',
+                # 'Tensor-pca, my_gaussian-multi      ',
+                'Tensor-pca, my_gaussian-only-3rd_ev_eevd',
+                'Tensor-pca, my_gaussian-only-2nd_layer_eevd',
                 # 'Tensor-tica, my_gaussian-only      ',
                 # 'Tensor-tica, my_gaussian-diff      ',
                 # 'Tensor-tica, my_gaussian-multi     ',
@@ -227,6 +230,8 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
                 # 'my_gaussian', 'my_exponential', 'my_epanechnikov'
             ]
             plot_dict = {k: plot_dict[k] for k in indices}
+
+        pretyfied_dict = pretify_dict_model(plot_dict)
 
         load_option = MULTI_QUALITATIVE_TRANSFORMATION_ON_SAME_FITTING
         if load_option == MULTI_RE_FIT_TRANSFORMED:
@@ -240,19 +245,19 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
             ).plot_merged_2ds(plot_dict, statistical_func=np.median)
         elif load_option == MULTI_QUALITATIVE_TRANSFORMATION_ON_SAME_FITTING:
             ArrayPlotter(
-                interactive=False,
+                interactive=True,
                 title_prefix=f'Reconstruction Error (RE) ' +
                              (f'from {kwargs["filename"]}\n' if from_other_traj else '') +
                              f'on {params[N_COMPONENTS]} Principal Components ',
                 x_label='number of principal components',
                 y_label='median REs of the trajectories',
                 y_range=(0, 1),
-                show_grid=True
-            ).plot_merged_2ds(plot_dict)
+                for_paper=True
+            ).plot_merged_2ds(pretyfied_dict)
     elif run_option == LOAD_LIST_OF_DICTS:
         # directories = ['2023-03-05_23.44.24', '2023-03-05_21.51.49', '2023-03-05_23.46.32']  # prot2
-        # sub_dir = 'fit-on-one-transform-on-all_original-pca'
-        sub_dir = 'fit-on-one-transform-on-all_tensor-pca-gaussian-only'
+        sub_dir = 'fit-on-one-transform-on-all_original-pca'
+        # sub_dir = 'fit-on-one-transform-on-all_tensor-pca-gaussian-only'
         sub_dir_path = Path('analyse_results') / params[TRAJECTORY_NAME] / sub_dir
         directories = os.listdir(sub_dir_path)
         list_of_list = []
@@ -263,8 +268,11 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
                     sub_dir=sub_dir
                 ).load_npz_files_in_directory(directory)
             )
-        ModelResultPlotter(interactive=True, title_prefix=sub_dir).plot_multi_projections(list_of_list,
-                                                                                           params[PLOT_TYPE])
+        ModelResultPlotter(
+            interactive=True,
+            title_prefix=sub_dir,
+            for_paper=True
+        ).plot_multi_projections(list_of_list, params[PLOT_TYPE], center_plot=False)
     elif run_option.startswith('multi'):
         kwargs_list = [kwargs]
         if result_load_file is None:
@@ -287,7 +295,7 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
         elif run_option == MULTI_COMPARE_SOME_PCS:
             mtr = MultiTrajectoryAnalyser(kwargs_list, params)
             mtr.compare_all_trajectory_eigenvectors(traj_nrs=None, model_params_list=model_params_list,
-                                                    pc_nr_list=[2, 9, 30])
+                                                    pc_nr_list=[2, 30, 104])
         elif run_option == MULTI_GRID_SEARCH:
             mtr = MultiTrajectoryAnalyser(kwargs_list, params)
             mtr.grid_search(param_grid)
@@ -299,7 +307,7 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
             mtr.compare_median_reconstruction_scores(model_params_list, fit_transform_re=False)
         elif run_option == MULTI_KERNEL_COMPARE:
             kernel_names = [MY_GAUSSIAN, MY_EXPONENTIAL, MY_EPANECHNIKOV]
-            model_params = {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, ANALYSE_PLOT_TYPE: 'something'}
+            model_params = {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, ANALYSE_PLOT_TYPE: KERNEL_COMPARE}
             mtr = MultiTrajectoryAnalyser(kwargs_list, params)
             mtr.compare_kernel_fitting_scores(kernel_names, model_params)
         elif run_option == MULTI_RE_FIT_TRANSFORMED:

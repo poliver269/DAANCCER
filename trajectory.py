@@ -151,8 +151,9 @@ class DataTrajectory(TrajectoryFile):
             ArrayPlotter(
                 interactive=self.params[INTERACTIVE],
                 title_prefix=f'Eigenvalues of\n{model}',
-                x_label='ComponentNr',
-                y_label='Eigenvalue'
+                x_label='Principal Component Number',
+                y_label='Eigenvalue',
+                for_paper=True
             ).plot_2d(ndarray_data=model.eigenvalues)
         return {MODEL: model, PROJECTION: projection, EXPLAINED_VAR: ex_var, INPUT_PARAMS: model_parameters}
 

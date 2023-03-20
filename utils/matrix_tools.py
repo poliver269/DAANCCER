@@ -9,8 +9,7 @@ from plotter import ArrayPlotter
 from utils import function_name
 from utils.array_tools import rescale_array, rescale_center
 from utils.math import is_matrix_symmetric, exponential_2d, epanechnikov_2d, gaussian_2d, is_matrix_orthogonal
-from utils.param_key import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL, MY_LINEAR_NORM, MY_LINEAR_INVERSE_NORM, \
-    MY_LINEAR, MY_LINEAR_INVERSE_P1, PLOT_3D_MAP, WEIGHTED_DIAGONAL, KERNEL_COMPARE, FITTED_KERNEL_CURVES
+from utils.param_key import *
 
 
 def diagonal_indices(matrix: np.ndarray):
@@ -155,6 +154,14 @@ def calculate_symmetrical_kernel_matrix(
                 y_label='carbon-alpha-atom index',
                 for_paper=True
             ).matrix_plot(matrix, as_surface=PLOT_3D_MAP)
+        elif analyse_mode == PLOT_KERNEL_MATRIX_3D:
+            ArrayPlotter(
+                interactive=True,
+                title_prefix='Kernel Matrix',
+                x_label='carbon-alpha-atom index',
+                y_label='carbon-alpha-atom index',
+                for_paper=True
+            ).matrix_plot(kernel_matrix, as_surface=PLOT_3D_MAP)
         elif analyse_mode == WEIGHTED_DIAGONAL:
             ArrayPlotter(
                 interactive=False,

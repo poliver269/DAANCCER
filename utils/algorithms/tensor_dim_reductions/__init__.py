@@ -177,9 +177,10 @@ class ParameterModel(TensorDR):
             ArrayPlotter(
                 interactive=False,
                 title_prefix=EIGENVECTOR_MATRIX_ANALYSE,
-                x_label='EigenvectorNr',
-                y_label='Eigenvector dimension',
-                xtick_start=1
+                x_label='Eigenvector Number',
+                y_label='Eigenvector Dimension',
+                xtick_start=1,
+                for_paper=True
             ).matrix_plot(self.eigenvectors[:12, :15], show_values=True)
         return self
 

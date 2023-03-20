@@ -203,7 +203,8 @@ class ModelResultPlotter(MyPlotter):
             c_map = plt.cm.viridis
             im = ax.scatter(result_dict[PROJECTION][:, 0], result_dict[PROJECTION][:, 1], c=color_array,
                             cmap=c_map, marker='.')
-            self.fig.colorbar(im, ax=ax)
+            if not self.for_paper:
+                self.fig.colorbar(im, ax=ax)
         else:
             ax.scatter(result_dict[PROJECTION][:, 0], result_dict[PROJECTION][:, 1], marker='.')
 
@@ -223,6 +224,9 @@ class ModelResultPlotter(MyPlotter):
             # Show ticks in the left and lower axes only
             ax.xaxis.set_ticks_position('bottom')
             ax.yaxis.set_ticks_position('left')
+        else:
+            ax.tick_params(left=False, right=False, labelleft=False,
+                           labelbottom=False, bottom=False)
 
     @staticmethod
     def _plot_time_tics(ax, projection, component):
@@ -275,16 +279,16 @@ class ModelResultPlotter(MyPlotter):
         except AttributeError as e:
             print('{}: {}'.format(e, model))
 
-    def plot_multi_projections(self, model_result_list_in_list, plot_type):
+    def plot_multi_projections(self, model_result_list_in_list, plot_type, center_plot=True):
         self.fig, self.axes = plt.subplots(len(model_result_list_in_list), len(model_result_list_in_list[0]))
         for row_index, model_results in enumerate(model_result_list_in_list):
             if len(model_results) == 1:
                 self._plot_transformed_trajectory(self.axes[row_index], model_results[0], color_map=plot_type,
-                                                  center_plot=True)
+                                                  center_plot=center_plot)
             else:
                 for column_index, result in enumerate(model_results):
                     self._plot_transformed_trajectory(self.axes[row_index][column_index], result, color_map=plot_type,
-                                                      center_plot=True)
+                                                      center_plot=center_plot)
         self._post_processing()
 
 
@@ -318,8 +322,8 @@ class ArrayPlotter(MyPlotter):
         # self.axes.set_title(self.title_prefix)
         self.axes.set_xlabel(self.x_label, fontsize=self.fontsize)
         self.axes.set_ylabel(self.y_label, fontsize=self.fontsize)
-        plt.xticks(fontsize=self.fontsize)
-        plt.yticks(fontsize=self.fontsize)
+        # plt.xticks(fontsize=self.fontsize)
+        # plt.yticks(fontsize=self.fontsize)
 
         if self.bottom_text is not None:
             self.fig.text(0.01, 0.01, self.bottom_text, fontsize=self.fontsize)
@@ -401,15 +405,15 @@ class ArrayPlotter(MyPlotter):
         self.fig, self.axes = plt.subplots(1, 1, dpi=80)
         self.axes.plot(x_index, gauss_fitted, '-', label=f'fit {fit_method}')
         # self.axes.plot(x_index, gauss_fitted, ' ')
-        # self.axes.plot(x_index, ydata, '.', label='original data')
-        self.axes.plot(x_index, ydata, ' ')
+        self.axes.plot(x_index, ydata, '.', label='original data')
+        # self.axes.plot(x_index, ydata, ' ')
         statistical_value = np.full(x_index.shape, statistical_function(ydata))
         if self.for_paper:
             function_label = 'threshold'
         else:
             function_label = function_name(statistical_function)
-        # self.axes.plot(x_index, statistical_value, '-', label=function_label)
-        self.axes.plot(x_index, statistical_value, ' ')
+        self.axes.plot(x_index, statistical_value, '-', label=function_label)
+        # self.axes.plot(x_index, statistical_value, ' ')
         self.axes.plot(x_index, new_ydata, '.', label='re-scaled data')
         self._activate_legend = True
         self._post_processing()
@@ -422,7 +426,7 @@ class ArrayPlotter(MyPlotter):
             statistical_value_line = np.full(ndarray_data.shape, statistical_value)
             self.axes.plot(statistical_value_line, '-',
                            label=f'{function_name(statistical_func)}: {statistical_value:.4f}')
-        self._activate_legend = True
+        self._activate_legend = False
         self._post_processing()
 
     def plot_merged_2ds(self, ndarray_dict: dict, statistical_func=None):
