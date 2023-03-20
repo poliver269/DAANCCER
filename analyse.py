@@ -16,7 +16,7 @@ from tqdm import tqdm
 from plotter import ArrayPlotter, MultiTrajectoryPlotter, ModelResultPlotter
 from trajectory import DataTrajectory
 from utils import statistical_zero, pretify_dict_model
-from utils.algorithms.tensor_dim_reductions import ParameterModel
+from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
 from utils.errors import InvalidReconstructionException
 from utils.matrix_tools import calculate_symmetrical_kernel_matrix, reconstruct_matrix
 from utils.param_key import *
@@ -82,7 +82,7 @@ class SingleTrajectoryAnalyser:
 
     def grid_search(self, param_grid):
         print('Searching for best model...')
-        model = ParameterModel()
+        model = DAANCCER()
         inp = self.trajectory.data_input()  # Cannot train for different ndim at once
         cv = [(slice(None), slice(None))]  # get rid of cross validation
         grid = GridSearchCV(model, param_grid, cv=cv, verbose=1)
@@ -260,7 +260,7 @@ class MultiTrajectoryAnalyser:
         inp = train_trajectories[0].data_input()
         for trajectory in train_trajectories[1:]:
             np.concatenate((inp, trajectory.data_input()), axis=0)
-        model = ParameterModel()
+        model = DAANCCER()
         cv = len(train_trajectories)
         grid = GridSearchCV(model, param_grid, cv=cv, verbose=1)
         grid.fit(inp, n_components=self.params[N_COMPONENTS])
@@ -313,7 +313,7 @@ class MultiTrajectoryAnalyser:
 
     @staticmethod
     def _get_reconstruction_score(model, input_data, data_projection=None, component=None):
-        if isinstance(model, ParameterModel):
+        if isinstance(model, DAANCCER):
             if component is None:
                 return model.score(input_data, data_projection)
             else:
@@ -451,7 +451,8 @@ class MultiTrajectoryAnalyser:
         for result_index, model_result in enumerate(model_results_list):
             saver.save_to_npz(
                 model_result,
-                new_filename=f'{self.trajectories[result_index].filename[:-4]}_transformed_on_{fitting_trajectory.filename[:-4]}'
+                new_filename=f'{self.trajectories[result_index].filename[:-4]}'
+                             f'_transformed_on_{fitting_trajectory.filename[:-4]}'
             )
 
 

@@ -5,19 +5,10 @@ import mdtraj as md
 import numpy as np
 import pyemma.coordinates as coor
 from mdtraj import Trajectory
-from mdtraj.utils import deprecated
 
 from plotter import ArrayPlotter
-from utils.algorithms.pca import MyPCA, TruncatedPCA, KernelFromCovPCA
-from utils.algorithms.tensor_dim_reductions import ParameterModel
-from utils.algorithms.tensor_dim_reductions.pca import (TensorPCA, TensorPearsonCovPCA, TensorKernelOnPearsonCovPCA,
-                                                        TensorKernelOnCovPCA, TensorKernelFromCovPCA,
-                                                        TensorKernelFromComadPCA)
-from utils.algorithms.tensor_dim_reductions.tica import (TensorTICA, TensorKernelOnCovTICA,
-                                                         TensorKernelOnPearsonCovTICA,
-                                                         TensorKernelFromCovTICA, TensorKernelFromCoMadTICA,
-                                                         TensorKernelOnCoMadTICA)
-from utils.algorithms.tica import MyTICA, TruncatedTICA, KernelFromCovTICA
+from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
+from utils.algorithms.tsne import MyTSNE, MyTimeLaggedTSNE
 from utils.math import basis_transform, explained_variance
 from utils.matrix_tools import calculate_pearson_correlations, reconstruct_matrix
 from utils.param_key import *
@@ -146,7 +137,6 @@ class DataTrajectory(TrajectoryFile):
         """
         model, projection = self.get_model_and_projection(model_parameters, log=log)
         ex_var = explained_variance(model.eigenvalues, self.params[N_COMPONENTS])
-        # TODO Add explained variance to the models, and if they don't have a parameter, than calculate here
         if self.params[PLOT_TYPE] == EXPL_VAR_PLOT:
             ArrayPlotter(
                 interactive=self.params[INTERACTIVE],
@@ -176,13 +166,19 @@ class DataTrajectory(TrajectoryFile):
                 elif model_parameters[ALGORITHM_NAME] == 'original_tica':
                     tica = coor.tica(data=inp, lag=self.params[LAG_TIME], dim=self.params[N_COMPONENTS])
                     return tica, tica.get_output()[0]
+                elif model_parameters[ALGORITHM_NAME] == 'original_tsne':
+                    tsne = MyTSNE(n_components=self.params[N_COMPONENTS])
+                    return tsne, tsne.fit_transform(inp)
+                elif model_parameters[ALGORITHM_NAME] == 'original-tl-tsne':
+                    tsne = MyTimeLaggedTSNE(lag_time=self.params[LAG_TIME], n_components=self.params[N_COMPONENTS])
+                    return tsne, tsne.fit_transform(inp)
                 else:
                     warnings.warn(f'No original algorithm was found with name: {model_parameters[ALGORITHM_NAME]}')
             except TypeError:
                 raise TypeError(f'Input data of the function is not correct. '
                                 f'Original algorithms take only 2-n-dimensional ndarray')
         else:
-            model = ParameterModel(**model_parameters)
+            model = DAANCCER(**model_parameters)
             return model, model.fit_transform(inp, n_components=self.params[N_COMPONENTS])
 
     def data_input(self, model_parameters: [str, dict] = None) -> np.ndarray:
@@ -224,7 +220,7 @@ class DataTrajectory(TrajectoryFile):
 
     def get_reconstructed_traj(self, model_parameters):
         model, projection = self.get_model_and_projection(model_parameters)
-        if isinstance(model, ParameterModel):
+        if isinstance(model, DAANCCER):
             return model.reconstruct(projection[0])
         else:
             eigenvectors = model.eigenvectors

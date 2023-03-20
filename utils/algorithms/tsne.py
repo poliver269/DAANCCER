@@ -15,7 +15,9 @@ This way, the results of the models can be used and it's Object Oriented.
 
 
 class MyTSNE(MyModel):
-    def __init__(self, n_components, perplexity, early_exaggeration, learning_rate, n_iter, metric="euclidean"):
+    def __init__(self, n_components, perplexity=30.0,
+                 early_exaggeration=12.0, learning_rate="auto",
+                 n_iter=1000, metric="euclidean"):
         super().__init__()
         self.model = sk.TSNE(
             n_components=n_components, perplexity=perplexity,
@@ -28,7 +30,7 @@ class MyTSNE(MyModel):
 
 
 class MyTimeLaggedTSNE(MyTSNE):
-    def __init__(self, lag_time, kwargs):
+    def __init__(self, lag_time, **kwargs):
         super().__init__(metric="precomputed", **kwargs)
         self.lag_time = lag_time
 

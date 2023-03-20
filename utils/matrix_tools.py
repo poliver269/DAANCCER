@@ -196,6 +196,7 @@ def _get_rescaled_array(original_ydata, stat_func, flattened):
         return rescale_center(original_ydata, stat_func)
 
 
+# noinspection PyTupleAssignmentBalance
 def _get_curve_fitted_y(matrix, kernel_name, xdata, rescaled_ydata):
     kernel_funcs = {MY_EXPONENTIAL: exponential_2d, MY_EPANECHNIKOV: epanechnikov_2d, MY_GAUSSIAN: gaussian_2d}
 
