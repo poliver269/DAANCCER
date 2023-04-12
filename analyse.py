@@ -23,12 +23,17 @@ from utils.param_key import *
 
 
 class SingleTrajectoryAnalyser:
-    def __init__(self, trajectory):
+    def __init__(self, trajectory, params=None):
         self.trajectory: DataTrajectory = trajectory
+        self.params: dict = {
+            PLOT_TYPE: params.get(PLOT_TYPE, COLOR_MAP),
+            PLOT_TICS: params.get(PLOT_TICS, True),
+            INTERACTIVE: params.get(INTERACTIVE, True)
+        }
 
     def compare(self, model_parameter_list: list[dict, str], plot_results: bool = True) -> list[dict]:
         """
-        Compares different models, with different input-parameters
+        Calculates the fit_transform result of different models, with different input-parameters given by
         :param model_parameter_list: dict - model parameter dict, (str - specific algorithm name)
             List of different model-parameters
         :param plot_results: bool
@@ -49,36 +54,34 @@ class SingleTrajectoryAnalyser:
         return model_results
 
     def compare_with_carbon_alpha_and_all_atoms(self, model_params_list):
-        model_results = self.trajectory.get_model_results_with_changing_param(model_params_list, CARBON_ATOMS_ONLY)
+        model_results = self.trajectory.get_model_results_with_changing_trajectory_parameter(model_params_list, CARBON_ATOMS_ONLY)
         self.compare_with_plot(model_results)
 
     def compare_with_basis_transformation(self, model_params_list):
-        model_results = self.trajectory.get_model_results_with_changing_param(model_params_list, BASIS_TRANSFORMATION)
+        model_results = self.trajectory.get_model_results_with_changing_trajectory_parameter(model_params_list, BASIS_TRANSFORMATION)
         self.compare_with_plot(model_results)
 
     def compare_with_plot(self, model_results_list):
         ModelResultPlotter(self.trajectory).plot_models(
             model_results_list,
-            plot_type=self.trajectory.params[PLOT_TYPE],
-            plot_tics=self.trajectory.params[PLOT_TICS],
-            components=self.trajectory.params[N_COMPONENTS]
+            plot_type=self.params[PLOT_TYPE],
+            plot_tics=self.params[PLOT_TICS],
+            components=self.params[N_COMPONENTS]
         )
 
-    def calculate_pearson_correlation_coefficient(self):
-        mode = 'calculate_coefficients_than_mean_dimensions'
-        coefficient_mean = self.trajectory.determine_coefficient_mean(mode)
-        print('Fit Kernel on data...')
-        d_matrix = calculate_symmetrical_kernel_matrix(coefficient_mean,
-                                                       analyse_mode=self.trajectory.params[TRAJECTORY_NAME])
-        weighted_alpha_coeff_matrix = coefficient_mean - d_matrix
-
-        title_prefix = (f'{"Angles" if self.trajectory.params[USE_ANGLES] else "Coordinates"}. '
-                        f'Pearson Coefficient. {mode}')
-        ArrayPlotter(
-            title_prefix=title_prefix,
-            x_label='number of correlations',
-            y_label='number of correlations'
-        ).matrix_plot(weighted_alpha_coeff_matrix, as_surface=self.trajectory.params[PLOT_TYPE])
+    def plot_eigenvalues(self, model_parameter_list):
+        """
+        Plot the eigenvalues for the different
+        """
+        model_results_list = self.compare(model_parameter_list, plot_results=False)
+        for model_result in model_results_list:
+            model = model_result[MODEL]
+            ArrayPlotter(
+                title_prefix=f'Eigenvalues of\n{model}',
+                x_label='Principal Component Number',
+                y_label='Eigenvalue',
+                for_paper=True
+            ).plot_2d(ndarray_data=model.eigenvalues)
 
     def grid_search(self, param_grid):
         print('Searching for best model...')
@@ -257,7 +260,7 @@ class MultiTrajectoryAnalyser:
         print('Searching for best model...')
         train_trajectories = self.trajectories[:int(len(self.trajectories) * .8)]
         # test_trajectories = self.trajectories[int(len(self.trajectories) * .8):]
-        inp = train_trajectories[0].data_input()
+        inp = train_trajectories[0].data_input()  # Works only for TENSOR_DIM_INPUT
         for trajectory in train_trajectories[1:]:
             np.concatenate((inp, trajectory.data_input()), axis=0)
         model = DAANCCER()

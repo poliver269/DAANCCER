@@ -37,9 +37,10 @@ class MyPlotter:
 
 
 class TrajectoryPlotter(MyPlotter):
-    def __init__(self, trajectory, reconstruct_params=None, interactive=True, for_paper=False):
+    def __init__(self, trajectory, reconstruct_params=None, interactive=True, for_paper=False, standardize=False):
         super().__init__(interactive, for_paper=for_paper)
         self.data_trajectory = trajectory
+        self.standardize = standardize
         if reconstruct_params is not None:
             self.reconstructed = self.data_trajectory.get_reconstructed_traj(reconstruct_params)
         else:
@@ -62,8 +63,8 @@ class TrajectoryPlotter(MyPlotter):
 
     def data_with_timestep_slider(self, min_max=None):
         """
-        Creates an interactive plot window, where the trajectory to plot can can be chosen by a Slider at a specific
-        timestep. Used as in https://matplotlib.org/stable/gallery/widgets/slider_demo.html
+        Creates an interactive plot window, where the trajectory is plotted and the time-step can be chosen by a Slider.
+        Used as in https://matplotlib.org/stable/gallery/widgets/slider_demo.html
         :param min_max: data range of the data with a min and a max value
         """
         if not self.interactive:
@@ -107,7 +108,7 @@ class TrajectoryPlotter(MyPlotter):
             else:
                 data_tensor = self.data_trajectory.traj.xyz
 
-            if self.data_trajectory.params[STANDARDIZED_PLOT]:
+            if self.standardize:
                 # numerator = data_tensor - np.mean(data_tensor, axis=0)[np.newaxis, :, :]  # PCA - center by atoms
                 numerator = data_tensor - np.mean(data_tensor, axis=1)[:, np.newaxis, :]  # center over time
                 # numerator = data_tensor - np.mean(data_tensor, axis=2)[:, :, np.newaxis]  # Raumdiagonale gleich

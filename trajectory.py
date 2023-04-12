@@ -56,12 +56,9 @@ class DataTrajectory(TrajectoryFile):
         self.params: dict = {
             PLOT_TYPE: params.get(PLOT_TYPE, COLOR_MAP),
             PLOT_TICS: params.get(PLOT_TICS, True),
-            STANDARDIZED_PLOT: params.get(STANDARDIZED_PLOT, False),
             CARBON_ATOMS_ONLY: params.get(CARBON_ATOMS_ONLY, True),
             INTERACTIVE: params.get(INTERACTIVE, True),
             N_COMPONENTS: params.get(N_COMPONENTS, 2),
-            LAG_TIME: params.get(LAG_TIME, 10),
-            TRUNCATION_VALUE: params.get(TRUNCATION_VALUE, 0),
             BASIS_TRANSFORMATION: params.get(BASIS_TRANSFORMATION, False),
             RANDOM_SEED: params.get(RANDOM_SEED, 42),
             USE_ANGLES: params.get(USE_ANGLES, True),
@@ -82,7 +79,7 @@ class DataTrajectory(TrajectoryFile):
     @property
     def atom_coordinates(self) -> np.ndarray:
         if self.params[BASIS_TRANSFORMATION]:
-            return self.basis_transformed_coordinates()
+            return self.__basis_transformed_coordinates()
         else:
             return self.traj.xyz
 
@@ -112,7 +109,7 @@ class DataTrajectory(TrajectoryFile):
     def alpha_carbon_coordinates(self) -> np.ndarray:
         return self._filter_coordinates_by_atom_index(self.alpha_carbon_indexes)
 
-    def basis_transformed_coordinates(self) -> np.ndarray:
+    def __basis_transformed_coordinates(self) -> np.ndarray:
         np.random.seed(self.params[RANDOM_SEED])
         return basis_transform(self.traj.xyz, self.dim[COORDINATES])
 
@@ -130,24 +127,29 @@ class DataTrajectory(TrajectoryFile):
 
     def get_model_result(self, model_parameters: dict, log: bool = True) -> dict:
         """
-        Returns a dict of all the important result values. Used for analysing the information
-        :param model_parameters:
-        :param log:
+        Returns a dict of all the important result values. Used for analysing the different models.
+        :param model_parameters: dict
+            The input parameters for the model.
+        :param log: bool
+            Enables the log output while running the program (default: True)
         :return: dict of the results: {MODEL, PROJECTION, EXPLAINED_VAR, INPUT_PARAMS}
         """
         model, projection = self.get_model_and_projection(model_parameters, log=log)
         ex_var = explained_variance(model.eigenvalues, self.params[N_COMPONENTS])
-        if self.params[PLOT_TYPE] == EXPL_VAR_PLOT:
-            ArrayPlotter(
-                interactive=self.params[INTERACTIVE],
-                title_prefix=f'Eigenvalues of\n{model}',
-                x_label='Principal Component Number',
-                y_label='Eigenvalue',
-                for_paper=True
-            ).plot_2d(ndarray_data=model.eigenvalues)
         return {MODEL: model, PROJECTION: projection, EXPLAINED_VAR: ex_var, INPUT_PARAMS: model_parameters}
 
     def get_model_and_projection(self, model_parameters: dict, inp: np.ndarray = None, log: bool = True):
+        """
+        This method is fitting a model with the given parameters :model_parameters: and
+        the inp(ut) data is transformed on the model.
+        @param model_parameters: dict
+            The input parameters for the model.
+        @param inp: np.ndarray
+            Input data for the model (optional), (default: None -> calculated on the basis of the model_parameters)
+        @param log: bool
+            Enables the log output while running the program (default: True)
+        @return: fitted model and transformed data
+        """
         if log:
             print(f'Running {model_parameters}...')
 
@@ -164,13 +166,13 @@ class DataTrajectory(TrajectoryFile):
                     pca = coor.pca(data=inp, dim=self.params[N_COMPONENTS])
                     return pca, pca.get_output()[0]
                 elif model_parameters[ALGORITHM_NAME] == 'original_tica':
-                    tica = coor.tica(data=inp, lag=self.params[LAG_TIME], dim=self.params[N_COMPONENTS])
+                    tica = coor.tica(data=inp, lag=model_parameters[LAG_TIME], dim=self.params[N_COMPONENTS])
                     return tica, tica.get_output()[0]
                 elif model_parameters[ALGORITHM_NAME] == 'original_tsne':
                     tsne = MyTSNE(n_components=self.params[N_COMPONENTS])
                     return tsne, tsne.fit_transform(inp)
                 elif model_parameters[ALGORITHM_NAME] == 'original-tl-tsne':
-                    tsne = MyTimeLaggedTSNE(lag_time=self.params[LAG_TIME], n_components=self.params[N_COMPONENTS])
+                    tsne = MyTimeLaggedTSNE(lag_time=model_parameters[LAG_TIME], n_components=self.params[N_COMPONENTS])
                     return tsne, tsne.fit_transform(inp)
                 else:
                     warnings.warn(f'No original algorithm was found with name: {model_parameters[ALGORITHM_NAME]}')
@@ -181,12 +183,20 @@ class DataTrajectory(TrajectoryFile):
             model = DAANCCER(**model_parameters)
             return model, model.fit_transform(inp, n_components=self.params[N_COMPONENTS])
 
-    def data_input(self, model_parameters: [str, dict] = None) -> np.ndarray:
+    def data_input(self, model_parameters: dict = None) -> np.ndarray:
+        """
+        Determines the input data for the model on the basis of the model_parameters and the trajectory parameters.
+        If the model_parameters are unknown, than the input for TENSOR_NDIM is used.
+        @param model_parameters: dict
+            The input parameters for the model.
+        @return: np.ndarray
+            The input data for the model
+        """
         try:
-            if model_parameters is None:  # TODO: not so nice
+            if model_parameters is None:
                 n_dim = TENSOR_NDIM
             else:
-                n_dim = MATRIX_NDIM if isinstance(model_parameters, str) else model_parameters['ndim']
+                n_dim = model_parameters[NDIM]
         except KeyError as e:
             raise KeyError(f'Model-parameter-dict needs the key: {e}. Set to ´2´ or ´3´.')
 
@@ -205,20 +215,40 @@ class DataTrajectory(TrajectoryFile):
                 else:
                     return self.atom_coordinates
 
-    def get_model_results_with_changing_param(self, model_params_list, parameter) -> list[dict]:
+    def get_model_results_with_changing_trajectory_parameter(
+            self,
+            model_params_list: list[dict],
+            trajectory_key_parameter: str
+    ) -> list[dict]:
+        """
+        This method helps to compare the same model with different input of the same trajectory
+        (e.g. with and without basis-transformation).
+        @param model_params_list: list[dict]
+            Different model input parameters, saved in a list.
+        @param trajectory_key_parameter: str
+            key of the trajectory parameter which should be used to determine the different input.
+        @return:
+        """
         model_results = []
         for model_params in model_params_list:
             model, projection = self.get_model_and_projection(model_params)
             model_results.append({MODEL: model, PROJECTION: projection,
-                                  TITLE_PREFIX: f'{parameter}: {self.params[parameter]}\n'})
-            self.params[parameter] = not self.params[parameter]
+                                  TITLE_PREFIX: f'{trajectory_key_parameter}: {self.params[trajectory_key_parameter]}\n'})
+            self.params[trajectory_key_parameter] = not self.params[trajectory_key_parameter]
             model, projection = self.get_model_and_projection(model_params)
             model_results.append({MODEL: model, PROJECTION: projection,
-                                  TITLE_PREFIX: f'{parameter}: {self.params[parameter]}\n'})
-            self.params[parameter] = not self.params[parameter]
+                                  TITLE_PREFIX: f'{trajectory_key_parameter}: {self.params[trajectory_key_parameter]}\n'})
+            self.params[trajectory_key_parameter] = not self.params[trajectory_key_parameter]
         return model_results
 
-    def get_reconstructed_traj(self, model_parameters):
+    def get_reconstructed_traj(self, model_parameters: dict) -> np.ndarray:
+        """
+        Calculate the reconstructed trajectory data which would be constructed, with the given model parameters.
+        @param model_parameters: dict
+            The input parameters for the model.
+        @return: np.ndarray
+            reconstructed trajectory coordinates
+        """
         model, projection = self.get_model_and_projection(model_parameters)
         if isinstance(model, DAANCCER):
             return model.reconstruct(projection[0])
@@ -230,33 +260,6 @@ class DataTrajectory(TrajectoryFile):
             return reconstructed_matrix.reshape((self.dim[TIME_FRAMES],
                                                  self.dim[ATOMS],
                                                  self.dim[COORDINATES]))
-
-    def determine_coefficient_mean(self, mode):
-        if mode == 'coordinates_mean_first':  # Not used currently
-            coordinates_mean = np.mean(self.atom_coordinates, axis=2)
-            coefficient_mean = np.corrcoef(coordinates_mean.T)
-        elif mode == 'calculate_mean_of_dimensions_to_matrix_than_correlation_coefficient':
-            print('Calculate mean matrix...')
-            if self.params[USE_ANGLES]:
-                mean_matrix = np.mean(np.array([self.phi[DIHEDRAL_ANGLE_VALUES],
-                                                self.psi[DIHEDRAL_ANGLE_VALUES]]),
-                                      axis=0)
-            else:
-                mean_matrix = np.mean(self.alpha_carbon_coordinates, axis=2)
-            print('Calculate correlation coefficient...')
-            coefficient_mean = np.corrcoef(mean_matrix.T)
-        elif mode == 'calculate_coefficients_than_mean_dimensions':
-            if self.params[USE_ANGLES]:
-                input_list = [self.phi[DIHEDRAL_ANGLE_VALUES], self.psi[DIHEDRAL_ANGLE_VALUES]]
-            else:
-                input_list = [self._filter_coordinates_by_coordinates(c, ac_only=self.params[CARBON_ATOMS_ONLY]) for c
-                              in range(len(self.dim))]
-            print('Calculate correlation coefficient...')
-            coefficient_mean = calculate_pearson_correlations(input_list, np.mean)
-        else:
-            raise ValueError('Invalid mode string was given')
-
-        return coefficient_mean
 
 
 class TopologyConverter(TrajectoryFile):

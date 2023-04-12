@@ -60,8 +60,12 @@ class DAANCCER(TensorDR):
             self.nth_eigenvector = 1
 
         if self.extra_dr_layer and self.nth_eigenvector > 1:
-            warnings.warn(f'`{NTH_EIGENVECTOR}` parameter is ignored '
-                          f'since the parameter `{EXTRA_DR_LAYER}` has a higher priority.')
+            warnings.warn(f'`{NTH_EIGENVECTOR}` parameter (with value: {self.nth_eigenvector}) is ignored '
+                          f'since the parameter `{EXTRA_DR_LAYER}` (={self.extra_dr_layer}) has a higher priority.')
+
+        if self._is_time_lagged_algorithm() and self.lag_time == 0:
+            warnings.warn(f'The `{ALGORITHM_NAME}` is set to a time-lagged approach: {self.algorithm_name}, '
+                          f'but the `{LAG_TIME}` is not set is equal to: {self.lag_time}')
 
     def __str__(self):
         sb = self.describe()

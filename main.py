@@ -21,7 +21,6 @@ PLOT_WITH_SLIDER = 'plot_with_slider'
 PLOT_RECONSTRUCTED_WITH_SLIDER = 'plot_reconstructed_with_slider'
 COMPARE_WITH_CA_ATOMS = 'compare_with_carbon_alpha_atoms'
 BASE_TRANSFORMATION = 'base_transformation'
-CALCULATE_PEARSON_CORRELATION_COEFFICIENT = 'calculate_pcc'
 PARAMETER_GRID_SEARCH = 'parameter_grid_search'
 LOAD_ANALYSE_RESULTS_DICT = 'load_analyse_result_dict'
 LOAD_LIST_OF_DICTS = 'load_list_of_dicts'
@@ -51,12 +50,9 @@ def main():
     run_params = {
         PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map', 'explained_var_plot'
         PLOT_TICS: True,  # True, False
-        STANDARDIZED_PLOT: True,  # True, False
         CARBON_ATOMS_ONLY: True,  # True, False
         INTERACTIVE: True,  # True, False
         N_COMPONENTS: 2,
-        LAG_TIME: 10,
-        TRUNCATION_VALUE: 0,  # deprecated
         BASIS_TRANSFORMATION: False,
         USE_ANGLES: False,
         TRAJECTORY_NAME: '2f4k',
@@ -171,7 +167,7 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
         tc.convert()
     elif run_option == PLOT_WITH_SLIDER:
         tr = DataTrajectory(**kwargs)
-        TrajectoryPlotter(tr).data_with_timestep_slider(min_max=None)  # [0, 1000]
+        TrajectoryPlotter(tr, standardize=True).data_with_timestep_slider(min_max=None)  # [0, 1000]
     elif run_option == PLOT_RECONSTRUCTED_WITH_SLIDER:
         tr = DataTrajectory(**kwargs)
         TrajectoryPlotter(tr, reconstruct_params=model_params_list[1]).data_with_timestep_slider()
@@ -179,19 +175,16 @@ def run(run_option, kwargs, params, model_params_list, filename_list, param_grid
         if kwargs['params'][N_COMPONENTS] != 2:
             raise ValueError(f'The parameter `{N_COMPONENTS}` has to be 2')
         tr = DataTrajectory(**kwargs)
-        SingleTrajectoryAnalyser(tr).compare(model_params_list)
+        SingleTrajectoryAnalyser(tr, params).compare(model_params_list)
     elif run_option == COMPARE_WITH_CA_ATOMS:
         tr = DataTrajectory(**kwargs)
-        SingleTrajectoryAnalyser(tr).compare_with_carbon_alpha_and_all_atoms(model_params_list)
+        SingleTrajectoryAnalyser(tr, params).compare_with_carbon_alpha_and_all_atoms(model_params_list)
     elif run_option == BASE_TRANSFORMATION:
         tr = DataTrajectory(**kwargs)
-        SingleTrajectoryAnalyser(tr).compare_with_basis_transformation(model_params_list)
-    elif run_option == CALCULATE_PEARSON_CORRELATION_COEFFICIENT:
-        tr = DataTrajectory(**kwargs)
-        SingleTrajectoryAnalyser(tr).calculate_pearson_correlation_coefficient()
+        SingleTrajectoryAnalyser(tr, params).compare_with_basis_transformation(model_params_list)
     elif run_option == PARAMETER_GRID_SEARCH:
         tr = DataTrajectory(**kwargs)
-        SingleTrajectoryAnalyser(tr).grid_search(param_grid)
+        SingleTrajectoryAnalyser(tr, params).grid_search(param_grid)
     elif run_option == LOAD_ANALYSE_RESULTS_DICT:
         from_other_traj = False
         plot_dict = AnalyseResultLoader(params[TRAJECTORY_NAME]).load_npz(
