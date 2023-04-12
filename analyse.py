@@ -31,11 +31,12 @@ class SingleTrajectoryAnalyser:
             INTERACTIVE: params.get(INTERACTIVE, True)
         }
 
-    def compare(self, model_parameter_list: list[dict, str], plot_results: bool = True) -> list[dict]:
+    def compare(self, model_parameter_list: list[dict], plot_results: bool = True) -> list[dict]:
         """
-        Calculates the fit_transform result of different models, with different input-parameters given by
-        :param model_parameter_list: dict - model parameter dict, (str - specific algorithm name)
-            List of different model-parameters
+        Calculates the result of different models (fitted and transformed the data of the trajectory)
+        with different input-parameters given by ...
+        :param model_parameter_list: list[dict]
+            Different model input parameters, saved in a list.
         :param plot_results: bool
         :return: The results of the models {MODEL, PROJECTION, EXPLAINED_VAR, INPUT_PARAMS}
         """
@@ -54,14 +55,31 @@ class SingleTrajectoryAnalyser:
         return model_results
 
     def compare_with_carbon_alpha_and_all_atoms(self, model_params_list):
-        model_results = self.trajectory.get_model_results_with_changing_trajectory_parameter(model_params_list, CARBON_ATOMS_ONLY)
+        """
+        Compares same trajectory with using only carbon atoms and using all the atoms of different model_params.
+        @param model_params_list: list[dict]
+            Different model input parameters, saved in a list.
+        """
+        model_results = self.trajectory.get_model_results_with_changing_trajectory_parameter(model_params_list,
+                                                                                             CARBON_ATOMS_ONLY)
         self.compare_with_plot(model_results)
 
     def compare_with_basis_transformation(self, model_params_list):
-        model_results = self.trajectory.get_model_results_with_changing_trajectory_parameter(model_params_list, BASIS_TRANSFORMATION)
+        """
+        Compares same trajectory with using and not using basis transformation of different model_params.
+        @param model_params_list: list[dict]
+            Different model input parameters, saved in a list.
+        """
+        model_results = self.trajectory.get_model_results_with_changing_trajectory_parameter(model_params_list,
+                                                                                             BASIS_TRANSFORMATION)
         self.compare_with_plot(model_results)
 
     def compare_with_plot(self, model_results_list):
+        """
+        This method is used to compare the results in a plot, after fit_transforming different models.
+        @param model_results_list: list[dict]
+            Different model input parameters, saved in a list.
+        """
         ModelResultPlotter(self.trajectory).plot_models(
             model_results_list,
             plot_type=self.params[PLOT_TYPE],
@@ -71,7 +89,9 @@ class SingleTrajectoryAnalyser:
 
     def plot_eigenvalues(self, model_parameter_list):
         """
-        Plot the eigenvalues for the different
+        Plots the values of the eigenvalues.
+        @param model_parameter_list: list[dict]
+            Different model input parameters, saved in a list.
         """
         model_results_list = self.compare(model_parameter_list, plot_results=False)
         for model_result in model_results_list:
@@ -83,7 +103,13 @@ class SingleTrajectoryAnalyser:
                 for_paper=True
             ).plot_2d(ndarray_data=model.eigenvalues)
 
-    def grid_search(self, param_grid):
+    def grid_search(self, param_grid: list[dict]):
+        """
+        Runs a grid search, to find the best input for the DAANCCER algorithm.
+        @param param_grid: list[dict]
+            List of different parameters, which sets the search space.
+        @return:
+        """
         print('Searching for best model...')
         model = DAANCCER()
         inp = self.trajectory.data_input()  # Cannot train for different ndim at once
