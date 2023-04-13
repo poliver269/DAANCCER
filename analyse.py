@@ -108,7 +108,6 @@ class SingleTrajectoryAnalyser:
         Runs a grid search, to find the best input for the DAANCCER algorithm.
         @param param_grid: list[dict]
             List of different parameters, which sets the search space.
-        @return:
         """
         print('Searching for best model...')
         model = DAANCCER()
@@ -126,7 +125,13 @@ class MultiTrajectoryAnalyser:
         print(f'Trajectories loaded time: {datetime.now()}')
         self.params: dict = params
 
-    def compare_pcs(self, model_params_list: list):
+    def compare_pcs(self, model_params_list: list[dict]):
+        """
+        Method is used to analyse principal components (=eigenvectors).
+        It saves the eigenvectors of the different trajectories into an array and plots it for different models.
+        @param model_params_list: list[dict]
+            List of different parameters, which sets the search space.
+        """
         for model_parameters in model_params_list:
             principal_components = []
             for trajectory in self.trajectories:
@@ -137,6 +142,13 @@ class MultiTrajectoryAnalyser:
                                                                                 self.params[N_COMPONENTS])
 
     def _get_trajectories_by_index(self, traj_nrs: [list[int], None]):
+        """
+        Return a subset of trajectories given their index number.
+        @param traj_nrs: list[int] or None
+            if None all the trajectories are returned
+            else: compare only the trajectories in a given list,
+        @return:
+        """
         if traj_nrs is None:  # take all the trajectories
             return self.trajectories
         else:
@@ -144,7 +156,16 @@ class MultiTrajectoryAnalyser:
             return list(itemgetter(*sorted_traj_nrs)(self.trajectories))
 
     @staticmethod
-    def _get_trajectory_pairs(trajectories: list[DataTrajectory], model_params: dict) -> list:
+    def _get_trajectory_result_pairs(trajectories: list[DataTrajectory], model_params: dict) -> list:
+        """
+        Returns all the different combination-pairs of the results of the given trajectory list.
+        The results of the models are calculated on the basis of the model parameters.
+        @param trajectories: list[DataTrajectory]
+            The subset of trajectories to use the models for this step.
+        @param model_params: dict
+            The model parameters for the models.
+        @return:
+        """
         traj_results = []
         for trajectory in trajectories:
             res = trajectory.get_model_result(model_params)
@@ -153,21 +174,27 @@ class MultiTrajectoryAnalyser:
         return list(combinations(traj_results, 2))
 
     @staticmethod
-    def _get_all_similarities_from_trajectory_ev_pairs(trajectory_pairs: list[tuple],
+    def _get_all_similarities_from_trajectory_ev_pairs(trajectory_result_pairs: list[tuple],
                                                        pc_nr_list: list = None,
                                                        plot: bool = False):
         """
-        Calculates and returns the similarity between trajectory pairs
-        :param trajectory_pairs:
-        :param pc_nr_list:
-        :param plot:
+        Calculates and returns the similarity of eigenvectors between the results between trajectory pairs.
+        The similarity is calculated via cosine similarity and than compared the most similar ones
+        to calculate the mean of all together.
+        :param trajectory_result_pairs: list[tuple]
+            list of pairwise trajectory results after a model was fitted and transformed on the trajectory.
+        :param plot: bool
+            Sets if the similarity values should be plotted or returned and used for further analysis. (default: False)
+        :param pc_nr_list: list (default None)
+            subset of the indexes of the principal components.
+            If plot == False, this parameter is ignored.
         :return:
         """
         if plot and pc_nr_list is None:
             raise ValueError('Trajectories can not be compared to each other, because the `pc_nr_list` is not given.')
 
         all_similarities = []
-        for trajectory_pair in trajectory_pairs:
+        for trajectory_pair in trajectory_result_pairs:
             pc_0_matrix = trajectory_pair[0][MODEL].eigenvectors.T
             pc_1_matrix = trajectory_pair[1][MODEL].eigenvectors.T
             cos_matrix = cosine_similarity(np.real(pc_0_matrix), np.real(pc_1_matrix))
@@ -212,12 +239,12 @@ class MultiTrajectoryAnalyser:
         :param traj_nrs:
             if None compare all the trajectories
             compare only the trajectories in a given list,
-        :param model_params_list:
-            different model parameters, which should be compared with each other
+        :param model_params_list: list[dict]
+            Different model input parameters, saved in a list, which should be compared with each other
         :param pc_nr_list:
             gives a list of how many principal components should be compared with each other.
             If None, then all the principal components are compared
-        :param merged_plot:
+        :param merged_plot: TODO
         :return:
         """
         # TODO: Implement the Save Similarites and Load them
@@ -225,7 +252,7 @@ class MultiTrajectoryAnalyser:
 
         model_similarities = {}
         for model_params in model_params_list:
-            trajectory_pairs = self._get_trajectory_pairs(trajectories, model_params)
+            trajectory_pairs = self._get_trajectory_result_pairs(trajectories, model_params)
             all_sim_matrix = self._get_all_similarities_from_trajectory_ev_pairs(trajectory_pairs)
 
             if merged_plot:
@@ -272,17 +299,23 @@ class MultiTrajectoryAnalyser:
         """
         Compare the trajectory combos with each other
         :param traj_nrs:
-        :param model_params_list:
-        :param pc_nr_list:
+        :param model_params_list: list[dict]
+            Different model input parameters, saved in a list.
+        :param pc_nr_list: TODO
         :return:
         """
         trajectories = self._get_trajectories_by_index(traj_nrs)
 
         for model_params in model_params_list:
-            trajectory_pairs = self._get_trajectory_pairs(trajectories, model_params)
+            trajectory_pairs = self._get_trajectory_result_pairs(trajectories, model_params)
             self._get_all_similarities_from_trajectory_ev_pairs(trajectory_pairs, pc_nr_list, plot=True)
 
     def grid_search(self, param_grid):
+        """
+        Runs a grid search for multiple trajectories, to find the best input for the DAANCCER algorithm.
+        @param param_grid: list[dict]
+            List of different parameters, which sets the search space.
+        """
         print('Searching for best model...')
         train_trajectories = self.trajectories[:int(len(self.trajectories) * .8)]
         # test_trajectories = self.trajectories[int(len(self.trajectories) * .8):]
@@ -304,7 +337,8 @@ class MultiTrajectoryAnalyser:
         if from_other_traj is True than reconstruct from the model fitted on specific trajectory
         (0th-element in self trajectories)
         :param fit_transform_re: Fit-transform reconstruction error or Fit-on-all-Transform-on-one
-        :param model_params_list:
+        :param model_params_list: list[dict]
+            Different model input parameters, saved in a list.
         """
 
         model_scores = {}
@@ -341,7 +375,21 @@ class MultiTrajectoryAnalyser:
         ).plot_merged_2ds(model_scores, np.median)
 
     @staticmethod
-    def _get_reconstruction_score(model, input_data, data_projection=None, component=None):
+    def _get_reconstruction_score(model, input_data: np.ndarray, data_projection: [np.ndarray, None] = None,
+                                  component: int = None):
+        """
+        Calculates the reconstruction score of the model and the input data.
+        @param model: obj
+            Model with parent class TransformerMixin, BaseEstimator of sklearn
+        @param input_data: np.ndarray
+            original data before transforming
+        @param data_projection: np.ndarray (optional)
+            the transformed data. If this is not calculated, than the transformation step is used to calculate it.
+        @param component: int (default: None)
+            This parameter is used to set how many components of the model should be used
+            to reconstruct the original data. If its None, all the components of the model are used.
+        @return: Root Mean Squared Error of the reconstruction data and the original one
+        """
         if isinstance(model, DAANCCER):
             if component is None:
                 return model.score(input_data, data_projection)
@@ -361,6 +409,17 @@ class MultiTrajectoryAnalyser:
         return mean_squared_error(input_data, reconstructed_data, squared=False)
 
     def compare_median_reconstruction_scores(self, model_params_list: list[dict], fit_transform_re: bool = True):
+        """
+        Used for analysing the reconstruction scores of different models.
+        (See self._calculate_median_scores() for more information)
+        @param model_params_list: list[dict]
+            Different model input parameters, saved in a list.
+        @param fit_transform_re: bool (default = True)
+            Should be calculated the fit_transform on the same data
+            or the transformation steps of trajectories should be applied
+            to models fitted on a different trajectory.
+        @return:
+        """
         model_median_scores = self._calculate_median_scores(model_params_list, fit_transform_re)
         ArrayPlotter(
             interactive=False,
@@ -375,6 +434,16 @@ class MultiTrajectoryAnalyser:
         ).plot_merged_2ds(model_median_scores)
 
     def _calculate_median_scores(self, model_params_list: list[dict], fit_transform_re: bool = True):
+        """
+        Calculates the median reconstruction scores for different models.
+        @param model_params_list: list[dict]
+            Different model input parameters, saved in a list.
+        @param fit_transform_re: bool (default = True)
+            Should be calculated the fit_transform on the same data
+            or the transformation steps of trajectories should be applied
+            to models fitted on a different trajectory.
+        @return:
+        """
         saver = AnalyseResultsSaver(trajectory_name=self.params[TRAJECTORY_NAME])
 
         model_median_scores = {}
@@ -396,6 +465,12 @@ class MultiTrajectoryAnalyser:
         return model_median_scores
 
     def _get_model_result_list(self, model_params: dict):
+        """
+        Get the results of a model for all the trajectories.
+        @param model_params: dict
+            Parameters for the model.
+        @return: results of models
+        """
         model_dict_list = []
         for trajectory in self.trajectories:
             model_dict_list.append(trajectory.get_model_result(model_params, log=False))
@@ -406,6 +481,14 @@ class MultiTrajectoryAnalyser:
                                                      component_wise_scores: dict,
                                                      model_description: str,
                                                      fit_transform_re: bool = True) -> list:
+        """
+        Calculates the median reconstruction errors of the trajectories over the component span.
+        @param model_dict_list:
+        @param component_wise_scores:
+        @param model_description:
+        @param fit_transform_re:
+        @return:
+        """
         median_list = []
         for component in tqdm(range(1, self.trajectories[DUMMY_ZERO].max_components + 1)):
             score_list = []
