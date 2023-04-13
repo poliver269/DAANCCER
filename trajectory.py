@@ -6,11 +6,10 @@ import numpy as np
 import pyemma.coordinates as coor
 from mdtraj import Trajectory
 
-from plotter import ArrayPlotter
 from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
 from utils.algorithms.tsne import MyTSNE, MyTimeLaggedTSNE
 from utils.math import basis_transform, explained_variance
-from utils.matrix_tools import calculate_pearson_correlations, reconstruct_matrix
+from utils.matrix_tools import reconstruct_matrix
 from utils.param_key import *
 
 
@@ -38,7 +37,11 @@ class DataTrajectory(TrajectoryFile):
                 self.traj: Trajectory = md.load_dcd(self.filepath, top=self.topology_path, atom_indices=atoms)
             else:
                 self.traj: Trajectory = md.load(self.filepath, top=self.topology_path)
+            # TODO: Should the superposing not be done expecialy for the Alpha Carbon Atoms only?
             self.traj: Trajectory = self.traj.superpose(self.traj).center_coordinates(mass_weighted=True)
+            # TODO:
+            # 1. Range of xyz-coordinates
+            # TODO: 2. Normalize again?
             self.traj.xyz = (self.traj.xyz - np.mean(self.traj.xyz, axis=0)[np.newaxis, :, :]) / np.std(self.traj.xyz,
                                                                                                         axis=0)
             self.dim: dict = {TIME_FRAMES: self.traj.xyz.shape[TIME_DIM],
@@ -54,10 +57,7 @@ class DataTrajectory(TrajectoryFile):
         if params is None:
             params = {}
         self.params: dict = {
-            PLOT_TYPE: params.get(PLOT_TYPE, COLOR_MAP),
-            PLOT_TICS: params.get(PLOT_TICS, True),
             CARBON_ATOMS_ONLY: params.get(CARBON_ATOMS_ONLY, True),
-            INTERACTIVE: params.get(INTERACTIVE, True),
             N_COMPONENTS: params.get(N_COMPONENTS, 2),
             BASIS_TRANSFORMATION: params.get(BASIS_TRANSFORMATION, False),
             RANDOM_SEED: params.get(RANDOM_SEED, 42),

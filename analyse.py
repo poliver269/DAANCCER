@@ -123,7 +123,10 @@ class MultiTrajectoryAnalyser:
     def __init__(self, kwargs_list, params):
         self.trajectories: list[DataTrajectory] = [DataTrajectory(**kwargs) for kwargs in kwargs_list]
         print(f'Trajectories loaded time: {datetime.now()}')
-        self.params: dict = params
+        self.params: dict = {
+            N_COMPONENTS: params.get(N_COMPONENTS, 2),
+            TRAJECTORY_NAME: params.get(TRAJECTORY_NAME, 'Not Found')
+        }
 
     def compare_pcs(self, model_params_list: list[dict]):
         """
