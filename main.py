@@ -45,7 +45,7 @@ def main():
     # alg_params_json = 'config_files/algorithm/my-pca-kernel-types-only.json'  # None or filename
 
     result_load_file = None  # '2023-02-26_23.02.56_RE_diff_traj_evs/median_RE_over_trajectories_on_other.npz'
-    run_option = COMPARE
+    run_option = PLOT_WITH_SLIDER
 
     run_params = {
         PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map', 'explained_var_plot'
@@ -55,7 +55,7 @@ def main():
         N_COMPONENTS: 2,
         BASIS_TRANSFORMATION: False,
         USE_ANGLES: False,
-        TRAJECTORY_NAME: '2f4k',
+        TRAJECTORY_NAME: 'prot2',
         FILE_ELEMENT: 0,
     }
 

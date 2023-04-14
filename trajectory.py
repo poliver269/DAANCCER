@@ -29,15 +29,15 @@ class TrajectoryFile:
 
 
 class DataTrajectory(TrajectoryFile):
-    def __init__(self, filename, topology_filename, folder_path='data/2f4k', params=None, atoms=None):
+    def __init__(self, filename, topology_filename, folder_path='data/2f4k', params=None, atoms=None, sub_range=None):
         super().__init__(filename, topology_filename, folder_path)
         try:
-            print(f"Loading trajectory {filename}...")
+            print(f"Loading trajectory {self.filename}...")
             if str(self.filename).endswith('dcd'):
                 self.traj: Trajectory = md.load_dcd(self.filepath, top=self.topology_path, atom_indices=atoms)
             else:
                 self.traj: Trajectory = md.load(self.filepath, top=self.topology_path)
-            # TODO: Should the superposing not be done expecialy for the Alpha Carbon Atoms only?
+            # TODO: Should the superposing not be done especially for the Alpha Carbon Atoms only?
             self.traj: Trajectory = self.traj.superpose(self.traj).center_coordinates(mass_weighted=True)
             # TODO:
             # 1. Range of xyz-coordinates
@@ -127,9 +127,9 @@ class DataTrajectory(TrajectoryFile):
 
     def get_model_result(self, model_parameters: dict, log: bool = True) -> dict:
         """
-        Returns a dict of all the important result values. Used for analysing the different models.
+        Returns a dict of all the important result values. Used for analysing the different models
         :param model_parameters: dict
-            The input parameters for the model.
+            The input parameters for the model
         :param log: bool
             Enables the log output while running the program (default: True)
         :return: dict of the results: {MODEL, PROJECTION, EXPLAINED_VAR, INPUT_PARAMS}
@@ -186,7 +186,7 @@ class DataTrajectory(TrajectoryFile):
     def data_input(self, model_parameters: dict = None) -> np.ndarray:
         """
         Determines the input data for the model on the basis of the model_parameters and the trajectory parameters.
-        If the model_parameters are unknown, than the input for TENSOR_NDIM is used.
+        If the model_parameters are unknown, then the input for TENSOR_NDIM is used.
         @param model_parameters: dict
             The input parameters for the model.
         @return: np.ndarray
@@ -233,11 +233,13 @@ class DataTrajectory(TrajectoryFile):
         for model_params in model_params_list:
             model, projection = self.get_model_and_projection(model_params)
             model_results.append({MODEL: model, PROJECTION: projection,
-                                  TITLE_PREFIX: f'{trajectory_key_parameter}: {self.params[trajectory_key_parameter]}\n'})
+                                  TITLE_PREFIX: f'{trajectory_key_parameter}: '
+                                                f'{self.params[trajectory_key_parameter]}\n'})
             self.params[trajectory_key_parameter] = not self.params[trajectory_key_parameter]
             model, projection = self.get_model_and_projection(model_params)
             model_results.append({MODEL: model, PROJECTION: projection,
-                                  TITLE_PREFIX: f'{trajectory_key_parameter}: {self.params[trajectory_key_parameter]}\n'})
+                                  TITLE_PREFIX: f'{trajectory_key_parameter}: '
+                                                f'{self.params[trajectory_key_parameter]}\n'})
             self.params[trajectory_key_parameter] = not self.params[trajectory_key_parameter]
         return model_results
 
