@@ -7,7 +7,7 @@ COORDINATES = 'coordinates'
 COORDINATE_DIM = 2
 ALPHA_CARBONS = 'alpha_carbons'
 
-# Trajectory Params
+# Run Params
 PLOT_TYPE = 'plot_type'
 PLOT_TICS = 'plot_tics'
 STANDARDIZED_PLOT = 'standardized_plot'
@@ -22,6 +22,14 @@ USE_ANGLES = 'use_angles'
 TRAJECTORY_NAME = 'trajectory_name'
 FILE_ELEMENT = 'file_element'
 MAIN_MODEL_PARAMS = 'main_model_params'
+
+# TODO: No name
+FILENAME = 'filename'
+TOPOLOGY_FILENAME = 'topology_filename'
+GOAL_FILENAME = 'goal_filename'
+FOLDER_PATH = 'folder_path'
+PARAMS = 'params'
+MULTI = 'multi'
 
 # Model Results
 MODEL = 'model'

@@ -1,0 +1,15 @@
+[
+  {
+    "algorithm_name": "original_pca",
+    "ndim": 2
+  },
+  {
+    "algorithm_name": "pca",
+    "ndim": 3,
+    "kernel": "only"
+  },
+  {
+    "algorithm_name": "original_tica",
+    "ndim": 2
+  }
+]

@@ -29,7 +29,7 @@ class TrajectoryFile:
 
 
 class DataTrajectory(TrajectoryFile):
-    def __init__(self, filename, topology_filename, folder_path='data/2f4k', params=None, atoms=None, sub_range=None):
+    def __init__(self, filename, topology_filename, folder_path='data/2f4k', params=None, atoms=None):
         super().__init__(filename, topology_filename, folder_path)
         try:
             print(f"Loading trajectory {self.filename}...")
@@ -262,6 +262,22 @@ class DataTrajectory(TrajectoryFile):
             return reconstructed_matrix.reshape((self.dim[TIME_FRAMES],
                                                  self.dim[ATOMS],
                                                  self.dim[COORDINATES]))
+
+
+class TrajectorySubset(DataTrajectory):
+    def __init__(self, time_window_size=None, quantity=1, **kwargs):
+        super().__init__(**kwargs)
+
+    def make_subsets(self):
+
+        return None
+
+    def data_input(self, model_parameters: dict = None) -> np.ndarray:
+        """
+        TODO
+        @param model_parameters:
+        @return:
+        """
 
 
 class TopologyConverter(TrajectoryFile):
