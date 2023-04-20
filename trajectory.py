@@ -10,7 +10,7 @@ from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
 from utils.algorithms.tsne import MyTSNE, MyTimeLaggedTSNE
 from utils.math import basis_transform, explained_variance
 from utils.matrix_tools import reconstruct_matrix
-from utils.param_key import *
+from utils.param_keys.param_key import *
 
 
 class TrajectoryFile:

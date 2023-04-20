@@ -19,7 +19,7 @@ from utils import statistical_zero, pretify_dict_model
 from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
 from utils.errors import InvalidReconstructionException
 from utils.matrix_tools import calculate_symmetrical_kernel_matrix, reconstruct_matrix
-from utils.param_key import *
+from utils.param_keys.param_key import *
 
 
 class SingleTrajectoryAnalyser:

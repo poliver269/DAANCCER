@@ -3,7 +3,7 @@ import numpy as np
 from utils.algorithms import MyModel
 
 from utils.matrix_tools import diagonal_block_expand
-from utils.param_key import *
+from utils.param_keys.param_key import *
 
 
 class TensorDR(MyModel):

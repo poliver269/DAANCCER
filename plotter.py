@@ -7,7 +7,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from sklearn.metrics.pairwise import cosine_similarity
 
 from utils import function_name
-from utils.param_key import *
+from utils.param_keys.param_key import *
 
 
 class MyPlotter:

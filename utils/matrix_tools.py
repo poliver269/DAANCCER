@@ -9,7 +9,7 @@ from plotter import ArrayPlotter
 from utils import function_name
 from utils.array_tools import rescale_array, rescale_center
 from utils.math import is_matrix_symmetric, exponential_2d, epanechnikov_2d, gaussian_2d, is_matrix_orthogonal
-from utils.param_key import *
+from utils.param_keys.param_key import *
 
 
 def diagonal_indices(matrix: np.ndarray):

@@ -1,3 +1,5 @@
+# TODO: Refactor params in separate files
+
 # Trajectory Dimensions
 TIME_FRAMES = 'time_frames'
 TIME_DIM = 0
@@ -7,20 +9,22 @@ COORDINATES = 'coordinates'
 COORDINATE_DIM = 2
 ALPHA_CARBONS = 'alpha_carbons'
 
-# Run Params
+# Run Params #
+RUN_OPTION = 'run_option'
+TRAJECTORY_NAME = 'trajectory_name'
+FILE_ELEMENT = 'file_element'
+# Plot params
 PLOT_TYPE = 'plot_type'
 PLOT_TICS = 'plot_tics'
 STANDARDIZED_PLOT = 'standardized_plot'
-CARBON_ATOMS_ONLY = 'carbon_atoms_only'
 INTERACTIVE = 'interactive'
+# Fitting params
 N_COMPONENTS = 'n_components'
-LAG_TIME = 'lag_time'
-TRUNCATION_VALUE = 'truncation_value'
+# Preprocessing params
 BASIS_TRANSFORMATION = 'basis_transformation'
+CARBON_ATOMS_ONLY = 'carbon_atoms_only'
 RANDOM_SEED = 'random_seed'
 USE_ANGLES = 'use_angles'
-TRAJECTORY_NAME = 'trajectory_name'
-FILE_ELEMENT = 'file_element'
 MAIN_MODEL_PARAMS = 'main_model_params'
 
 # TODO: No name
@@ -72,6 +76,7 @@ KERNEL_TYPE = 'kernel_type'
 CORR_KERNEL = 'corr_kernel'
 ONES_ON_KERNEL_DIAG = 'ones_on_kernel_diag'
 COV_FUNCTION = 'cov_function'
+LAG_TIME = 'lag_time'
 NTH_EIGENVECTOR = 'nth_eigenvector'
 EXTRA_DR_LAYER = 'extra_dr_layer'
 EXTRA_LAYER_ON_PROJECTION = 'extra_layer_on_projection'

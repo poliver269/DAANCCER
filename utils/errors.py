@@ -8,3 +8,7 @@ class InvalidComponentNumberException(InvalidReconstructionException):
 
 class NonInvertibleEigenvectorException(InvalidReconstructionException):
     pass
+
+
+class InvalidInputArgumentError(Exception):
+    pass

@@ -1,4 +1,5 @@
 {
+  "run_option": "compare",
   "plot_type": "color_map",
   "plot_tics": true,
   "carbon_atoms_only": true,

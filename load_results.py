@@ -4,10 +4,10 @@ from pathlib import Path
 import numpy as np
 
 from analyse import AnalyseResultLoader
-from main import MULTI_QUALITATIVE_TRANSFORMATION_ON_SAME_FITTING, MULTI_RE_FIT_TRANSFORMED
+from utils.param_keys.run_options import MULTI_QUALITATIVE_TRANSFORMATION_ON_SAME_FITTING, MULTI_RE_FIT_TRANSFORMED
 from plotter import ModelResultPlotter, ArrayPlotter
 from utils import pretify_dict_model
-from utils.param_key import TRAJECTORY_NAME, PLOT_TYPE, N_COMPONENTS
+from utils.param_keys.param_key import TRAJECTORY_NAME, PLOT_TYPE, N_COMPONENTS
 
 
 def load_list_of_dicts(params):

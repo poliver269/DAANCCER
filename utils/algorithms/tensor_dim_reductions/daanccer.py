@@ -11,7 +11,7 @@ from utils.algorithms.tensor_dim_reductions import TensorDR
 from utils.errors import NonInvertibleEigenvectorException, InvalidComponentNumberException
 from utils.math import is_matrix_orthogonal
 from utils.matrix_tools import diagonal_block_expand, calculate_symmetrical_kernel_matrix, ensure_matrix_symmetry
-from utils.param_key import *
+from utils.param_keys.param_key import *
 
 
 class DAANCCER(TensorDR):
