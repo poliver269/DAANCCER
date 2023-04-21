@@ -619,6 +619,12 @@ class AnalyseResultLoader:
         load_path = self.get_load_path(filename)
         return dict(np.load(load_path, allow_pickle=True))
 
+    def load_npz_(self, filename_list: list) -> dict:
+        merged_dict = {}
+        for filename in filename_list:
+            merged_dict.update(self.load_npz(filename))
+        return merged_dict
+
     def load_npz_files_in_directory(self, directory_name):
         directory_path = self.get_load_path(directory_name)
         filename_list = os.listdir(directory_path)

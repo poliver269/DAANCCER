@@ -5,7 +5,14 @@ from utils.param_keys.param_key import *
 from utils.param_keys.run_options import *
 
 
-def get_run_params(alg_params_json):
+def get_run_params(alg_params_json: str) -> dict:
+    """
+    Loads the running configuration given from a json file or the default dictionary from the code.
+    @param alg_params_json: str
+        Path to the json data with the running configuration
+    @return: dict
+        Running Configuration
+    """
     if alg_params_json is not None:
         return json.load(open(alg_params_json))
     else:
@@ -14,9 +21,9 @@ def get_run_params(alg_params_json):
         return {
             RUN_OPTION: COMPARE,
             PLOT_TYPE: COLOR_MAP,  # 'heat_map', 'color_map', '3d_map', 'explained_var_plot'
-            PLOT_TICS: True,  # True, False
-            CARBON_ATOMS_ONLY: True,  # True, False
-            INTERACTIVE: True,  # True, False
+            PLOT_TICS: True,
+            CARBON_ATOMS_ONLY: True,
+            INTERACTIVE: True,
             N_COMPONENTS: 2,
             BASIS_TRANSFORMATION: False,
             USE_ANGLES: False,
@@ -25,13 +32,16 @@ def get_run_params(alg_params_json):
         }
 
 
-def get_files_and_kwargs(params):
+def get_files_and_kwargs(params: dict):
     """
     This method returns the filename list of the trajectory and generates the kwargs for the DataTrajectory.
     The method is individually created for the available data set.
     Add new trajectory options, if different data set are used.
-    @param params: run params
-    @return:
+    @param params: dict
+        running configuration
+    @return: tuple
+        list of filenames of the trajectories AND
+        kwargs with the important arguments for the classes
     """
     try:
         trajectory_name = params[TRAJECTORY_NAME]
@@ -71,7 +81,14 @@ def get_files_and_kwargs(params):
     return filename_list, kwargs
 
 
-def get_model_params_list(alg_json_file):
+def get_model_params_list(alg_json_file: str) -> list[dict]:
+    """
+    Loads the list of model configurations given from a json file or the default list of dictionary from the code.
+    @param alg_json_file: str
+        Path to the json data with the running configuration
+    @return: list[dict]
+        list of model configurations
+    """
     if alg_json_file is not None:
         return json.load(open(alg_json_file))
     else:
@@ -112,7 +129,12 @@ def get_model_params_list(alg_json_file):
         ]
 
 
-def get_param_grid():
+def get_param_grid() -> list:
+    """
+    TODO[4rd prio]: Load from a json file
+    @return: list
+        returns the parameter grid
+    """
     param_grid = [
         {
             ALGORITHM_NAME: ['pca', 'tica'],

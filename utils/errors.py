@@ -10,5 +10,5 @@ class NonInvertibleEigenvectorException(InvalidReconstructionException):
     pass
 
 
-class InvalidInputArgumentError(Exception):
+class InvalidRunningOptionError(Exception):
     pass
