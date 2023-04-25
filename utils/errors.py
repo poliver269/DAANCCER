@@ -12,3 +12,7 @@ class NonInvertibleEigenvectorException(InvalidReconstructionException):
 
 class InvalidRunningOptionError(Exception):
     pass
+
+
+class InvalidSubsetTrajectory(Exception):
+    pass

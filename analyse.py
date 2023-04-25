@@ -14,7 +14,7 @@ from sklearn.model_selection import GridSearchCV
 from tqdm import tqdm
 
 from plotter import ArrayPlotter, MultiTrajectoryPlotter, ModelResultPlotter
-from trajectory import DataTrajectory
+from trajectory import DataTrajectory, TrajectorySubset
 from utils import statistical_zero, pretify_dict_model
 from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
 from utils.errors import InvalidReconstructionException
@@ -28,7 +28,8 @@ class SingleTrajectoryAnalyser:
         self.params: dict = {
             PLOT_TYPE: params.get(PLOT_TYPE, COLOR_MAP),
             PLOT_TICS: params.get(PLOT_TICS, True),
-            INTERACTIVE: params.get(INTERACTIVE, True)
+            INTERACTIVE: params.get(INTERACTIVE, True),
+            N_COMPONENTS: params.get(N_COMPONENTS, 2)
         }
 
     def compare(self, model_parameter_list: list[dict], plot_results: bool = True) -> list[dict]:
@@ -102,6 +103,13 @@ class SingleTrajectoryAnalyser:
                 y_label='Eigenvalue',
                 for_paper=True
             ).plot_2d(ndarray_data=model.eigenvalues)
+
+    def compare_trajectory_subsets(self, model_params_list, number_of_subsets=1, time_window_size=None):
+        results = []
+        traj_subset = TrajectorySubset()
+        for model_params in model_params_list:
+            total_result = self.trajectory.get_model_result(model_params)
+        # ModelResultPlotter().plot_multi_projections()
 
     def grid_search(self, param_grid: list[dict]):
         """

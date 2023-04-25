@@ -8,6 +8,7 @@ from mdtraj import Trajectory
 
 from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
 from utils.algorithms.tsne import MyTSNE, MyTimeLaggedTSNE
+from utils.errors import InvalidSubsetTrajectory
 from utils.math import basis_transform, explained_variance
 from utils.matrix_tools import reconstruct_matrix
 from utils.param_keys.param_key import *
@@ -37,11 +38,8 @@ class DataTrajectory(TrajectoryFile):
                 self.traj: Trajectory = md.load_dcd(self.filepath, top=self.topology_path, atom_indices=atoms)
             else:
                 self.traj: Trajectory = md.load(self.filepath, top=self.topology_path)
-            # TODO: Should the superposing not be done especially for the Alpha Carbon Atoms only?
-            self.traj: Trajectory = self.traj.superpose(self.traj).center_coordinates(mass_weighted=True)
-            # TODO:
-            # 1. Range of xyz-coordinates
-            # TODO: 2. Normalize again?
+            self.reference_pdb = md.load_pdb(self.topology_path)
+            self.traj: Trajectory = self.traj.superpose(self.reference_pdb).center_coordinates(mass_weighted=True)
             self.traj.xyz = (self.traj.xyz - np.mean(self.traj.xyz, axis=0)[np.newaxis, :, :]) / np.std(self.traj.xyz,
                                                                                                         axis=0)
             self.dim: dict = {TIME_FRAMES: self.traj.xyz.shape[TIME_DIM],
@@ -49,7 +47,7 @@ class DataTrajectory(TrajectoryFile):
                               COORDINATES: self.traj.xyz.shape[COORDINATE_DIM]}
             self.phi: np.ndarray = md.compute_phi(self.traj)
             self.psi: np.ndarray = md.compute_psi(self.traj)
-        except IOError:
+        except IOError as e:
             raise FileNotFoundError(f"Cannot load {self.filepath} or {self.topology_path}.")
         else:
             print(f"Trajectory `{self.traj}` successfully loaded.")
@@ -265,12 +263,40 @@ class DataTrajectory(TrajectoryFile):
 
 
 class TrajectorySubset(DataTrajectory):
-    def __init__(self, time_window_size=None, quantity=1, **kwargs):
+    def __init__(self, quantity=1, time_window_size=None, **kwargs):
         super().__init__(**kwargs)
+        self.quantity = quantity
+        self.time_window_size = time_window_size
+        self.rest = self.make_subsets()
+        self.part_count = 0
 
     def make_subsets(self):
+        if self.quantity > 1:
+            if self.time_window_size is not None:
+                warnings.warn(f'Quantity for the trajectory subset has a higher priority. '
+                              f'Time window size: `{self.time_window_size}` is overwritten')
+            if self.dim[TIME_FRAMES] < self.quantity:
+                raise InvalidSubsetTrajectory(f'Invalid number of quantities `{self.quantity}` '
+                                              f'for the trajectory with time steps `{self.dim[TIME_FRAMES]}`')
 
-        return None
+            rest = self.dim[TIME_FRAMES] % self.quantity
+            if rest == 0 and self.dim[TIME_FRAMES]:
+                self.time_window_size = self.dim[TIME_FRAMES] // self.quantity
+        else:
+            if self.time_window_size is None:
+                self.time_window_size = self.dim[TIME_FRAMES]
+                warnings.warn(f'The subset of the trajectory is the same as the actual trajectory.')
+                rest = 0
+            else:
+                rest = self.dim[TIME_FRAMES] % self.time_window_size
+
+        return rest
+
+    def get_sub_results(self, model_parameters: dict) -> dict:
+        results = {}
+        for count in range(self.quantity):
+            results[count] = self.get_model_result(model_parameters)
+        return results
 
     def data_input(self, model_parameters: dict = None) -> np.ndarray:
         """
@@ -278,6 +304,11 @@ class TrajectorySubset(DataTrajectory):
         @param model_parameters:
         @return:
         """
+        whole_input_data = super().data_input(model_parameters)
+        if self.part_count == self.quantity - 1:
+            return whole_input_data[:-(self.time_window_size+self.rest)]
+        else:
+            return whole_input_data[(self.part_count*self.time_window_size):(self.part_count+1)*self.time_window_size]
 
 
 class TopologyConverter(TrajectoryFile):
