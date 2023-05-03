@@ -5,6 +5,7 @@ PLOT_RECONSTRUCTED_WITH_SLIDER = 'plot_reconstructed_with_slider'
 COMPARE_WITH_CA_ATOMS = 'compare_with_carbon_alpha_atoms'
 BASE_TRANSFORMATION = 'base_transformation'
 PARAMETER_GRID_SEARCH = 'parameter_grid_search'
+TRAJECTORY_SUBSET_ANALYSIS = 'trajectory_subset_analysis'
 
 # Load analyse
 LOAD_ANALYSE_RESULTS_DICT = 'load_analyse_result_dict'

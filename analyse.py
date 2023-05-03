@@ -17,7 +17,7 @@ from plotter import ArrayPlotter, MultiTrajectoryPlotter, ModelResultPlotter
 from trajectory import DataTrajectory, TrajectorySubset
 from utils import statistical_zero, pretify_dict_model
 from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
-from utils.errors import InvalidReconstructionException
+from utils.errors import InvalidReconstructionException, InvalidDataTrajectory
 from utils.matrix_tools import calculate_symmetrical_kernel_matrix, reconstruct_matrix
 from utils.param_keys.param_key import *
 
@@ -104,12 +104,16 @@ class SingleTrajectoryAnalyser:
                 for_paper=True
             ).plot_2d(ndarray_data=model.eigenvalues)
 
-    def compare_trajectory_subsets(self, model_params_list, number_of_subsets=1, time_window_size=None):
-        results = []
-        traj_subset = TrajectorySubset()
-        for model_params in model_params_list:
-            total_result = self.trajectory.get_model_result(model_params)
-        # ModelResultPlotter().plot_multi_projections()
+    def compare_trajectory_subsets(self, model_params_list):
+        if isinstance(self.trajectory, TrajectorySubset):
+            results = []
+            for model_params in model_params_list:
+                total_result = [self.trajectory.get_model_result(model_params)]
+                total_result = total_result + self.trajectory.get_sub_results(model_params)
+                results.append(total_result)
+            ModelResultPlotter(self.trajectory).plot_multi_projections(results, self.params[PLOT_TYPE], True)
+        else:
+            raise InvalidDataTrajectory(f'Data trajectory is invalid. Use a subset trajectory to ')
 
     def grid_search(self, param_grid: list[dict]):
         """

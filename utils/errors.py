@@ -16,3 +16,7 @@ class InvalidRunningOptionError(Exception):
 
 class InvalidSubsetTrajectory(Exception):
     pass
+
+
+class InvalidDataTrajectory(Exception):
+    pass

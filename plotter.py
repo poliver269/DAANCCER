@@ -156,7 +156,8 @@ class ModelResultPlotter(MyPlotter):
             main_axes = self.axes[0]  # axes[row][column]
             if len(model_results) == 1:
                 for component_nr in range(components + 1)[1:]:
-                    self._plot_time_tics(self.axes[component_nr], model_results[0][PROJECTION], component=component_nr)
+                    self._plot_time_tics(self.axes[component_nr], model_results[DUMMY_ZERO][PROJECTION],
+                                         component=component_nr)
             else:
                 for i, result in enumerate(model_results):
                     for component_nr in range(components + 1)[1:]:
@@ -166,13 +167,13 @@ class ModelResultPlotter(MyPlotter):
             main_axes = self.axes
         if plot_type == HEAT_MAP:
             if len(model_results) == 1:
-                self._plot_transformed_data_heat_map(main_axes, model_results[0])
+                self._plot_transformed_data_heat_map(main_axes, model_results[DUMMY_ZERO])
             else:
                 for i, result in enumerate(model_results):
                     self._plot_transformed_data_heat_map(main_axes[i], result)
         else:
             if len(model_results) == 1:
-                self._plot_transformed_trajectory(main_axes, model_results[0], color_map=plot_type,
+                self._plot_transformed_trajectory(main_axes, model_results[DUMMY_ZERO], color_map=plot_type,
                                                   show_model_properties=True)
             else:
                 for i, result in enumerate(model_results):
@@ -180,7 +181,8 @@ class ModelResultPlotter(MyPlotter):
                                                       show_model_properties=True)
         plt.show()
 
-    def _plot_transformed_trajectory(self, ax, result_dict, color_map, show_model_properties=False, center_plot=False):
+    def _plot_transformed_trajectory(self, ax, result_dict: dict, color_map: str, show_model_properties=False,
+                                     center_plot=False):
         """
         Plot the projection results of the transformed trajectory on an axis
         :param ax: Which axis the result should be plotted on
@@ -199,6 +201,9 @@ class ModelResultPlotter(MyPlotter):
                          fontsize=8, wrap=True)
             ax.set_xlabel('1st component')
             ax.set_ylabel('2nd component')
+        else:
+            pass  # TODO: show axes of all
+
         if color_map == COLOR_MAP:
             color_array = np.arange(result_dict[PROJECTION].shape[0])
             c_map = plt.cm.viridis
@@ -281,10 +286,10 @@ class ModelResultPlotter(MyPlotter):
             print('{}: {}'.format(e, model))
 
     def plot_multi_projections(self, model_result_list_in_list, plot_type, center_plot=True):
-        self.fig, self.axes = plt.subplots(len(model_result_list_in_list), len(model_result_list_in_list[0]))
+        self.fig, self.axes = plt.subplots(len(model_result_list_in_list), len(model_result_list_in_list[DUMMY_ZERO]))
         for row_index, model_results in enumerate(model_result_list_in_list):
             if len(model_results) == 1:
-                self._plot_transformed_trajectory(self.axes[row_index], model_results[0], color_map=plot_type,
+                self._plot_transformed_trajectory(self.axes[row_index], model_results[DUMMY_ZERO], color_map=plot_type,
                                                   center_plot=center_plot)
             else:
                 for column_index, result in enumerate(model_results):

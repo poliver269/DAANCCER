@@ -89,4 +89,4 @@ The different parameters are explained here.
 although the string values of the parameters are written in lower-case and should be used in the *.json*-config-files.
 
 ## 5. Run the program
-```python main.py -o config_files\options\run_options_file.json -a config_files\algorithms\pca+daanccer+tica.json```
+```python main.py -o config_files\options\run_options_file.json -a config_files\algorithm\pca+tica+daanccer.json```

@@ -1,0 +1,14 @@
+{
+  "run_option": "trajectory_subset_analysis",
+  "plot_type": "color_map",
+  "plot_tics": false,
+  "carbon_atoms_only": true,
+  "interactive": true,
+  "n_components": 2,
+  "basis_transformation": false,
+  "use_angles": false,
+  "trajectory_name": "2f4k",
+  "file_element": 0,
+  "quantity": 4,
+  "time_window_size": null
+}
