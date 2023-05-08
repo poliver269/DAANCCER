@@ -165,6 +165,7 @@ class ModelResultPlotter(MyPlotter):
         else:
             self.fig, self.axes = plt.subplots(1, len(model_results))
             main_axes = self.axes
+
         if plot_type == HEAT_MAP:
             if len(model_results) == 1:
                 self._plot_transformed_data_heat_map(main_axes, model_results[DUMMY_ZERO])
@@ -182,7 +183,7 @@ class ModelResultPlotter(MyPlotter):
         plt.show()
 
     def _plot_transformed_trajectory(self, ax, result_dict: dict, color_map: str, show_model_properties=False,
-                                     center_plot=False, sub_part=None):
+                                     center_plot: bool = False, sub_part=None):
         """
         Plot the projection results of the transformed trajectory on an axis
         :param ax: Which axis the result should be plotted on
@@ -190,7 +191,9 @@ class ModelResultPlotter(MyPlotter):
             dict should contain the keys: 'model', 'projection',
             and optional keys: 'title_prefix', 'explained_variance'
         :param color_map: str
+        :param show_model_properties: bool
             String value of the plot mapping type
+        :param center_plot: bool
         """
         ax.cla()
         if show_model_properties:

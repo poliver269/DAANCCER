@@ -81,7 +81,7 @@ class SingleTrajectoryAnalyser:
         @param model_results_list: list[dict]
             Different model input parameters, saved in a list.
         """
-        ModelResultPlotter(self.trajectory).plot_models(
+        ModelResultPlotter().plot_models(
             model_results_list,
             plot_type=self.params[PLOT_TYPE],
             plot_tics=self.params[PLOT_TICS],
@@ -631,7 +631,7 @@ class AnalyseResultLoader:
         load_path = self.get_load_path(filename)
         return dict(np.load(load_path, allow_pickle=True))
 
-    def load_npz_(self, filename_list: list) -> dict:
+    def load_npz_by_filelist(self, filename_list: list) -> dict:
         merged_dict = {}
         for filename in filename_list:
             merged_dict.update(self.load_npz(filename))

@@ -141,7 +141,7 @@ def load(result_load_files: list, kwargs: dict):
     if run_option == LOAD_ANALYSE_RESULTS_DICT:
         load_results.load_analyse_results_dict(result_load_files, kwargs)
     elif run_option == LOAD_LIST_OF_DICTS:
-        load_results.load_list_of_dicts(result_load_files, kwargs[PARAMS])
+        load_results.load_list_of_dicts(sub_dir=result_load_files[DUMMY_ZERO], params=kwargs[PARAMS])
     else:
         raise InvalidRunningOptionError(f'The loading files are set to: {result_load_files},\n'
                                         f'but the run_option: `{run_option}` in the (json) configuration '

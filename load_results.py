@@ -10,7 +10,7 @@ from utils import pretify_dict_model
 from utils.param_keys.param_key import *
 
 
-def load_list_of_dicts(sub_dir: list, params: dict):
+def load_list_of_dicts(sub_dir: str, params: dict):
     # directories = ['2023-03-05_23.44.24', '2023-03-05_21.51.49', '2023-03-05_23.46.32']  # prot2
     # sub_dir = 'fit-on-one-transform-on-all_original-pca'
     # sub_dir = 'fit-on-one-transform-on-all_tensor-pca-gaussian-only'
@@ -41,7 +41,7 @@ def load_analyse_results_dict(result_load_files: list, kwargs: dict):
     @return:
     """
     from_other_traj = False
-    plot_dict = AnalyseResultLoader(kwargs[PARAMS][TRAJECTORY_NAME]).load_npz_list(result_load_files)
+    plot_dict = AnalyseResultLoader(kwargs[PARAMS][TRAJECTORY_NAME]).load_npz_by_filelist(result_load_files)
     filter_by_indices = True
     if filter_by_indices:
         indices = [
