@@ -111,7 +111,7 @@ class SingleTrajectoryAnalyser:
                 total_result = [self.trajectory.get_model_result(model_params)]
                 total_result = total_result + self.trajectory.get_sub_results(model_params)
                 results.append(total_result)
-            ModelResultPlotter(self.trajectory).plot_multi_projections(results, self.params[PLOT_TYPE], True)
+            ModelResultPlotter().plot_multi_projections(results, self.params[PLOT_TYPE], center_plot=False)
         else:
             raise InvalidDataTrajectory(f'Data trajectory is invalid. Use a subset trajectory to ')
 

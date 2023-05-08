@@ -68,12 +68,13 @@ class DAANCCER(TensorDR):
                           f'but the `{LAG_TIME}` is not set is equal to: {self.lag_time}')
 
     def __str__(self):
-        sb = self.describe()
+        sb = 'DAANCCER('
+        # sb = self.describe()
         sb += f'\nPCs={self.n_components}'
         sb += f'lag-time={self.lag_time}, ' if self.lag_time > 0 else ''
         # sb += '\n'
         # sb += f'abs_ew_sorting={self.abs_eigenvalue_sorting}, '
-        return sb
+        return sb + ')'
         # f'{function_name(self.cov_function)}'
 
     def describe(self):

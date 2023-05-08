@@ -11,13 +11,13 @@ from utils.param_keys.param_key import *
 
 
 class MyPlotter:
-    def __init__(self, interactive=True, title_prefix='', for_paper=False):
+    def __init__(self, interactive: bool = True, title_prefix: str = '', for_paper: bool = False):
         self.fig = None
         self.axes = None
-        self.interactive = interactive
-        self.title_prefix = title_prefix
+        self.interactive: bool = interactive
+        self.title_prefix: str = title_prefix
         self.colors = mcolors.TABLEAU_COLORS
-        self.for_paper = for_paper
+        self.for_paper: bool = for_paper
 
         if self.interactive:
             mpl.use('TkAgg')
@@ -182,7 +182,7 @@ class ModelResultPlotter(MyPlotter):
         plt.show()
 
     def _plot_transformed_trajectory(self, ax, result_dict: dict, color_map: str, show_model_properties=False,
-                                     center_plot=False):
+                                     center_plot=False, sub_part=None):
         """
         Plot the projection results of the transformed trajectory on an axis
         :param ax: Which axis the result should be plotted on
@@ -201,21 +201,29 @@ class ModelResultPlotter(MyPlotter):
                          fontsize=8, wrap=True)
             ax.set_xlabel('1st component')
             ax.set_ylabel('2nd component')
+            self._print_model_properties(result_dict)
         else:
             pass  # TODO: show axes of all
 
         if color_map == COLOR_MAP:
-            color_array = np.arange(result_dict[PROJECTION].shape[0])
+            if sub_part is None:
+                color_array = np.arange(result_dict[PROJECTION].shape[0])
+            else:
+                shape = result_dict[PROJECTION].shape[0]
+                color_array = np.arange((sub_part-1)*shape, sub_part*shape)
+
+            if ax.get_subplotspec().is_first_col():
+                ax.set_ylabel(str(result_dict[MODEL]).split('(')[DUMMY_ZERO], size='large')
+            if ax.get_subplotspec().is_first_row():
+                ax.set_title(f'steps {color_array[0]}-{color_array[-1]}')
+
             c_map = plt.cm.viridis
             im = ax.scatter(result_dict[PROJECTION][:, 0], result_dict[PROJECTION][:, 1], c=color_array,
-                            cmap=c_map, marker='.')
-            if not self.for_paper:
+                            cmap=c_map, vmin=0, vmax=10000, marker='.')
+            if not self.for_paper and ax.get_subplotspec().is_first_col():
                 self.fig.colorbar(im, ax=ax)
         else:
             ax.scatter(result_dict[PROJECTION][:, 0], result_dict[PROJECTION][:, 1], marker='.')
-
-        if show_model_properties:
-            self._print_model_properties(result_dict)
 
         if center_plot:
             # Move left y-axis and bottom x-axis to centre, passing through (0,0)
@@ -231,8 +239,7 @@ class ModelResultPlotter(MyPlotter):
             ax.xaxis.set_ticks_position('bottom')
             ax.yaxis.set_ticks_position('left')
         else:
-            ax.tick_params(left=False, right=False, labelleft=False,
-                           labelbottom=False, bottom=False)
+            pass  # ax.tick_params(left=False, right=False, labelleft=False, labelbottom=False, bottom=False)
 
     @staticmethod
     def _plot_time_tics(ax, projection, component):
@@ -286,15 +293,18 @@ class ModelResultPlotter(MyPlotter):
             print('{}: {}'.format(e, model))
 
     def plot_multi_projections(self, model_result_list_in_list, plot_type, center_plot=True):
-        self.fig, self.axes = plt.subplots(len(model_result_list_in_list), len(model_result_list_in_list[DUMMY_ZERO]))
+        # noinspection PyTypeChecker
+        self.fig, self.axes = plt.subplots(len(model_result_list_in_list), len(model_result_list_in_list[DUMMY_ZERO]),
+                                           sharex='row', sharey='row')
         for row_index, model_results in enumerate(model_result_list_in_list):
             if len(model_results) == 1:
                 self._plot_transformed_trajectory(self.axes[row_index], model_results[DUMMY_ZERO], color_map=plot_type,
                                                   center_plot=center_plot)
             else:
                 for column_index, result in enumerate(model_results):
+                    sub_part = None if column_index == 0 else column_index
                     self._plot_transformed_trajectory(self.axes[row_index][column_index], result, color_map=plot_type,
-                                                      center_plot=center_plot)
+                                                      center_plot=center_plot, sub_part=sub_part)
         self._post_processing()
 
 
