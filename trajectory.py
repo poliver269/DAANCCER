@@ -4,8 +4,11 @@ from pathlib import Path
 import mdtraj as md
 import numpy as np
 import pyemma.coordinates as coor
+from deeptime.decomposition import TICA
 from mdtraj import Trajectory
+from sklearn.decomposition import FastICA, PCA
 
+from utils.algorithms.interfaces import DeeptimeTICAInterface
 from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
 from utils.algorithms.tsne import MyTSNE, MyTimeLaggedTSNE
 from utils.errors import InvalidSubsetTrajectory
@@ -133,7 +136,11 @@ class DataTrajectory(TrajectoryFile):
         :return: dict of the results: {MODEL, PROJECTION, EXPLAINED_VAR, INPUT_PARAMS}
         """
         model, projection = self.get_model_and_projection(model_parameters, log=log)
-        ex_var = explained_variance(model.eigenvalues, self.params[N_COMPONENTS])
+        try:
+            ex_var = explained_variance(model.explained_variance_, self.params[N_COMPONENTS])
+        except AttributeError as e:
+            warnings.warn(str(e))
+            ex_var = 0
         return {MODEL: model, PROJECTION: projection, EXPLAINED_VAR: ex_var, INPUT_PARAMS: model_parameters}
 
     def get_model_and_projection(self, model_parameters: dict, inp: np.ndarray = None, log: bool = True):
@@ -160,18 +167,23 @@ class DataTrajectory(TrajectoryFile):
         if model_parameters[ALGORITHM_NAME].startswith('original'):
             try:
                 if model_parameters[ALGORITHM_NAME] == 'original_pca':
-                    from sklearn.decomposition import PCA
-                    pca = coor.pca(data=inp, dim=self.params[N_COMPONENTS])
-                    return pca, pca.get_output()[0]
+                    # from sklearn.decomposition import PCA
+                    pca = PCA(n_components=self.params[N_COMPONENTS])
+                    # pca = coor.pca(data=inp, dim=self.params[N_COMPONENTS])
+                    return pca, pca.fit_transform(inp)
                 elif model_parameters[ALGORITHM_NAME] == 'original_tica':
-                    tica = coor.tica(data=inp, lag=model_parameters[LAG_TIME], dim=self.params[N_COMPONENTS])
-                    return tica, tica.get_output()[0]
+                    tica = DeeptimeTICAInterface(dim=self.params[N_COMPONENTS], lagtime=model_parameters[LAG_TIME])
+                    # tica = coor.tica(data=inp, lag=model_parameters[LAG_TIME], dim=self.params[N_COMPONENTS])
+                    return tica, tica.fit_transform(inp)
                 elif model_parameters[ALGORITHM_NAME] == 'original_tsne':
                     tsne = MyTSNE(n_components=self.params[N_COMPONENTS])
                     return tsne, tsne.fit_transform(inp)
                 elif model_parameters[ALGORITHM_NAME] == 'original-tl-tsne':
                     tsne = MyTimeLaggedTSNE(lag_time=model_parameters[LAG_TIME], n_components=self.params[N_COMPONENTS])
                     return tsne, tsne.fit_transform(inp)
+                elif model_parameters[ALGORITHM_NAME] == 'original_ica':
+                    ica = FastICA(n_components=self.params[N_COMPONENTS])
+                    return ica, ica.fit_transform(inp)
                 else:
                     warnings.warn(f'No original algorithm was found with name: {model_parameters[ALGORITHM_NAME]}')
             except TypeError:
@@ -253,7 +265,7 @@ class DataTrajectory(TrajectoryFile):
         if isinstance(model, DAANCCER):
             return model.reconstruct(projection[0])
         else:
-            eigenvectors = model.eigenvectors
+            eigenvectors = model.components_
             input_data = self.data_input(model_parameters)
             reconstructed_matrix = reconstruct_matrix(projection[0], eigenvectors, self.params[N_COMPONENTS],
                                                       mean=np.mean(input_data, axis=0))

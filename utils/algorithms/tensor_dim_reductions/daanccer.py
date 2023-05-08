@@ -3,6 +3,7 @@ import warnings
 import numpy as np
 import scipy
 from pyemma import coordinates as coor
+from sklearn.decomposition import PCA
 from sklearn.metrics import mean_squared_error
 
 from plotter import ArrayPlotter
@@ -241,13 +242,13 @@ class DAANCCER(TensorDR):
 
         # sort eigenvalues descending
         sorted_eigenvalue_indexes = np.argsort(eigenvalues)[::-1]
-        self.eigenvalues = np.real_if_close(eigenvalues[sorted_eigenvalue_indexes])
+        self.explained_variance_ = np.real_if_close(eigenvalues[sorted_eigenvalue_indexes])
         eigenvectors = np.real_if_close(eigenvectors[:, sorted_eigenvalue_indexes])
 
         if self.extra_dr_layer:
             return self._get_eigenvectors_with_dr_layer(eigenvectors)
         else:
-            self.eigenvalues = self.eigenvalues[::self.nth_eigenvector]
+            self.explained_variance_ = self.explained_variance_[::self.nth_eigenvector]
             return eigenvectors[:, ::self.nth_eigenvector]
 
     def _get_eigenvectors_with_dr_layer(self, eigenvectors):
@@ -256,18 +257,19 @@ class DAANCCER(TensorDR):
         for component in range(self._atom_dim):
             vector_from = component * self._combine_dim
             vector_to = (component + 1) * self._combine_dim
-            model = coor.pca(data=eigenvectors[:, vector_from:vector_to], dim=1)
+            model = PCA(n_components=1)
+            model.fit_transform(eigenvectors[:, vector_from:vector_to])
 
             # No idea if it makes sense TODO
-            ew2 = model.eigenvalues[0]
+            ew2 = model.explained_variance_[0]
             # eigenvalues2.append(np.mean(self.eigenvalues[vector_from:vector_to] * ew2))
-            eigenvalues2.append(np.sum(self.eigenvalues[vector_from:vector_to] * ew2))
+            eigenvalues2.append(np.sum(self.explained_variance_[vector_from:vector_to] * ew2))
 
-            ev2 = model.eigenvectors[0]
+            ev2 = model.components_[0]
             ev = np.dot(eigenvectors[:, vector_from:vector_to], ev2)
             eigenvectors2.append(ev)
 
-        self.eigenvalues = np.asarray(eigenvalues2).T
+        self.explained_variance_ = np.asarray(eigenvalues2).T
         return np.asarray(eigenvectors2).T
 
     def _get_correlations_matrix(self):

@@ -102,7 +102,7 @@ class SingleTrajectoryAnalyser:
                 x_label='Principal Component Number',
                 y_label='Eigenvalue',
                 for_paper=True
-            ).plot_2d(ndarray_data=model.eigenvalues)
+            ).plot_2d(ndarray_data=model.explained_variance_)
 
     def compare_trajectory_subsets(self, model_params_list):
         if isinstance(self.trajectory, TrajectorySubset):
@@ -151,7 +151,7 @@ class MultiTrajectoryAnalyser:
             principal_components = []
             for trajectory in self.trajectories:
                 res = trajectory.get_model_result(model_parameters)
-                principal_components.append(res['model'].eigenvectors)
+                principal_components.append(res['model'].components_)
             pcs = np.asarray(principal_components)
             MultiTrajectoryPlotter(interactive=False).plot_principal_components(model_parameters, pcs,
                                                                                 self.params[N_COMPONENTS])
@@ -210,8 +210,8 @@ class MultiTrajectoryAnalyser:
 
         all_similarities = []
         for trajectory_pair in trajectory_result_pairs:
-            pc_0_matrix = trajectory_pair[0][MODEL].eigenvectors.T
-            pc_1_matrix = trajectory_pair[1][MODEL].eigenvectors.T
+            pc_0_matrix = trajectory_pair[0][MODEL].components_.T
+            pc_1_matrix = trajectory_pair[1][MODEL].components_.T
             cos_matrix = cosine_similarity(np.real(pc_0_matrix), np.real(pc_1_matrix))
             sorted_similarity_indexes = linear_sum_assignment(-np.abs(cos_matrix))[1]
             assert len(sorted_similarity_indexes) == len(
@@ -419,7 +419,7 @@ class MultiTrajectoryAnalyser:
                 data_projection = model.transform(input_data)
             if component is None:
                 component = model.dim
-            reconstructed_data = reconstruct_matrix(data_projection, model.eigenvectors, component,
+            reconstructed_data = reconstruct_matrix(data_projection, model.components_, component,
                                                     mean=model.mean)
         return mean_squared_error(input_data, reconstructed_data, squared=False)
 

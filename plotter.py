@@ -291,7 +291,7 @@ class ModelResultPlotter(MyPlotter):
         model = projection_dict[MODEL]
         try:
             print(projections[0].shape)
-            print('EV:', model.eigenvectors, 'EW:', model.eigenvalues)
+            print('EV:', model.components_, 'EW:', model.explained_variance_)
         except AttributeError as e:
             print('{}: {}'.format(e, model))
 

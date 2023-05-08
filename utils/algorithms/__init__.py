@@ -12,8 +12,8 @@ class MyModel(TransformerMixin, BaseEstimator):
     https://www.askpython.com/python/examples/principal-component-analysis
     """
     def __init__(self):
-        self.eigenvalues = None
-        self.eigenvectors = None
+        self.explained_variance_ = None
+        self.components_ = None
         self._standardized_data = None
         self.n_components = None
         self.n_samples = None
@@ -31,7 +31,7 @@ class MyModel(TransformerMixin, BaseEstimator):
         self.n_components = fit_params.get(N_COMPONENTS, 2)
         self._standardized_data = self._standardize_data(data_matrix)
         self._covariance_matrix = self.get_covariance_matrix()
-        self.eigenvectors = self.get_eigenvectors()
+        self.components_ = self.get_eigenvectors()
         return self
 
     @staticmethod
@@ -64,4 +64,4 @@ class MyModel(TransformerMixin, BaseEstimator):
         :return: Data reduced to lower dimensions from higher dimensions
         """
         data_matrix_standardized = self._standardize_data(data_matrix)
-        return np.dot(data_matrix_standardized, self.eigenvectors[:, :self.n_components])
+        return np.dot(data_matrix_standardized, self.components_[:, :self.n_components])

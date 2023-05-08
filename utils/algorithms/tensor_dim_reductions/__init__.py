@@ -35,7 +35,7 @@ class TensorDR(MyModel):
 
         # sort eigenvalues descending
         sorted_eigenvalue_indexes = np.argsort(eigenvalues)[::-1]
-        self.eigenvalues = eigenvalues[sorted_eigenvalue_indexes]
+        self.explained_variance_ = eigenvalues[sorted_eigenvalue_indexes]
         return eigenvectors[:, sorted_eigenvalue_indexes]
 
     def transform(self, data_tensor):
