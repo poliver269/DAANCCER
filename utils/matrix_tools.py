@@ -9,7 +9,10 @@ from plotter import ArrayPlotter
 from utils import function_name
 from utils.array_tools import rescale_array, rescale_center
 from utils.math import is_matrix_symmetric, exponential_2d, epanechnikov_2d, gaussian_2d, is_matrix_orthogonal
-from utils.param_keys.param_key import *
+from utils.param_keys.analyses import PLOT_3D_MAP, WEIGHTED_DIAGONAL, FITTED_KERNEL_CURVES, KERNEL_COMPARE, \
+    PLOT_KERNEL_MATRIX_3D
+from utils.param_keys.kernel_functions import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL, MY_LINEAR, \
+    MY_LINEAR_INVERSE_P1, MY_LINEAR_NORM, MY_LINEAR_INVERSE_NORM
 
 
 def diagonal_indices(matrix: np.ndarray):

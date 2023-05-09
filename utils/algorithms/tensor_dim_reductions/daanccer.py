@@ -2,7 +2,6 @@ import warnings
 
 import numpy as np
 import scipy
-from pyemma import coordinates as coor
 from sklearn.decomposition import PCA
 from sklearn.metrics import mean_squared_error
 
@@ -12,7 +11,12 @@ from utils.algorithms.tensor_dim_reductions import TensorDR
 from utils.errors import NonInvertibleEigenvectorException, InvalidComponentNumberException
 from utils.math import is_matrix_orthogonal
 from utils.matrix_tools import diagonal_block_expand, calculate_symmetrical_kernel_matrix, ensure_matrix_symmetry
-from utils.param_keys.param_key import *
+from utils.param_keys import N_COMPONENTS, MATRIX_NDIM, \
+    TENSOR_NDIM
+from utils.param_keys.analyses import CORRELATION_MATRIX_PLOT, EIGENVECTOR_MATRIX_ANALYSE
+from utils.param_keys.kernel_functions import MY_GAUSSIAN, KERNEL_ONLY, KERNEL_DIFFERENCE, KERNEL_MULTIPLICATION
+from utils.param_keys.model import ALGORITHM_NAME, LAG_TIME, NTH_EIGENVECTOR, EXTRA_DR_LAYER
+from utils.param_keys.traj_dims import TIME_DIM, ATOM_DIM, COORDINATE_DIM
 
 
 class DAANCCER(TensorDR):

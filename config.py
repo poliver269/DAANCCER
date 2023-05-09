@@ -1,8 +1,15 @@
 import json
 import warnings
 
-from utils.param_keys.param_key import *
+from utils.param_keys import RUN_OPTION, TRAJECTORY_NAME, FILE_ELEMENT, PLOT_TYPE, PLOT_TICS, INTERACTIVE, N_COMPONENTS, \
+    BASIS_TRANSFORMATION, CARBON_ATOMS_ONLY, USE_ANGLES, FILENAME, TOPOLOGY_FILENAME, FOLDER_PATH, PARAMS, TENSOR_NDIM
+from utils.param_keys.analyses import COLOR_MAP, ANALYSE_PLOT_TYPE, FITTED_KERNEL_CURVES
+from utils.param_keys.kernel_functions import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL, MY_LINEAR, KERNEL_ONLY, \
+    KERNEL_DIFFERENCE, KERNEL_MULTIPLICATION
+from utils.param_keys.model import ALGORITHM_NAME, NDIM, KERNEL, KERNEL_TYPE, ONES_ON_KERNEL_DIAG, LAG_TIME, \
+    ABS_EVAL_SORT
 from utils.param_keys.run_options import *
+from utils.param_keys.traj_dims import ATOMS
 
 
 def get_run_params(alg_params_json: str) -> dict:

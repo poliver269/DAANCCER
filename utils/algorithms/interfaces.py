@@ -2,6 +2,9 @@ from deeptime.decomposition import TICA
 
 
 class DeeptimeTICAInterface(TICA):
+    def __str__(self):
+        return f'TICA(n_components={self.n_components}, lag_time={self.lagtime})'
+
     @property
     def explained_variance_(self):
         return self.model.singular_values

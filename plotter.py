@@ -2,21 +2,26 @@ import matplotlib as mpl
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 from matplotlib.widgets import Slider
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.metrics.pairwise import cosine_similarity
 
 from utils import function_name
-from utils.param_keys.param_key import *
+from utils.param_keys import TRAJECTORY_NAME, CARBON_ATOMS_ONLY, X, Y, Z, DUMMY_ZERO
+from utils.param_keys.analyses import HEAT_MAP, COLOR_MAP, PLOT_3D_MAP
+from utils.param_keys.model_result import MODEL, PROJECTION, TITLE_PREFIX, EXPLAINED_VAR
+from utils.param_keys.traj_dims import TIME_FRAMES
 
 
 class MyPlotter:
     def __init__(self, interactive: bool = True, title_prefix: str = '', for_paper: bool = False):
-        self.fig = None
-        self.axes = None
+        self.fig: Figure = Figure()
+        self.axes: Axes = Axes()
         self.interactive: bool = interactive
         self.title_prefix: str = title_prefix
-        self.colors = mcolors.TABLEAU_COLORS
+        self.colors: dict = mcolors.TABLEAU_COLORS
         self.for_paper: bool = for_paper
 
         if self.interactive:
@@ -152,7 +157,8 @@ class ModelResultPlotter(MyPlotter):
             Number of components used for the reduced
         """
         if plot_tics:
-            self.fig, self.axes = plt.subplots(components + 1, len(model_results))  # subplots(rows, columns)
+            self.fig, self.axes = plt.subplots(components + 1, len(model_results),
+                                               constrained_layout=True)  # subplots(rows, columns)
             main_axes = self.axes[0]  # axes[row][column]
             if len(model_results) == 1:
                 for component_nr in range(components + 1)[1:]:
@@ -163,7 +169,7 @@ class ModelResultPlotter(MyPlotter):
                     for component_nr in range(components + 1)[1:]:
                         self._plot_time_tics(self.axes[component_nr][i], result[PROJECTION], component=component_nr)
         else:
-            self.fig, self.axes = plt.subplots(1, len(model_results))
+            self.fig, self.axes = plt.subplots(1, len(model_results), constrained_layout=True)
             main_axes = self.axes
 
         if plot_type == HEAT_MAP:
@@ -182,8 +188,8 @@ class ModelResultPlotter(MyPlotter):
                                                       show_model_properties=True)
         plt.show()
 
-    def _plot_transformed_trajectory(self, ax, result_dict: dict, color_map: str, show_model_properties=False,
-                                     center_plot: bool = False, sub_part=None):
+    def _plot_transformed_trajectory(self, ax, result_dict: dict, color_map: str, show_model_properties: bool = False,
+                                     center_plot: bool = False, sub_part: [int, None] = None):
         """
         Plot the projection results of the transformed trajectory on an axis
         :param ax: Which axis the result should be plotted on
@@ -205,8 +211,6 @@ class ModelResultPlotter(MyPlotter):
             ax.set_xlabel('1st component')
             ax.set_ylabel('2nd component')
             self._print_model_properties(result_dict)
-        else:
-            pass  # TODO: show axes of all
 
         if color_map == COLOR_MAP:
             if sub_part is None:
@@ -215,15 +219,17 @@ class ModelResultPlotter(MyPlotter):
                 shape = result_dict[PROJECTION].shape[0]
                 color_array = np.arange((sub_part-1)*shape, sub_part*shape)
 
-            if ax.get_subplotspec().is_first_col():
-                ax.set_ylabel(str(result_dict[MODEL]).split('(')[DUMMY_ZERO], size='large')
-            if ax.get_subplotspec().is_first_row():
-                ax.set_title(f'steps {color_array[0]}-{color_array[-1]}')
+            if not show_model_properties:
+                if ax.get_subplotspec().is_first_col():
+                    ax.set_ylabel(str(result_dict[MODEL]).split('(')[DUMMY_ZERO], size='large')
+                if ax.get_subplotspec().is_first_row():
+                    ax.set_title(f'Steps {color_array[0]}-{color_array[-1]}')
 
             c_map = plt.cm.viridis
             im = ax.scatter(result_dict[PROJECTION][:, 0], result_dict[PROJECTION][:, 1], c=color_array,
                             cmap=c_map, vmin=0, vmax=10000, marker='.')
-            if not self.for_paper and ax.get_subplotspec().is_first_col():
+            if not self.for_paper and ((ax.get_subplotspec().is_last_col() and show_model_properties) or
+                                       (ax.get_subplotspec().is_first_col() and not show_model_properties)):
                 self.fig.colorbar(im, ax=ax)
         else:
             ax.scatter(result_dict[PROJECTION][:, 0], result_dict[PROJECTION][:, 1], marker='.')
@@ -254,8 +260,10 @@ class ModelResultPlotter(MyPlotter):
         :return:
         """
         ax.cla()
+
         ax.set_xlabel('Time step')
         ax.set_ylabel('Component {}'.format(component))
+        ax.label_outer()
 
         ax.plot(projection[:, component - 1])
 
@@ -296,7 +304,6 @@ class ModelResultPlotter(MyPlotter):
             print('{}: {}'.format(e, model))
 
     def plot_multi_projections(self, model_result_list_in_list, plot_type, center_plot=True):
-        # noinspection PyTypeChecker
         self.fig, self.axes = plt.subplots(len(model_result_list_in_list), len(model_result_list_in_list[DUMMY_ZERO]),
                                            sharex='row', sharey='row')
         for row_index, model_results in enumerate(model_result_list_in_list):

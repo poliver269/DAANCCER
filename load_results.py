@@ -4,10 +4,10 @@ from pathlib import Path
 import numpy as np
 
 from analyse import AnalyseResultLoader
+from utils.param_keys import TRAJECTORY_NAME, PLOT_TYPE, N_COMPONENTS, FILENAME, PARAMS, DUMMY_ZERO
 from utils.param_keys.run_options import *
 from plotter import ModelResultPlotter, ArrayPlotter
 from utils import pretify_dict_model
-from utils.param_keys.param_key import *
 
 
 def load_list_of_dicts(sub_dir: str, params: dict):

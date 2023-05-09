@@ -3,8 +3,6 @@ from pathlib import Path
 
 import mdtraj as md
 import numpy as np
-import pyemma.coordinates as coor
-from deeptime.decomposition import TICA
 from mdtraj import Trajectory
 from sklearn.decomposition import FastICA, PCA
 
@@ -14,7 +12,11 @@ from utils.algorithms.tsne import MyTSNE, MyTimeLaggedTSNE
 from utils.errors import InvalidSubsetTrajectory
 from utils.math import basis_transform, explained_variance
 from utils.matrix_tools import reconstruct_matrix
-from utils.param_keys.param_key import *
+from utils.param_keys import TRAJECTORY_NAME, N_COMPONENTS, BASIS_TRANSFORMATION, CARBON_ATOMS_ONLY, RANDOM_SEED, \
+    USE_ANGLES, X, Y, Z, ANGLE_INDICES, DIHEDRAL_ANGLE_VALUES, MATRIX_NDIM, TENSOR_NDIM
+from utils.param_keys.model import ALGORITHM_NAME, NDIM, LAG_TIME
+from utils.param_keys.model_result import MODEL, PROJECTION, TITLE_PREFIX, EXPLAINED_VAR, INPUT_PARAMS
+from utils.param_keys.traj_dims import TIME_FRAMES, TIME_DIM, ATOMS, ATOM_DIM, COORDINATES, COORDINATE_DIM
 
 
 class TrajectoryFile:

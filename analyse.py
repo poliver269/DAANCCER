@@ -19,7 +19,10 @@ from utils import statistical_zero, pretify_dict_model
 from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
 from utils.errors import InvalidReconstructionException, InvalidDataTrajectory
 from utils.matrix_tools import calculate_symmetrical_kernel_matrix, reconstruct_matrix
-from utils.param_keys.param_key import *
+from utils.param_keys import TRAJECTORY_NAME, PLOT_TYPE, PLOT_TICS, INTERACTIVE, N_COMPONENTS, BASIS_TRANSFORMATION, \
+    CARBON_ATOMS_ONLY, DUMMY_ZERO
+from utils.param_keys.analyses import COLOR_MAP, KERNEL_COMPARE
+from utils.param_keys.model_result import MODEL, PROJECTION, INPUT_PARAMS
 
 
 class SingleTrajectoryAnalyser:

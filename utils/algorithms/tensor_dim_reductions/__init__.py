@@ -3,7 +3,8 @@ import numpy as np
 from utils.algorithms import MyModel
 
 from utils.matrix_tools import diagonal_block_expand
-from utils.param_keys.param_key import *
+from utils.param_keys import N_COMPONENTS
+from utils.param_keys.traj_dims import TIME_DIM, ATOM_DIM, COORDINATE_DIM
 
 
 class TensorDR(MyModel):

@@ -7,7 +7,11 @@ from trajectory import DataTrajectory, TopologyConverter, TrajectorySubset
 from analyse import MultiTrajectoryAnalyser, SingleTrajectoryAnalyser
 from utils.default_argparse import ArgParser
 from utils.errors import InvalidRunningOptionError
-from utils.param_keys.param_key import *
+from utils.param_keys import RUN_OPTION, N_COMPONENTS, QUANTITY, TIME_WINDOW_SIZE, FILENAME, TOPOLOGY_FILENAME, \
+    GOAL_FILENAME, FOLDER_PATH, PARAMS, MULTI, TENSOR_NDIM, DUMMY_ZERO
+from utils.param_keys.analyses import ANALYSE_PLOT_TYPE, KERNEL_COMPARE
+from utils.param_keys.kernel_functions import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL
+from utils.param_keys.model import ALGORITHM_NAME, NDIM
 from utils.param_keys.run_options import *
 
 

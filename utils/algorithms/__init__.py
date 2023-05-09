@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.base import TransformerMixin, BaseEstimator
 
-from utils.param_keys.param_key import N_COMPONENTS
+from utils.param_keys import N_COMPONENTS
 
 
 class MyModel(TransformerMixin, BaseEstimator):
