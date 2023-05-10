@@ -1,5 +1,4 @@
 COMPARE = 'compare'
-COMPARE_WITH_TLTSNE = 'compare_with_tltsne'
 PLOT_WITH_SLIDER = 'plot_with_slider'
 PLOT_RECONSTRUCTED_WITH_SLIDER = 'plot_reconstructed_with_slider'
 COMPARE_WITH_CA_ATOMS = 'compare_with_carbon_alpha_atoms'

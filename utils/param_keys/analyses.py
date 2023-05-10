@@ -6,7 +6,7 @@ EXPL_VAR_PLOT = 'explained_variance_plot'
 ANALYSE_PLOT_TYPE = 'analyse_plot_type'
 CORRELATION_MATRIX_PLOT = 'correlation_matrix_plot'
 
-# Analysing Types
+# Analysing Types in model parameters
 WEIGHTED_DIAGONAL = 'weighted_diagonal'
 FITTED_KERNEL_CURVES = 'fitted_kernel_curves'
 KERNEL_COMPARE = 'kernel_compare'

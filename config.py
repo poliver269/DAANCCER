@@ -1,15 +1,12 @@
 import json
 import warnings
 
-from utils.param_keys import RUN_OPTION, TRAJECTORY_NAME, FILE_ELEMENT, PLOT_TYPE, PLOT_TICS, INTERACTIVE, N_COMPONENTS, \
-    BASIS_TRANSFORMATION, CARBON_ATOMS_ONLY, USE_ANGLES, FILENAME, TOPOLOGY_FILENAME, FOLDER_PATH, PARAMS, TENSOR_NDIM
-from utils.param_keys.analyses import COLOR_MAP, ANALYSE_PLOT_TYPE, FITTED_KERNEL_CURVES
-from utils.param_keys.kernel_functions import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL, MY_LINEAR, KERNEL_ONLY, \
-    KERNEL_DIFFERENCE, KERNEL_MULTIPLICATION
-from utils.param_keys.model import ALGORITHM_NAME, NDIM, KERNEL, KERNEL_TYPE, ONES_ON_KERNEL_DIAG, LAG_TIME, \
-    ABS_EVAL_SORT
+from utils.param_keys import *
+from utils.param_keys.analyses import *
+from utils.param_keys.kernel_functions import *
+from utils.param_keys.model import *
 from utils.param_keys.run_options import *
-from utils.param_keys.traj_dims import ATOMS
+from utils.param_keys.traj_dims import *
 
 
 def get_run_params(alg_params_json: str) -> dict:
@@ -34,7 +31,7 @@ def get_run_params(alg_params_json: str) -> dict:
             N_COMPONENTS: 2,
             BASIS_TRANSFORMATION: False,
             USE_ANGLES: False,
-            TRAJECTORY_NAME: 'prot2',
+            TRAJECTORY_NAME: '2f4k',
             FILE_ELEMENT: 0,
         }
 
@@ -57,8 +54,8 @@ def get_files_and_kwargs(params: dict):
         raise KeyError(f'Run option parameter is missing the key: `{e}`. This parameter is mandatory.')
 
     if trajectory_name == '2f4k':
-        filename_list = [f'2F4K-0-protein-{i:03d}.dcd' for i in range(0, 62)]  # + ['tr3_unfolded.xtc',
-        #   'tr8_folded.xtc']
+        filename_list = [f'2F4K-0-protein-{i:03d}.dcd' for i in
+                         range(0, 62)]  # + ['tr3_unfolded.xtc', 'tr8_folded.xtc']
         kwargs = {FILENAME: filename_list[file_element], TOPOLOGY_FILENAME: '2f4k.pdb', FOLDER_PATH: 'data/2f4k'}
     elif trajectory_name == 'prot2':
         filename_list = ['prod_r1_nojump_prot.xtc', 'prod_r2_nojump_prot.xtc', 'prod_r3_nojump_prot.xtc']
@@ -136,25 +133,31 @@ def get_model_params_list(alg_json_file: str) -> list[dict]:
         ]
 
 
-def get_param_grid() -> list:
+def get_param_grid(param_grid_json_file: str = None) -> list:
     """
-    TODO[4rd prio]: Load from a json file
+    This method loads the parameter grid to use it to find the best parameters for an algorithm.
+    @param param_grid_json_file: str
+        Path and file location of the json file
     @return: list
         returns the parameter grid
     """
-    param_grid = [
-        {
-            ALGORITHM_NAME: ['pca', 'tica'],
-            KERNEL: [None],
-        }, {
-            ALGORITHM_NAME: ['pca', 'tica', 'kica'],
-            LAG_TIME: [10],
-            KERNEL: [KERNEL_DIFFERENCE, KERNEL_MULTIPLICATION, KERNEL_ONLY],
-            KERNEL_TYPE: [MY_LINEAR, MY_GAUSSIAN, MY_EXPONENTIAL, MY_EPANECHNIKOV],
-            ONES_ON_KERNEL_DIAG: [True, False],
-            # EXTRA_DR_LAYER: [False, True],
-            # EXTRA_LAYER_ON_PROJECTION: [False, True],
-            ABS_EVAL_SORT: [False, True]
-        }
-    ]
-    return param_grid
+    if param_grid_json_file is not None:
+        return json.load(open(param_grid_json_file))
+    else:
+        warnings.warn('The default parameter grid list is used instead of a .json-file.\n'
+                      '  Use a configuration from the `config_files`-folder.')
+        return [
+            {
+                ALGORITHM_NAME: ['pca', 'tica'],
+                KERNEL: [None],
+            }, {
+                ALGORITHM_NAME: ['pca', 'tica', 'kica'],
+                LAG_TIME: [10],
+                KERNEL: [KERNEL_DIFFERENCE, KERNEL_MULTIPLICATION, KERNEL_ONLY],
+                KERNEL_TYPE: [MY_LINEAR, MY_GAUSSIAN, MY_EXPONENTIAL, MY_EPANECHNIKOV],
+                ONES_ON_KERNEL_DIAG: [True, False],
+                # EXTRA_DR_LAYER: [False, True],
+                # EXTRA_LAYER_ON_PROJECTION: [False, True],
+                ABS_EVAL_SORT: [False, True]
+            }
+        ]

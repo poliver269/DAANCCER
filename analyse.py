@@ -19,8 +19,7 @@ from utils import statistical_zero, pretify_dict_model
 from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
 from utils.errors import InvalidReconstructionException, InvalidDataTrajectory
 from utils.matrix_tools import calculate_symmetrical_kernel_matrix, reconstruct_matrix
-from utils.param_keys import TRAJECTORY_NAME, PLOT_TYPE, PLOT_TICS, INTERACTIVE, N_COMPONENTS, BASIS_TRANSFORMATION, \
-    CARBON_ATOMS_ONLY, DUMMY_ZERO
+from utils.param_keys import *
 from utils.param_keys.analyses import COLOR_MAP, KERNEL_COMPARE
 from utils.param_keys.model_result import MODEL, PROJECTION, INPUT_PARAMS
 
@@ -38,11 +37,14 @@ class SingleTrajectoryAnalyser:
     def compare(self, model_parameter_list: list[dict], plot_results: bool = True) -> list[dict]:
         """
         Calculates the result of different models (fitted and transformed the data of the trajectory)
-        with different input-parameters given by ...
+        given by different parameters and returns the result list
         :param model_parameter_list: list[dict]
-            Different model input parameters, saved in a list.
+            Different model input parameters, saved in a list
         :param plot_results: bool
-        :return: The results of the models {MODEL, PROJECTION, EXPLAINED_VAR, INPUT_PARAMS}
+            Plots the components of the different models (default: True)
+            The function can be calculated
+        :return: list[dict]
+            The results of the models {MODEL, PROJECTION, EXPLAINED_VAR, INPUT_PARAMS}
         """
         model_results = []
         for model_parameters in model_parameter_list:
@@ -60,7 +62,8 @@ class SingleTrajectoryAnalyser:
 
     def compare_with_carbon_alpha_and_all_atoms(self, model_params_list):
         """
-        Compares same trajectory with using only carbon atoms and using all the atoms of different model_params.
+        Compares the same trajectory with using only carbon atoms
+        and using all the atoms of different model_params.
         @param model_params_list: list[dict]
             Different model input parameters, saved in a list.
         """
@@ -197,10 +200,10 @@ class MultiTrajectoryAnalyser:
                                                        plot: bool = False):
         """
         Calculates and returns the similarity of eigenvectors between the results between trajectory pairs.
-        The similarity is calculated via cosine similarity and than compared the most similar ones
-        to calculate the mean of all together.
+        The similarity is calculated via cosine similarity and then compared the most similar ones
+        to calculate the mean of all together
         :param trajectory_result_pairs: list[tuple]
-            list of pairwise trajectory results after a model was fitted and transformed on the trajectory.
+            list of pairwise trajectory results after a model was fitted and transformed on the trajectory
         :param plot: bool
             Sets if the similarity values should be plotted or returned and used for further analysis. (default: False)
         :param pc_nr_list: list (default None)
@@ -265,7 +268,7 @@ class MultiTrajectoryAnalyser:
         :param merged_plot: TODO
         :return:
         """
-        # TODO: Implement the Save Similarites and Load them
+        # TODO: Implement the Save Similarities and Load them
         trajectories = self._get_trajectories_by_index(traj_nrs)
 
         model_similarities = {}
@@ -402,10 +405,10 @@ class MultiTrajectoryAnalyser:
         @param input_data: np.ndarray
             original data before transforming
         @param data_projection: np.ndarray (optional)
-            the transformed data. If this is not calculated, than the transformation step is used to calculate it.
+            the transformed data. If this is not calculated, then the transformation step is used to calculate it.
         @param component: int (default: None)
             This parameter is used to set how many components of the model should be used
-            to reconstruct the original data. If its None, all the components of the model are used.
+            to reconstruct the original data. If it's None, all the components of the model are used.
         @return: Root Mean Squared Error of the reconstruction data and the original one
         """
         if isinstance(model, DAANCCER):

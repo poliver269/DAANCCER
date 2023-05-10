@@ -12,8 +12,7 @@ from utils.algorithms.tsne import MyTSNE, MyTimeLaggedTSNE
 from utils.errors import InvalidSubsetTrajectory
 from utils.math import basis_transform, explained_variance
 from utils.matrix_tools import reconstruct_matrix
-from utils.param_keys import TRAJECTORY_NAME, N_COMPONENTS, BASIS_TRANSFORMATION, CARBON_ATOMS_ONLY, RANDOM_SEED, \
-    USE_ANGLES, X, Y, Z, ANGLE_INDICES, DIHEDRAL_ANGLE_VALUES, MATRIX_NDIM, TENSOR_NDIM
+from utils.param_keys import *
 from utils.param_keys.model import ALGORITHM_NAME, NDIM, LAG_TIME
 from utils.param_keys.model_result import MODEL, PROJECTION, TITLE_PREFIX, EXPLAINED_VAR, INPUT_PARAMS
 from utils.param_keys.traj_dims import TIME_FRAMES, TIME_DIM, ATOMS, ATOM_DIM, COORDINATES, COORDINATE_DIM
@@ -42,8 +41,8 @@ class DataTrajectory(TrajectoryFile):
             if str(self.filename).endswith('dcd'):
                 self.traj: Trajectory = md.load_dcd(self.filepath, top=self.topology_path, atom_indices=atoms)
             else:
-                self.traj: Trajectory = md.load(self.filepath, top=self.topology_path)
-            self.reference_pdb = md.load_pdb(self.topology_path)
+                self.traj: Trajectory = md.load(self.filepath, top=self.topology_path, atom_indices=atoms)
+            self.reference_pdb = md.load_pdb(self.topology_path, atom_indices=atoms)
             self.traj: Trajectory = self.traj.superpose(self.reference_pdb).center_coordinates(mass_weighted=True)
             self.traj.xyz = (self.traj.xyz - np.mean(self.traj.xyz, axis=0)[np.newaxis, :, :]) / np.std(self.traj.xyz,
                                                                                                         axis=0)

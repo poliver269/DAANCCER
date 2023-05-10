@@ -18,7 +18,7 @@ from utils.param_keys.traj_dims import TIME_FRAMES
 class MyPlotter:
     def __init__(self, interactive: bool = True, title_prefix: str = '', for_paper: bool = False):
         self.fig: Figure = Figure()
-        self.axes: Axes = Axes()
+        self.axes: Axes = Axes(self.fig, [0, 0, 0, 0])
         self.interactive: bool = interactive
         self.title_prefix: str = title_prefix
         self.colors: dict = mcolors.TABLEAU_COLORS
@@ -438,10 +438,11 @@ class ArrayPlotter(MyPlotter):
             function_label = 'threshold'
         else:
             function_label = function_name(statistical_function)
+            self._activate_legend = True
         self.axes.plot(x_index, statistical_value, '-', label=function_label)
         # self.axes.plot(x_index, statistical_value, ' ')
-        self.axes.plot(x_index, new_ydata, '.', label='re-scaled data')
-        self._activate_legend = True
+        # self.axes.plot(x_index, new_ydata, '.', label='re-scaled data')
+        self.axes.plot(x_index, new_ydata, ' ')
         self._post_processing()
 
     def plot_2d(self, ndarray_data, statistical_func=None):
