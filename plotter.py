@@ -429,13 +429,17 @@ class ArrayPlotter(MyPlotter):
         :return:
         """
         self.fig, self.axes = plt.subplots(1, 1, dpi=80)
-        self.axes.plot(x_index, gauss_fitted, '-', label=f'fit {fit_method}')
+        self.axes.plot(x_index, gauss_fitted, '-', label=f'fit {fit_method}', linewidth=3.0)
         # self.axes.plot(x_index, gauss_fitted, ' ')
         self.axes.plot(x_index, ydata, '.', label='original data')
         # self.axes.plot(x_index, ydata, ' ')
         statistical_value = np.full(x_index.shape, statistical_function(ydata))
         if self.for_paper:
+            self.fontsize += 6
             function_label = 'threshold'
+            self.axes.annotate('threshold', xy=(-32, 0.03), color='tab:green', fontsize=self.fontsize)
+            self.axes.annotate('mean of\ndiagonals', xy=(5, -0.4), color='tab:orange', fontsize=self.fontsize)
+            self.axes.annotate('gaussian curve', xy=(4, 0.6), color='tab:blue', fontsize=self.fontsize)
         else:
             function_label = function_name(statistical_function)
             self._activate_legend = True

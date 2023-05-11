@@ -153,16 +153,16 @@ def calculate_symmetrical_kernel_matrix(
             ArrayPlotter(
                 interactive=True,
                 title_prefix='Combined Covariance Matrix',
-                x_label='carbon-alpha-atom index',
-                y_label='carbon-alpha-atom index',
+                x_label='\nCarbon-Alpha Atom\nIndex',
+                y_label='\nCarbon-Alpha Atom\nIndex',
                 for_paper=True
             ).matrix_plot(matrix, as_surface=PLOT_3D_MAP)
         elif analyse_mode == PLOT_KERNEL_MATRIX_3D:
             ArrayPlotter(
                 interactive=True,
                 title_prefix='Kernel Matrix',
-                x_label='carbon-alpha-atom index',
-                y_label='carbon-alpha-atom index',
+                x_label='\nCarbon-Alpha Atom\nIndex',
+                y_label='\nCarbon-Alpha Atom\nIndex',
                 for_paper=True
             ).matrix_plot(kernel_matrix, as_surface=PLOT_3D_MAP)
         elif analyse_mode == WEIGHTED_DIAGONAL:

@@ -4,6 +4,6 @@
     "ndim": 3,
     "kernel_type": "my_gaussian",
     "kernel": "only",
-    "analyse_plot_type": "fitted_kernel_curves"
+    "analyse_plot_type": "3d_map"
   }
 ]
