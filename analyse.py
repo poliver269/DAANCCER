@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy.optimize import linear_sum_assignment
+import scipy.optimize
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.model_selection import GridSearchCV
@@ -31,7 +31,8 @@ class SingleTrajectoryAnalyser:
             PLOT_TYPE: params.get(PLOT_TYPE, COLOR_MAP),
             PLOT_TICS: params.get(PLOT_TICS, True),
             INTERACTIVE: params.get(INTERACTIVE, True),
-            N_COMPONENTS: params.get(N_COMPONENTS, 2)
+            N_COMPONENTS: params.get(N_COMPONENTS, 2),
+            PLOT_FOR_PAPER: params.get(PLOT_FOR_PAPER, False)
         }
 
     def compare(self, model_parameter_list: list[dict], plot_results: bool = True) -> list[dict]:
@@ -107,7 +108,7 @@ class SingleTrajectoryAnalyser:
                 title_prefix=f'Eigenvalues of\n{model}',
                 x_label='Principal Component Number',
                 y_label='Eigenvalue',
-                for_paper=True
+                for_paper=self.params[PLOT_FOR_PAPER]
             ).plot_2d(ndarray_data=model.explained_variance_)
 
     def compare_trajectory_subsets(self, model_params_list):
@@ -143,7 +144,11 @@ class MultiTrajectoryAnalyser:
         print(f'Trajectories loaded time: {datetime.now()}')
         self.params: dict = {
             N_COMPONENTS: params.get(N_COMPONENTS, 2),
-            TRAJECTORY_NAME: params.get(TRAJECTORY_NAME, 'Not Found')
+            TRAJECTORY_NAME: params.get(TRAJECTORY_NAME, 'Not Found'),
+            PLOT_TYPE: params.get(PLOT_TYPE, COLOR_MAP),
+            PLOT_TICS: params.get(PLOT_TICS, True),
+            INTERACTIVE: params.get(INTERACTIVE, True),
+            PLOT_FOR_PAPER: params.get(PLOT_FOR_PAPER, False)
         }
 
     def compare_pcs(self, model_params_list: list[dict]):
@@ -159,8 +164,9 @@ class MultiTrajectoryAnalyser:
                 res = trajectory.get_model_result(model_parameters)
                 principal_components.append(res['model'].components_)
             pcs = np.asarray(principal_components)
-            MultiTrajectoryPlotter(interactive=False).plot_principal_components(model_parameters, pcs,
-                                                                                self.params[N_COMPONENTS])
+            MultiTrajectoryPlotter(
+                interactive=self.params[INTERACTIVE]
+            ).plot_principal_components(model_parameters, pcs, self.params[N_COMPONENTS])
 
     def _get_trajectories_by_index(self, traj_nrs: [list[int], None]):
         """
@@ -194,8 +200,7 @@ class MultiTrajectoryAnalyser:
             traj_results.append(res)
         return list(combinations(traj_results, 2))
 
-    @staticmethod
-    def _get_all_similarities_from_trajectory_ev_pairs(trajectory_result_pairs: list[tuple],
+    def _get_all_similarities_from_trajectory_ev_pairs(self, trajectory_result_pairs: list[tuple],
                                                        pc_nr_list: list = None,
                                                        plot: bool = False):
         """
@@ -216,10 +221,13 @@ class MultiTrajectoryAnalyser:
 
         all_similarities = []
         for trajectory_pair in trajectory_result_pairs:
-            pc_0_matrix = trajectory_pair[0][MODEL].components_.T
-            pc_1_matrix = trajectory_pair[1][MODEL].components_.T
+            pc_0_matrix = trajectory_pair[0][MODEL].components_
+            pc_1_matrix = trajectory_pair[1][MODEL].components_
+            # if isinstance(trajectory_pair[0][MODEL], DAANCCER):
+            #     pc_0_matrix = pc_0_matrix.T[:self.params[N_COMPONENTS]]
+            #     pc_1_matrix = pc_1_matrix.T[:self.params[N_COMPONENTS]]
             cos_matrix = cosine_similarity(np.real(pc_0_matrix), np.real(pc_1_matrix))
-            sorted_similarity_indexes = linear_sum_assignment(-np.abs(cos_matrix))[1]
+            sorted_similarity_indexes = scipy.optimize.linear_sum_assignment(-np.abs(cos_matrix))[DUMMY_ONE]
             assert len(sorted_similarity_indexes) == len(
                 set(sorted_similarity_indexes)), "Not all eigenvectors have a unique most similar eigenvector pair."
             sorted_cos_matrix = cos_matrix[:, sorted_similarity_indexes]
@@ -235,7 +243,7 @@ class MultiTrajectoryAnalyser:
                 sim_text = f'Similarity values: All: {combo_similarity},\n{selected_sim_vals}'
                 print(sim_text)
                 ArrayPlotter(
-                    interactive=False,
+                    interactive=self.params[INTERACTIVE],
                     title_prefix=f'{trajectory_pair[0]["model"]}\n'
                                  f'{trajectory_pair[0]["traj"].filename} & {trajectory_pair[1]["traj"].filename}\n'
                                  f'PC Similarity',
@@ -256,7 +264,7 @@ class MultiTrajectoryAnalyser:
         """
         This function compares different models.
         For each model, the similarity of the eigenvectors are calculated,
-        which are fitted from different trajectories.
+        which are fitted and transformed from different trajectories.
         :param traj_nrs:
             if None compare all the trajectories
             compare only the trajectories in a given list,
@@ -265,28 +273,32 @@ class MultiTrajectoryAnalyser:
         :param pc_nr_list:
             gives a list of how many principal components should be compared with each other.
             If None, then all the principal components are compared
-        :param merged_plot: TODO
+        :param merged_plot: bool
+            The parameter makes the
         :return:
         """
         # TODO: Implement the Save Similarities and Load them
         trajectories = self._get_trajectories_by_index(traj_nrs)
 
         model_similarities = {}
+        similarity_error_bands = {}
         for model_params in model_params_list:
-            trajectory_pairs = self._get_trajectory_result_pairs(trajectories, model_params)
-            all_sim_matrix = self._get_all_similarities_from_trajectory_ev_pairs(trajectory_pairs)
+            result_pairs = self._get_trajectory_result_pairs(trajectories, model_params)
+            all_sim_matrix = self._get_all_similarities_from_trajectory_ev_pairs(result_pairs)
 
             if merged_plot:
-                model_similarities[str(trajectory_pairs[0][0][MODEL])] = np.mean(all_sim_matrix, axis=0)
+                model_similarities[str(result_pairs[0][0][MODEL])] = np.mean(all_sim_matrix, axis=0)
+                similarity_error_bands[str(result_pairs[0][0][MODEL])] = np.vstack((np.min(all_sim_matrix, axis=0),
+                                                                                    np.max(all_sim_matrix, axis=0)))
             else:
                 if pc_nr_list is None:
                     ArrayPlotter(
-                        interactive=False,
+                        interactive=self.params[INTERACTIVE],
                         title_prefix=f'{self.params[TRAJECTORY_NAME]}\n{model_params}\n'
                                      'Similarity value of all trajectories',
                         x_label='Principal component number',
                         y_label='Similarity value',
-                        for_paper=True
+                        for_paper=self.params[PLOT_FOR_PAPER]
                     ).plot_2d(np.mean(all_sim_matrix, axis=0))
                 else:
                     for pc_index in pc_nr_list:
@@ -296,25 +308,25 @@ class MultiTrajectoryAnalyser:
                         tria[np.triu_indices(len(trajectories), 1)] = all_sim_matrix[:, pc_index]
                         tria = tria + tria.T
                         ArrayPlotter(
-                            interactive=True,
+                            interactive=self.params[INTERACTIVE],
                             title_prefix=f'{self.params[TRAJECTORY_NAME]}\n{model_params}\n'
                                          f'Trajectory Similarities for {pc_index}-Components',
                             x_label='Trajectory number',
                             y_label='Trajectory number',
                             bottom_text=sim_text,
-                            for_paper=True
+                            for_paper=self.params[PLOT_FOR_PAPER]
                         ).matrix_plot(tria)
         if merged_plot:
             AnalyseResultsSaver(self.params[TRAJECTORY_NAME]).save_to_npz(
                 model_similarities, 'eigenvector_similarities')
             ArrayPlotter(
-                interactive=False,
+                interactive=self.params[INTERACTIVE],
                 title_prefix=f'Eigenvector Similarities',
                 x_label='Principal Component Number',
                 y_label='Similarity value',
-                y_range=(0, 1),
-                for_paper=True
-            ).plot_merged_2ds(model_similarities)
+                y_range=(0.2, 1),
+                for_paper=self.params[PLOT_FOR_PAPER]
+            ).plot_merged_2ds(model_similarities, error_band=similarity_error_bands)
 
     def compare_trajectory_combos(self, traj_nrs, model_params_list, pc_nr_list):
         """
@@ -386,13 +398,13 @@ class MultiTrajectoryAnalyser:
 
         model_scores = pretify_dict_model(model_scores)
         ArrayPlotter(
-            interactive=True,
+            interactive=self.params[INTERACTIVE],
             title_prefix='Reconstruction Error (RE) ' + (
                 '' if fit_transform_re else f'fit-on-one-transform-on-all\n'),
             x_label='trajectories',
             y_label='score',
             y_range=(0, 1),
-            for_paper=True
+            for_paper=self.params[PLOT_FOR_PAPER]
         ).plot_merged_2ds(model_scores, np.median)
 
     @staticmethod
@@ -443,7 +455,7 @@ class MultiTrajectoryAnalyser:
         """
         model_median_scores = self._calculate_median_scores(model_params_list, fit_transform_re)
         ArrayPlotter(
-            interactive=False,
+            interactive=self.params[INTERACTIVE],
             title_prefix=f'Reconstruction Error (RE) ' +
                          ('' if fit_transform_re
                           else f'fit-on-one-transform-on-all\n') +
@@ -546,12 +558,12 @@ class MultiTrajectoryAnalyser:
         else:
             kernel_accuracies = AnalyseResultLoader(self.params[TRAJECTORY_NAME]).load_npz(load_filename)
         ArrayPlotter(
-            interactive=True,
+            interactive=self.params[INTERACTIVE],
             title_prefix=f'Compare Kernels ',
             x_label='Trajectory Number',
             y_label='RMSE of the fitting kernel',
             y_range=(0, 0.2),
-            for_paper=True
+            for_paper=self.params[PLOT_FOR_PAPER]
         ).plot_merged_2ds(kernel_accuracies, statistical_func=np.median)
 
     def _calculate_kernel_accuracies(self, kernel_names, model_params):

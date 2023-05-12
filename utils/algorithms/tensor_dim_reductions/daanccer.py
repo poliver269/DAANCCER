@@ -74,7 +74,7 @@ class DAANCCER(TensorDR):
     def __str__(self):
         sb = 'DAANCCER('
         # sb = self.describe()
-        sb += f'\nPCs={self.n_components}'
+        sb += f'PCs={self.n_components}'
         sb += f'lag-time={self.lag_time}, ' if self.lag_time > 0 else ''
         # sb += '\n'
         # sb += f'abs_ew_sorting={self.abs_eigenvalue_sorting}, '
@@ -134,7 +134,8 @@ class DAANCCER(TensorDR):
         self.n_components = fit_params.get(N_COMPONENTS, 2)
         self._standardized_data = self._standardize_data(data_tensor)
         self._covariance_matrix = self.get_covariance_matrix()
-        self.components_ = self.get_eigenvectors()
+        eigenvectors = self.get_eigenvectors()
+        self.components_ = eigenvectors[:, :self.n_components].T
         if self.analyse_plot_type == EIGENVECTOR_MATRIX_ANALYSE:
             ArrayPlotter(
                 interactive=False,
@@ -143,7 +144,7 @@ class DAANCCER(TensorDR):
                 y_label='Eigenvector Dimension',
                 xtick_start=1,
                 for_paper=True
-            ).matrix_plot(self.components_[:12, :15], show_values=True)
+            ).matrix_plot(eigenvectors[:12, :15], show_values=True)
         return self
 
     def _standardize_data(self, tensor):
@@ -321,7 +322,7 @@ class DAANCCER(TensorDR):
     def transform(self, data_tensor):
         data_tensor_standardized = self._standardize_data(data_tensor)
         data_matrix = self.convert_to_matrix(data_tensor_standardized)
-        return np.dot(data_matrix, self.components_[:, :self.n_components])
+        return np.dot(data_matrix, self.components_.T)
 
     def convert_to_matrix(self, tensor):
         if self._is_matrix_model:
@@ -336,10 +337,10 @@ class DAANCCER(TensorDR):
             return super().convert_to_tensor(matrix)
 
     def inverse_transform(self, projection_data: np.ndarray, component_count: int):
-        if is_matrix_orthogonal(self.components_):
+        if is_matrix_orthogonal(self.components_.T):
             return np.dot(
                 projection_data,
-                self.components_[:, :component_count].T
+                self.components_
             )  # Da orthogonal --> Transform = inverse
         else:
             if self.use_evs:
@@ -347,15 +348,15 @@ class DAANCCER(TensorDR):
             else:
                 return np.dot(
                     projection_data,
-                    np.linalg.inv(self.components_)[:component_count]
+                    np.linalg.inv(self.components_.T)
                 )
 
     def reconstruct(self, projection_matrix, component_count=None):
         if component_count is None:
             component_count = self._atom_dim * self._combine_dim
-        elif component_count > self.components_.shape[1]:
+        elif component_count > self.components_.shape[0]:
             raise InvalidComponentNumberException(f'Model does not have {component_count} many components. '
-                                                  f'Max: {self.components_.shape[1]}')
+                                                  f'Max: {self.components_.shape[0]}')
 
         inverse_matrix = self.inverse_transform(projection_matrix, component_count)
 

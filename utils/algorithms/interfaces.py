@@ -15,4 +15,4 @@ class DeeptimeTICAInterface(TICA):
 
     @property
     def components_(self):
-        return self.model.feature_component_correlation
+        return self.model.feature_component_correlation.T

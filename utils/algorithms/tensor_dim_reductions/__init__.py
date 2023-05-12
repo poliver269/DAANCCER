@@ -20,7 +20,7 @@ class TensorDR(MyModel):
         self._standardized_data = self._standardize_data(data_tensor)
         self._covariance_matrix = self.get_covariance_matrix()
         self._update_cov()
-        self.components_ = self.get_eigenvectors()
+        self.components_ = self.get_eigenvectors()[:, :self.n_components].T
         return self
 
     def get_covariance_matrix(self):

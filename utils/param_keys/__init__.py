@@ -9,6 +9,7 @@ PLOT_TYPE = 'plot_type'
 PLOT_TICS = 'plot_tics'
 STANDARDIZED_PLOT = 'standardized_plot'
 INTERACTIVE = 'interactive'
+PLOT_FOR_PAPER = 'plot_for_paper'
 # Fitting params
 N_COMPONENTS = 'n_components'
 # Preprocessing params

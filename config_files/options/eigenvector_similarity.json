@@ -1,10 +1,11 @@
 {
-  "run_option": "compare",
+  "run_option": "multi_compare_all_pcs",
   "plot_type": "color_map",
   "plot_tics": true,
+  "plot_for_paper": true,
   "carbon_atoms_only": true,
   "interactive": true,
-  "n_components": 2,
+  "n_components": 105,
   "basis_transformation": false,
   "use_angles": false,
   "trajectory_name": "2f4k",

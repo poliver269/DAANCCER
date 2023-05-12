@@ -1,3 +1,5 @@
+import warnings
+
 import matplotlib as mpl
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
@@ -9,7 +11,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from sklearn.metrics.pairwise import cosine_similarity
 
 from utils import function_name
-from utils.param_keys import TRAJECTORY_NAME, CARBON_ATOMS_ONLY, X, Y, Z, DUMMY_ZERO
+from utils.param_keys import TRAJECTORY_NAME, CARBON_ATOMS_ONLY, X, Y, Z, DUMMY_ZERO, DUMMY_ONE
 from utils.param_keys.analyses import HEAT_MAP, COLOR_MAP, PLOT_3D_MAP
 from utils.param_keys.model_result import MODEL, PROJECTION, TITLE_PREFIX, EXPLAINED_VAR
 from utils.param_keys.traj_dims import TIME_FRAMES
@@ -460,10 +462,10 @@ class ArrayPlotter(MyPlotter):
         self._activate_legend = False
         self._post_processing()
 
-    def plot_merged_2ds(self, ndarray_dict: dict, statistical_func=None):
+    def plot_merged_2ds(self, ndarray_dict: dict, statistical_func=None, error_band: dict = None):
         self.fig, self.axes = plt.subplots(1, 1, dpi=80)
         self.title_prefix += f'with {function_name(statistical_func)}' if statistical_func is not None else ''
-        for key, ndarray_data in ndarray_dict.items():
+        for i, (key, ndarray_data) in enumerate(ndarray_dict.items()):
             # noinspection PyProtectedMember
             color = next(self.axes._get_lines.prop_cycler)['color']
             if statistical_func is not None:
@@ -477,5 +479,23 @@ class ArrayPlotter(MyPlotter):
             else:
                 self.axes.plot(ndarray_data, '-', color=color, label=f'{key.strip()[:35]}')
 
-        self._activate_legend = True
+            if self.for_paper:
+                self._activate_legend = False
+                if key.startswith('PCA'):  # TODO: Hardcoded for Eigenvector Similarity
+                    xy = (22, 0.7)
+                elif key.startswith('TICA'):
+                    xy = (3, 0.56)
+                elif key.startswith('DAANCCER'):
+                    xy = (60, 0.96)
+                else:
+                    xy = (0, ndarray_data[2])
+                self.axes.annotate(key.split('(')[DUMMY_ZERO], xy=xy, color=color, fontsize=self.fontsize)
+
+
+            if error_band is not None:
+                if not (error_band[key].shape[DUMMY_ONE] == ndarray_data.shape[DUMMY_ZERO]):
+                    warnings.warn('Could not plot the error band, because the error band has the incorrect shape.')
+                else:
+                    self.axes.fill_between(range(error_band[key].shape[DUMMY_ONE]),
+                                           error_band[key][0], error_band[key][1], alpha=0.2)
         self._post_processing()
