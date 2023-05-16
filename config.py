@@ -38,7 +38,7 @@ def get_run_params(alg_params_json: str) -> dict:
 
 def get_files_and_kwargs(params: dict):
     """
-    This method returns the filename list of the trajectory and generates the kwargs for the DataTrajectory.
+    This method returns the filename list of the trajectory and generates the kwargs for the ProteinTrajectory.
     The method is individually created for the available data set.
     Add new trajectory options, if different data set are used.
     @param params: dict

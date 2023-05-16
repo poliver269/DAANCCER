@@ -14,10 +14,10 @@ from sklearn.model_selection import GridSearchCV
 from tqdm import tqdm
 
 from plotter import ArrayPlotter, MultiTrajectoryPlotter, ModelResultPlotter
-from trajectory import DataTrajectory, TrajectorySubset
+from trajectory import ProteinTrajectory, TrajectorySubset
 from utils import statistical_zero, pretify_dict_model
 from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
-from utils.errors import InvalidReconstructionException, InvalidDataTrajectory
+from utils.errors import InvalidReconstructionException, InvalidProteinTrajectory
 from utils.matrix_tools import calculate_symmetrical_kernel_matrix, reconstruct_matrix
 from utils.param_keys import *
 from utils.param_keys.analyses import COLOR_MAP, KERNEL_COMPARE
@@ -26,7 +26,7 @@ from utils.param_keys.model_result import MODEL, PROJECTION, INPUT_PARAMS
 
 class SingleTrajectoryAnalyser:
     def __init__(self, trajectory, params=None):
-        self.trajectory: DataTrajectory = trajectory
+        self.trajectory: ProteinTrajectory = trajectory
         self.params: dict = {
             PLOT_TYPE: params.get(PLOT_TYPE, COLOR_MAP),
             PLOT_TICS: params.get(PLOT_TICS, True),
@@ -120,7 +120,7 @@ class SingleTrajectoryAnalyser:
                 results.append(total_result)
             ModelResultPlotter().plot_multi_projections(results, self.params[PLOT_TYPE], center_plot=False)
         else:
-            raise InvalidDataTrajectory(f'Data trajectory is invalid. Use a subset trajectory to ')
+            raise InvalidProteinTrajectory(f'Protein trajectory is invalid. Use a subset trajectory to ')
 
     def grid_search(self, param_grid: list[dict]):
         """
@@ -140,7 +140,7 @@ class SingleTrajectoryAnalyser:
 
 class MultiTrajectoryAnalyser:
     def __init__(self, kwargs_list, params):
-        self.trajectories: list[DataTrajectory] = [DataTrajectory(**kwargs) for kwargs in kwargs_list]
+        self.trajectories: list[ProteinTrajectory] = [ProteinTrajectory(**kwargs) for kwargs in kwargs_list]
         print(f'Trajectories loaded time: {datetime.now()}')
         self.params: dict = {
             N_COMPONENTS: params.get(N_COMPONENTS, 2),
@@ -183,11 +183,11 @@ class MultiTrajectoryAnalyser:
             return list(itemgetter(*sorted_traj_nrs)(self.trajectories))
 
     @staticmethod
-    def _get_trajectory_result_pairs(trajectories: list[DataTrajectory], model_params: dict) -> list:
+    def _get_trajectory_result_pairs(trajectories: list[ProteinTrajectory], model_params: dict) -> list:
         """
         Returns all the different combination-pairs of the results of the given trajectory list.
         The results of the models are calculated on the basis of the model parameters.
-        @param trajectories: list[DataTrajectory]
+        @param trajectories: list[ProteinTrajectory]
             The subset of trajectories to use the models for this step.
         @param model_params: dict
             The model parameters for the models.
