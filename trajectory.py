@@ -33,9 +33,9 @@ class TrajectoryFile:
         return str(self.root_path / self.topology_filename)
 
 
-class DataTrajectory(TrajectoryFile):
-    def __init__(self, filename, topology_filename, folder_path='data/2f4k', params=None, atoms=None):
-        super().__init__(filename, topology_filename, folder_path)
+class ProteinTrajectory(TrajectoryFile):
+    def __init__(self, filename, topology_filename=None, folder_path='data/2f4k', params=None, atoms=None):
+        super().__init__(filename, topology_filename, folder_path) #ODS: topology_filename not needed. Suggestion: Parent class data_file
         try:
             print(f"Loading trajectory {self.filename}...")
             if str(self.filename).endswith('dcd'):
@@ -279,7 +279,7 @@ class DataTrajectory(TrajectoryFile):
                                                  self.dim[COORDINATES]))
 
 
-class TrajectorySubset(DataTrajectory):
+class TrajectorySubset(ProteinTrajectory):
     def __init__(self, quantity=1, time_window_size=None, **kwargs):
         self.quantity = quantity
         self.time_window_size = time_window_size

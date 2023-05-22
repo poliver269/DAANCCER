@@ -18,5 +18,5 @@ class InvalidSubsetTrajectory(Exception):
     pass
 
 
-class InvalidDataTrajectory(Exception):
+class InvalidProteinTrajectory(Exception):
     pass
