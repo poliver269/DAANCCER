@@ -490,7 +490,8 @@ class ArrayPlotter(MyPlotter):
                 else:
                     xy = (0, ndarray_data[2])
                 self.axes.annotate(key.split('(')[DUMMY_ZERO], xy=xy, color=color, fontsize=self.fontsize)
-
+            else:
+                self._activate_legend = True
 
             if error_band is not None:
                 if not (error_band[key].shape[DUMMY_ONE] == ndarray_data.shape[DUMMY_ZERO]):

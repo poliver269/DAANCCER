@@ -6,7 +6,7 @@ import numpy as np
 from mdtraj import Trajectory
 from sklearn.decomposition import FastICA, PCA
 
-from utils.algorithms.interfaces import DeeptimeTICAInterface
+from utils.algorithms.interfaces import DeeptimeTICAInterface, PyemmaTICAInterface, PyemmaPCAInterface
 from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
 from utils.algorithms.tsne import MyTSNE, MyTimeLaggedTSNE
 from utils.errors import InvalidSubsetTrajectory
@@ -168,13 +168,16 @@ class DataTrajectory(TrajectoryFile):
         if model_parameters[ALGORITHM_NAME].startswith('original'):
             try:
                 if model_parameters[ALGORITHM_NAME] == 'original_pca':
-                    # from sklearn.decomposition import PCA
                     pca = PCA(n_components=self.params[N_COMPONENTS])
-                    # pca = coor.pca(data=inp, dim=self.params[N_COMPONENTS])
+                    return pca, pca.fit_transform(inp)
+                if model_parameters[ALGORITHM_NAME] == 'original_pyemma_pca':
+                    pca = PyemmaPCAInterface(dim=self.params[N_COMPONENTS])
                     return pca, pca.fit_transform(inp)
                 elif model_parameters[ALGORITHM_NAME] == 'original_tica':
+                    tica = PyemmaTICAInterface(lag=model_parameters[LAG_TIME], dim=self.params[N_COMPONENTS])
+                    return tica, tica.fit_transform(inp)
+                elif model_parameters[ALGORITHM_NAME] == 'original_deeptime_tica':
                     tica = DeeptimeTICAInterface(dim=self.params[N_COMPONENTS], lagtime=model_parameters[LAG_TIME])
-                    # tica = coor.tica(data=inp, lag=model_parameters[LAG_TIME], dim=self.params[N_COMPONENTS])
                     return tica, tica.fit_transform(inp)
                 elif model_parameters[ALGORITHM_NAME] == 'original_tsne':
                     tsne = MyTSNE(n_components=self.params[N_COMPONENTS])
@@ -183,6 +186,7 @@ class DataTrajectory(TrajectoryFile):
                     tsne = MyTimeLaggedTSNE(lag_time=model_parameters[LAG_TIME], n_components=self.params[N_COMPONENTS])
                     return tsne, tsne.fit_transform(inp)
                 elif model_parameters[ALGORITHM_NAME] == 'original_ica':
+                    # TODO: Build interface for ICA
                     ica = FastICA(n_components=self.params[N_COMPONENTS])
                     return ica, ica.fit_transform(inp)
                 else:

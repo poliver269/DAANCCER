@@ -1,8 +1,8 @@
 {
-  "run_option": "multi_compare_all_pcs",
+  "run_option": "multi_median_reconstruction_error_fit_on_one_transform_on_all",
   "plot_type": "color_map",
   "plot_tics": true,
-  "plot_for_paper": true,
+  "plot_for_paper": false,
   "carbon_atoms_only": true,
   "interactive": true,
   "n_components": null,

@@ -273,10 +273,13 @@ def reconstruct_matrix(projection, eigenvectors, dim, mean, std=1):
     :param std: of the original data
     :return:
     """
-    if is_matrix_orthogonal(eigenvectors):
-        reconstructed_matrix = np.dot(projection[:, :dim], eigenvectors[:, :dim].T)
+    # if is_matrix_orthogonal(eigenvectors):
+    #   reconstructed_matrix = np.dot(projection[:, :dim], eigenvectors[:, :dim].T)
+    if is_matrix_orthogonal(eigenvectors.T):
+        reconstructed_matrix = np.dot(projection[:, :dim], eigenvectors[:dim])
     else:
-        reconstructed_matrix = np.dot(projection[:, :dim], np.linalg.inv(eigenvectors)[:dim])
+        print('not orthogonal')
+        reconstructed_matrix = np.dot(projection[:, :dim], np.linalg.inv(eigenvectors.T)[:dim])
     reconstructed_matrix *= std
     reconstructed_matrix += mean
     return reconstructed_matrix

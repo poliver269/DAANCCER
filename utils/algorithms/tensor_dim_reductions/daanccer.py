@@ -340,7 +340,7 @@ class DAANCCER(TensorDR):
         if is_matrix_orthogonal(self.components_.T):
             return np.dot(
                 projection_data,
-                self.components_
+                self.components_[:component_count]
             )  # Da orthogonal --> Transform = inverse
         else:
             if self.use_evs:
@@ -348,7 +348,7 @@ class DAANCCER(TensorDR):
             else:
                 return np.dot(
                     projection_data,
-                    np.linalg.inv(self.components_.T)
+                    np.linalg.inv(self.components_.T)[:component_count]
                 )
 
     def reconstruct(self, projection_matrix, component_count=None):

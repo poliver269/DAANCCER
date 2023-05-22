@@ -1,6 +1,7 @@
 ### Individual gitignore ###
 data
 analyse_results
+plots/paper/trash/
 
 # Partly created by https://www.gitignore.io/api/vim,kate,linux,emacs,macos,python,windows,pycharm,eclipse,sublimetext,intellij+iml,visualstudiocode
 *.tgz

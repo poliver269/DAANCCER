@@ -379,7 +379,7 @@ class MultiTrajectoryAnalyser:
             # model: [ParameterModel, StreamingEstimationTransformer] = model_dict[MODEL]
             print(f'Calculating reconstruction errors ({model_params})...')
             model_dict_list = self._get_model_result_list(model_params)
-            model_description = str(model_dict_list[DUMMY_ZERO][MODEL].describe())
+            model_description = str(model_dict_list[DUMMY_ZERO][MODEL]).split('(')[DUMMY_ZERO]
             score_list = []
             for traj_index, trajectory in enumerate(self.trajectories):
                 if fit_transform_re:
@@ -394,16 +394,16 @@ class MultiTrajectoryAnalyser:
                 score = self._get_reconstruction_score(model, input_data, matrix_projection)
                 score_list.append(score)
             score_list = np.asarray(score_list)
-            model_scores[f'{model_description:35}'] = score_list
+            model_scores[model_description] = score_list
 
-        model_scores = pretify_dict_model(model_scores)
+        # model_scores = pretify_dict_model(model_scores)
         ArrayPlotter(
             interactive=self.params[INTERACTIVE],
             title_prefix='Reconstruction Error (RE) ' + (
                 '' if fit_transform_re else f'fit-on-one-transform-on-all\n'),
             x_label='trajectories',
             y_label='score',
-            y_range=(0, 1),
+            # y_range=(0, 1),
             for_paper=self.params[PLOT_FOR_PAPER]
         ).plot_merged_2ds(model_scores, np.median)
 
@@ -436,9 +436,9 @@ class MultiTrajectoryAnalyser:
             if data_projection is None:
                 data_projection = model.transform(input_data)
             if component is None:
-                component = model.dim
+                component = model.n_components
             reconstructed_data = reconstruct_matrix(data_projection, model.components_, component,
-                                                    mean=model.mean)
+                                                    mean=model.mean_)
         return mean_squared_error(input_data, reconstructed_data, squared=False)
 
     def compare_median_reconstruction_scores(self, model_params_list: list[dict], fit_transform_re: bool = True):
@@ -484,13 +484,13 @@ class MultiTrajectoryAnalyser:
         for model_params in model_params_list:
             print(f'Calculating median reconstruction errors ({model_params})...')
             model_dict_list = self._get_model_result_list(model_params)
-            model_description = str(model_dict_list[DUMMY_ZERO][MODEL].describe())
+            model_description = str(model_dict_list[DUMMY_ZERO][MODEL]).split('(')[DUMMY_ZERO]
 
             median_list = self._get_median_over_components_for_trajectories(model_dict_list,
                                                                             component_wise_scores,
                                                                             model_description,
                                                                             fit_transform_re)
-            model_median_scores[f'{model_description:35}'] = np.asarray(median_list)
+            model_median_scores[model_description] = np.asarray(median_list)
             saver.save_to_npz(model_median_scores, 'median_RE_over_trajectories_on_' +
                               ('fit-transform' if fit_transform_re else 'FooToa'))
             saver.save_to_npz(component_wise_scores, 'component_wise_RE_on_' +
@@ -517,7 +517,8 @@ class MultiTrajectoryAnalyser:
         """
         Calculates the median reconstruction errors of the trajectories over the component span.
         @param model_dict_list:
-        @param component_wise_scores:
+        @param component_wise_scores: dict
+            This dictionary is updated without returning it.
         @param model_description:
         @param fit_transform_re:
         @return:
@@ -535,7 +536,7 @@ class MultiTrajectoryAnalyser:
                         input_data = fitted_trajectory.data_input(model_dict[INPUT_PARAMS])
                         matrix_projection = model_dict[PROJECTION]
                         score = self._get_reconstruction_score(model, input_data, matrix_projection, component)
-                    else:
+                    else:  # fit on one transform on all
                         transform_score = []
                         for transform_trajectory in self.trajectories:
                             input_data = transform_trajectory.data_input(model_dict[INPUT_PARAMS])
@@ -548,7 +549,7 @@ class MultiTrajectoryAnalyser:
             except InvalidReconstructionException as e:
                 warnings.warn(str(e))
                 break
-            component_wise_scores[str(component)][f'{model_description:35}'] = score_list
+            component_wise_scores[str(component)][model_description] = score_list
             median_list.append(np.median(score_list))
         return median_list
 

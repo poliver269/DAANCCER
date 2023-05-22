@@ -1,5 +1,5 @@
 {
-  "run_option": "multi_compare_all_pcs",
+  "run_option": "multi_median_reconstruction_error_fit_transform",
   "plot_type": "color_map",
   "plot_tics": true,
   "plot_for_paper": true,
