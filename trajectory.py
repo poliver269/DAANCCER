@@ -43,6 +43,7 @@ class ProteinTrajectory(TrajectoryFile):
             else:
                 self.traj: Trajectory = md.load(self.filepath, top=self.topology_path, atom_indices=atoms)
             self.reference_pdb = md.load_pdb(self.topology_path, atom_indices=atoms)
+            # self.traj: Trajectory = self.traj.superpose(self.traj).center_coordinates(mass_weighted=True)
             self.traj: Trajectory = self.traj.superpose(self.reference_pdb).center_coordinates(mass_weighted=True)
             self.traj.xyz = (self.traj.xyz - np.mean(self.traj.xyz, axis=0)[np.newaxis, :, :]) / np.std(self.traj.xyz,
                                                                                                         axis=0)

@@ -481,7 +481,7 @@ class ArrayPlotter(MyPlotter):
 
             if self.for_paper:
                 self._activate_legend = False
-                if key.startswith('PCA'):  # TODO: Hardcoded for Eigenvector Similarity
+                if key.startswith('PCA'):  # TODO: Hardcoded for Eigenvector Similarity and 2f4k dataset
                     xy = (22, 0.7)
                 elif key.startswith('TICA'):
                     xy = (3, 0.56)
@@ -498,5 +498,5 @@ class ArrayPlotter(MyPlotter):
                     warnings.warn('Could not plot the error band, because the error band has the incorrect shape.')
                 else:
                     self.axes.fill_between(range(error_band[key].shape[DUMMY_ONE]),
-                                           error_band[key][0], error_band[key][1], alpha=0.2)
+                                           error_band[key][DUMMY_ZERO], error_band[key][DUMMY_ONE], alpha=0.2)
         self._post_processing()

@@ -55,7 +55,7 @@ def get_files_and_kwargs(params: dict):
 
     if trajectory_name == '2f4k':
         filename_list = [f'2F4K-0-protein-{i:03d}.dcd' for i in
-                         range(0, 62)]  # + ['tr3_unfolded.xtc', 'tr8_folded.xtc']
+                         range(0, 3)]  # + ['tr3_unfolded.xtc', 'tr8_folded.xtc']
         kwargs = {FILENAME: filename_list[file_element], TOPOLOGY_FILENAME: '2f4k.pdb', FOLDER_PATH: 'data/2f4k'}
     elif trajectory_name == 'prot2':
         filename_list = ['prod_r1_nojump_prot.xtc', 'prod_r2_nojump_prot.xtc', 'prod_r3_nojump_prot.xtc']

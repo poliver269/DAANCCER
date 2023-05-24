@@ -202,7 +202,7 @@ class MultiTrajectoryAnalyser:
 
     def _get_all_similarities_from_trajectory_ev_pairs(self, trajectory_result_pairs: list[tuple],
                                                        pc_nr_list: list = None,
-                                                       plot: bool = False):
+                                                       plot: bool = False) -> np.ndarray:
         """
         Calculates and returns the similarity of eigenvectors between the results between trajectory pairs.
         The similarity is calculated via cosine similarity and then compared the most similar ones
@@ -453,9 +453,10 @@ class MultiTrajectoryAnalyser:
             to models fitted on a different trajectory.
         @return:
         """
-        model_median_scores = self._calculate_median_scores(model_params_list, fit_transform_re)
+        model_median_scores, re_error_bands = self._calculate_median_scores(model_params_list, fit_transform_re)
         ArrayPlotter(
             interactive=self.params[INTERACTIVE],
+            for_paper=self.params[PLOT_FOR_PAPER],
             title_prefix=f'Reconstruction Error (RE) ' +
                          ('' if fit_transform_re
                           else f'fit-on-one-transform-on-all\n') +
@@ -464,7 +465,7 @@ class MultiTrajectoryAnalyser:
             y_label='median REs of the trajectories',
             y_range=(0, 1),
             xtick_start=1
-        ).plot_merged_2ds(model_median_scores)
+        ).plot_merged_2ds(model_median_scores, error_band=re_error_bands)
 
     def _calculate_median_scores(self, model_params_list: list[dict], fit_transform_re: bool = True):
         """
@@ -481,21 +482,21 @@ class MultiTrajectoryAnalyser:
 
         model_median_scores = {}
         component_wise_scores = {}
+        re_error_bands = {}
         for model_params in model_params_list:
             print(f'Calculating median reconstruction errors ({model_params})...')
             model_dict_list = self._get_model_result_list(model_params)
             model_description = str(model_dict_list[DUMMY_ZERO][MODEL]).split('(')[DUMMY_ZERO]
 
-            median_list = self._get_median_over_components_for_trajectories(model_dict_list,
-                                                                            component_wise_scores,
-                                                                            model_description,
-                                                                            fit_transform_re)
-            model_median_scores[model_description] = np.asarray(median_list)
+            median_ndarray = self._get_median_over_components_for_trajectories(model_dict_list, component_wise_scores,
+                                                                               model_description, fit_transform_re,
+                                                                               re_error_bands)
+            model_median_scores[model_description] = median_ndarray
             saver.save_to_npz(model_median_scores, 'median_RE_over_trajectories_on_' +
                               ('fit-transform' if fit_transform_re else 'FooToa'))
             saver.save_to_npz(component_wise_scores, 'component_wise_RE_on_' +
                               ('fit-transform' if fit_transform_re else 'FooToa') + '_traj')
-        return model_median_scores
+        return model_median_scores, re_error_bands
 
     def _get_model_result_list(self, model_params: dict):
         """
@@ -513,7 +514,8 @@ class MultiTrajectoryAnalyser:
                                                      model_dict_list: list[dict],
                                                      component_wise_scores: dict,
                                                      model_description: str,
-                                                     fit_transform_re: bool = True) -> list:
+                                                     fit_transform_re: bool = True,
+                                                     error_bands: dict = None) -> np.ndarray:
         """
         Calculates the median reconstruction errors of the trajectories over the component span.
         @param model_dict_list:
@@ -523,11 +525,13 @@ class MultiTrajectoryAnalyser:
         @param fit_transform_re:
         @return:
         """
-        median_list = []
+        median_component_list = []
+        error_bands_list = []
         for component in tqdm(range(1, self.trajectories[DUMMY_ZERO].max_components + 1)):
-            score_list = []
+            trajectory_score_list = []
             if str(component) not in component_wise_scores:
                 component_wise_scores[str(component)] = {}
+
             try:
                 for traj_index, fitted_trajectory in enumerate(self.trajectories):
                     model_dict = model_dict_list[traj_index]
@@ -535,7 +539,7 @@ class MultiTrajectoryAnalyser:
                     if fit_transform_re:
                         input_data = fitted_trajectory.data_input(model_dict[INPUT_PARAMS])
                         matrix_projection = model_dict[PROJECTION]
-                        score = self._get_reconstruction_score(model, input_data, matrix_projection, component)
+                        reconstruction_score = self._get_reconstruction_score(model, input_data, matrix_projection, component)
                     else:  # fit on one transform on all
                         transform_score = []
                         for transform_trajectory in self.trajectories:
@@ -544,14 +548,19 @@ class MultiTrajectoryAnalyser:
 
                             transform_score.append(
                                 self._get_reconstruction_score(model, input_data, matrix_projection, component))
-                        score = np.median(transform_score)
-                    score_list.append(score)
+                        reconstruction_score = np.median(transform_score)
+                    trajectory_score_list.append(reconstruction_score)
             except InvalidReconstructionException as e:
                 warnings.warn(str(e))
                 break
-            component_wise_scores[str(component)][model_description] = score_list
-            median_list.append(np.median(score_list))
-        return median_list
+            component_wise_scores[str(component)][model_description] = trajectory_score_list
+            median_component_list.append(np.median(trajectory_score_list))
+            if error_bands is not None:
+                error_bands_list.append(np.vstack((np.min(trajectory_score_list, axis=0),
+                                                   np.max(trajectory_score_list, axis=0))))
+        if error_bands is not None:
+            error_bands[model_description] = np.asarray(error_bands_list).squeeze().T
+        return np.asarray(median_component_list)
 
     def compare_kernel_fitting_scores(self, kernel_names, model_params, load_filename: [str, None] = None):
         if load_filename is None:
