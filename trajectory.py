@@ -19,10 +19,9 @@ from utils.param_keys.traj_dims import TIME_FRAMES, TIME_DIM, ATOMS, ATOM_DIM, C
 
 
 class TrajectoryFile:
-    def __init__(self, filename, topology_filename, folder_path):
+    def __init__(self, filename, folder_path):
         self.root_path: Path = Path(folder_path)
         self.filename: str = filename
-        self.topology_filename: str = topology_filename
 
     @property
     def filepath(self) -> str:
@@ -32,10 +31,22 @@ class TrajectoryFile:
     def topology_path(self) -> str:
         return str(self.root_path / self.topology_filename)
 
+    def set_topology_filename(self, topology_filename):
+        self.topology_filename: str = topology_filename
+        return 0
 
-class ProteinTrajectory(TrajectoryFile):
+class DataTrajectory(TrajectoryFile):
+    def __init__(self, filename, folder_path='data/2f4k', params=None):
+        super().__init__(filename, folder_path)
+
+class WeatherTrajectory(DataTrajectory):
+    def __init__(self, filename, folder_path='data/', params=None):
+        super().__init__(filename, folder_path, params)
+
+class ProteinTrajectory(DataTrajectory):
     def __init__(self, filename, topology_filename=None, folder_path='data/2f4k', params=None, atoms=None):
-        super().__init__(filename, topology_filename, folder_path) #ODS: topology_filename not needed. Suggestion: Parent class data_file
+        super().__init__(filename, folder_path, params)
+        self.set_topology_filename(topology_filename)
         try:
             print(f"Loading trajectory {self.filename}...")
             if str(self.filename).endswith('dcd'):

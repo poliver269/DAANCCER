@@ -77,6 +77,10 @@ def get_files_and_kwargs(params: dict):
         filename_list = [f'trajectory-{i}.xtc' for i in range(1, 28 + 1)]
         kwargs = {FILENAME: filename_list[file_element], TOPOLOGY_FILENAME: 'fs-peptide.pdb',
                   FOLDER_PATH: 'data/fs-peptide'}
+    elif trajectory_name == 'weatherData':
+        filename_list = ['weather_data.csv']
+        kwargs = {FILENAME: filename_list[file_element], FOLDER_PATH: 'data/'}
+
     else:
         raise ValueError(f'No data trajectory was found with the name `{trajectory_name}`.')
 
