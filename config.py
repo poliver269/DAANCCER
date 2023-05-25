@@ -1,5 +1,6 @@
 import json
 import warnings
+from operator import itemgetter
 
 from utils.param_keys import *
 from utils.param_keys.analyses import *
@@ -80,7 +81,13 @@ def get_files_and_kwargs(params: dict):
     else:
         raise ValueError(f'No data trajectory was found with the name `{trajectory_name}`.')
 
-    filename_list.pop(file_element)
+    if SUBSET_LIST in params.keys():
+        subset_indexes: list = params[SUBSET_LIST]
+        if file_element in subset_indexes:
+            subset_indexes.remove(file_element)  # file_element already on kwargs
+        filename_list = [filename_list[i] for i in subset_indexes]
+    else:
+        filename_list.pop(file_element)  # file_element already on kwargs
     kwargs[PARAMS] = params
     return filename_list, kwargs
 
@@ -127,8 +134,7 @@ def get_model_params_list(alg_json_file: str) -> list[dict]:
             # *** Boolean Parameters:
             # CORR_KERNEL, ONES_ON_KERNEL_DIAG, USE_STD, CENTER_OVER_TIME, EXTRA_DR_LAYER
 
-            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, ANALYSE_PLOT_TYPE: FITTED_KERNEL_CURVES,
-             KERNEL_TYPE: MY_GAUSSIAN},
+            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_GAUSSIAN},
             # {ALGORITHM_NAME: 'tica', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, LAG_TIME: params[LAG_TIME]},
         ]
 
