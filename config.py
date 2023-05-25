@@ -78,8 +78,8 @@ def get_files_and_kwargs(params: dict):
         kwargs = {FILENAME: filename_list[file_element], TOPOLOGY_FILENAME: 'fs-peptide.pdb',
                   FOLDER_PATH: 'data/fs-peptide'}
     elif trajectory_name == 'weatherData':
-        filename_list = ['weather_data.csv']
-        kwargs = {FILENAME: filename_list[file_element], FOLDER_PATH: 'data/'}
+        filename_list = ['weather_DE_1980.csv']
+        kwargs = {FILENAME: filename_list[file_element], FOLDER_PATH: 'data/weather_data/de/'}
 
     else:
         raise ValueError(f'No data trajectory was found with the name `{trajectory_name}`.')
