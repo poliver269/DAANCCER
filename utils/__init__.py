@@ -1,3 +1,6 @@
+from utils.param_keys import DUMMY_ZERO
+
+
 def function_name(function: callable):
     return str(function).split()[1]
 
@@ -46,3 +49,7 @@ def pretify_dict_model(ugly_dict: dict) -> dict:
         elif k.startswith('Tensor-tica, my_gaussian-multi'):
             fill_dict['DAANCCER Kernel-Product'] = v
     return fill_dict
+
+
+def get_algorithm_name(model):
+    return str(model).split('(')[DUMMY_ZERO]

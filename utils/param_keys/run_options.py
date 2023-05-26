@@ -12,6 +12,7 @@ LOAD_LIST_OF_DICTS = 'load_list_of_dicts'
 
 # Multi trajectory analyse
 MULTI_QUALITATIVE_TRANSFORMATION_ON_SAME_FITTING = 'multi_qualitative_compare_transformation_on_same_fitting'
+MULTI_QUALITATIVE_PROJECTION_MATRIX = 'multi_qualitative_compare_projection_matrix'
 MULTI_COMPARE_ALL_PCS = 'multi_compare_all_pcs'  # delete manual PC span
 MULTI_COMPARE_COMBO_PCS = 'multi_compare_combo_pcs'
 MULTI_COMPARE_SOME_PCS = 'multi_compare_some_pcs'

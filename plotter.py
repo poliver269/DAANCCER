@@ -10,10 +10,10 @@ from matplotlib.widgets import Slider
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.metrics.pairwise import cosine_similarity
 
-from utils import function_name
+from utils import function_name, get_algorithm_name
 from utils.param_keys import TRAJECTORY_NAME, CARBON_ATOMS_ONLY, X, Y, Z, DUMMY_ZERO, DUMMY_ONE
 from utils.param_keys.analyses import HEAT_MAP, COLOR_MAP, PLOT_3D_MAP
-from utils.param_keys.model_result import MODEL, PROJECTION, TITLE_PREFIX, EXPLAINED_VAR
+from utils.param_keys.model_result import MODEL, PROJECTION, TITLE_PREFIX, EXPLAINED_VAR, FITTED_ON
 from utils.param_keys.traj_dims import TIME_FRAMES
 
 
@@ -199,8 +199,8 @@ class ModelResultPlotter(MyPlotter):
             dict should contain the keys: 'model', 'projection',
             and optional keys: 'title_prefix', 'explained_variance'
         :param color_map: str
-        :param show_model_properties: bool
             String value of the plot mapping type
+        :param show_model_properties: bool
         :param center_plot: bool
         """
         ax.cla()
@@ -213,25 +213,30 @@ class ModelResultPlotter(MyPlotter):
             ax.set_xlabel('1st component')
             ax.set_ylabel('2nd component')
             self._print_model_properties(result_dict)
+        elif sub_part is None:
+            if ax.get_subplotspec().is_first_col():
+                ax.set_ylabel(result_dict.get(FITTED_ON, 'Not Found'))
+            if ax.get_subplotspec().is_last_row():
+                ax.set_xlabel(result_dict.get(TITLE_PREFIX, 'Not Found'))
 
         if color_map == COLOR_MAP:
-            if sub_part is None:
+            if sub_part == 0 or sub_part is None:
                 color_array = np.arange(result_dict[PROJECTION].shape[0])
             else:
                 shape = result_dict[PROJECTION].shape[0]
                 color_array = np.arange((sub_part-1)*shape, sub_part*shape)
 
-            if not show_model_properties:
+            if not show_model_properties and sub_part is not None:  # else part of show_model_properties
                 if ax.get_subplotspec().is_first_col():
-                    ax.set_ylabel(str(result_dict[MODEL]).split('(')[DUMMY_ZERO], size='large')
+                    ax.set_ylabel(get_algorithm_name(result_dict[MODEL]), size='large')
                 if ax.get_subplotspec().is_first_row():
                     ax.set_title(f'Steps {color_array[0]}-{color_array[-1]}')
 
             c_map = plt.cm.viridis
             im = ax.scatter(result_dict[PROJECTION][:, 0], result_dict[PROJECTION][:, 1], c=color_array,
                             cmap=c_map, vmin=0, vmax=10000, marker='.')
-            if not self.for_paper and ((ax.get_subplotspec().is_last_col() and show_model_properties) or
-                                       (ax.get_subplotspec().is_first_col() and not show_model_properties)):
+            if not self.for_paper and ((ax.get_subplotspec().is_last_col() and sub_part is None) or
+                                       (ax.get_subplotspec().is_first_col() and sub_part is not None)):
                 self.fig.colorbar(im, ax=ax)
         else:
             ax.scatter(result_dict[PROJECTION][:, 0], result_dict[PROJECTION][:, 1], marker='.')
@@ -305,7 +310,8 @@ class ModelResultPlotter(MyPlotter):
         except AttributeError as e:
             print('{}: {}'.format(e, model))
 
-    def plot_multi_projections(self, model_result_list_in_list, plot_type, center_plot=True):
+    def plot_multi_projections(self, model_result_list_in_list, plot_type, center_plot=True, sub_parts=False,
+                               show_model_properties=True):
         self.fig, self.axes = plt.subplots(len(model_result_list_in_list), len(model_result_list_in_list[DUMMY_ZERO]),
                                            sharex='row', sharey='row')
         for row_index, model_results in enumerate(model_result_list_in_list):
@@ -314,9 +320,14 @@ class ModelResultPlotter(MyPlotter):
                                                   center_plot=center_plot)
             else:
                 for column_index, result in enumerate(model_results):
-                    sub_part = None if column_index == 0 else column_index
+                    sub_part = column_index if sub_parts else None
                     self._plot_transformed_trajectory(self.axes[row_index][column_index], result, color_map=plot_type,
-                                                      center_plot=center_plot, sub_part=sub_part)
+                                                      center_plot=center_plot, sub_part=sub_part,
+                                                      show_model_properties=show_model_properties)
+        if not show_model_properties and not sub_parts:
+            model_name = get_algorithm_name(model_result_list_in_list[DUMMY_ZERO][DUMMY_ZERO][MODEL])
+            self.fig.supylabel(f'{model_name} fitted on')
+            self.fig.supxlabel(f'{model_name} transformed on')
         self._post_processing()
 
 
@@ -489,7 +500,7 @@ class ArrayPlotter(MyPlotter):
                     xy = (60, 0.96)
                 else:
                     xy = (0, ndarray_data[2])
-                self.axes.annotate(key.split('(')[DUMMY_ZERO], xy=xy, color=color, fontsize=self.fontsize)
+                self.axes.annotate(get_algorithm_name(key), xy=xy, color=color, fontsize=self.fontsize)
             else:
                 self._activate_legend = True
 

@@ -127,8 +127,11 @@ def run_multi_analyse(filename_list, model_params_list, kwargs):
     elif run_option == MULTI_QUALITATIVE_TRANSFORMATION_ON_SAME_FITTING:
         mtr = MultiTrajectoryAnalyser(kwargs_list, kwargs[PARAMS])
         mtr.compare_results_on_same_fitting(model_params_list[DUMMY_ZERO], DUMMY_ZERO)
+    elif run_option == MULTI_QUALITATIVE_PROJECTION_MATRIX:
+        mtr = MultiTrajectoryAnalyser(kwargs_list, kwargs[PARAMS])
+        mtr.compare_projection_matrix(model_params_list)
     else:
-        raise InvalidRunningOptionError(f'The run_option: `{run_option}` in the (json) configuration '
+        raise InvalidRunningOptionError(f'The \"run_option\": \"{run_option}\" in the (json) configuration '
                                         f'does not exists or it is not a loading option.\n')
 
 

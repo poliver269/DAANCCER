@@ -4,7 +4,8 @@ from pathlib import Path
 import numpy as np
 
 from analyse import AnalyseResultLoader
-from utils.param_keys import TRAJECTORY_NAME, PLOT_TYPE, N_COMPONENTS, FILENAME, PARAMS, DUMMY_ZERO
+from utils.param_keys import TRAJECTORY_NAME, PLOT_TYPE, N_COMPONENTS, FILENAME, PARAMS, DUMMY_ZERO, INTERACTIVE, \
+    PLOT_FOR_PAPER
 from utils.param_keys.run_options import *
 from plotter import ModelResultPlotter, ArrayPlotter
 from utils import pretify_dict_model
@@ -25,10 +26,11 @@ def load_list_of_dicts(sub_dir: str, params: dict):
             ).load_npz_files_in_directory(directory)
         )
     ModelResultPlotter(
-        interactive=True,
+        interactive=params[INTERACTIVE],
         title_prefix=sub_dir,
-        for_paper=True
-    ).plot_multi_projections(list_of_list, params[PLOT_TYPE], center_plot=False)
+        for_paper=params[PLOT_FOR_PAPER]
+    ).plot_multi_projections(list_of_list, params[PLOT_TYPE],
+                             center_plot=False, sub_parts=False, show_model_properties=False)
 
 
 def load_analyse_results_dict(result_load_files: list, kwargs: dict):

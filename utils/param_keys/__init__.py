@@ -4,6 +4,7 @@
 RUN_OPTION = 'run_option'
 TRAJECTORY_NAME = 'trajectory_name'
 FILE_ELEMENT = 'file_element'
+SUBSET_LIST = 'subset_list'
 # Plot params
 PLOT_TYPE = 'plot_type'
 PLOT_TICS = 'plot_tics'

@@ -15,13 +15,13 @@ from tqdm import tqdm
 
 from plotter import ArrayPlotter, MultiTrajectoryPlotter, ModelResultPlotter
 from trajectory import ProteinTrajectory, TrajectorySubset
-from utils import statistical_zero, pretify_dict_model
+from utils import statistical_zero, get_algorithm_name
 from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
 from utils.errors import InvalidReconstructionException, InvalidProteinTrajectory
 from utils.matrix_tools import calculate_symmetrical_kernel_matrix, reconstruct_matrix
 from utils.param_keys import *
 from utils.param_keys.analyses import COLOR_MAP, KERNEL_COMPARE
-from utils.param_keys.model_result import MODEL, PROJECTION, INPUT_PARAMS
+from utils.param_keys.model_result import MODEL, PROJECTION, INPUT_PARAMS, TITLE_PREFIX, FITTED_ON
 
 
 class SingleTrajectoryAnalyser:
@@ -118,7 +118,8 @@ class SingleTrajectoryAnalyser:
                 total_result = [self.trajectory.get_model_result(model_params)]
                 total_result = total_result + self.trajectory.get_sub_results(model_params)
                 results.append(total_result)
-            ModelResultPlotter().plot_multi_projections(results, self.params[PLOT_TYPE], center_plot=False)
+            ModelResultPlotter().plot_multi_projections(
+                results, self.params[PLOT_TYPE], center_plot=False, sub_parts=True, show_model_properties=False)
         else:
             raise InvalidProteinTrajectory(f'Protein trajectory is invalid. Use a subset trajectory to ')
 
@@ -334,7 +335,8 @@ class MultiTrajectoryAnalyser:
         :param traj_nrs:
         :param model_params_list: list[dict]
             Different model input parameters, saved in a list.
-        :param pc_nr_list: TODO
+        :param pc_nr_list: list
+            Subset of principal components, which should be
         :return:
         """
         trajectories = self._get_trajectories_by_index(traj_nrs)
@@ -379,7 +381,7 @@ class MultiTrajectoryAnalyser:
             # model: [ParameterModel, StreamingEstimationTransformer] = model_dict[MODEL]
             print(f'Calculating reconstruction errors ({model_params})...')
             model_dict_list = self._get_model_result_list(model_params)
-            model_description = str(model_dict_list[DUMMY_ZERO][MODEL]).split('(')[DUMMY_ZERO]
+            model_description = get_algorithm_name(model_dict_list[DUMMY_ZERO][MODEL])
             score_list = []
             for traj_index, trajectory in enumerate(self.trajectories):
                 if fit_transform_re:
@@ -486,7 +488,7 @@ class MultiTrajectoryAnalyser:
         for model_params in model_params_list:
             print(f'Calculating median reconstruction errors ({model_params})...')
             model_dict_list = self._get_model_result_list(model_params)
-            model_description = str(model_dict_list[DUMMY_ZERO][MODEL]).split('(')[DUMMY_ZERO]
+            model_description = get_algorithm_name(model_dict_list[DUMMY_ZERO][MODEL])
 
             median_ndarray = self._get_median_over_components_for_trajectories(model_dict_list, component_wise_scores,
                                                                                model_description, fit_transform_re,
@@ -539,7 +541,8 @@ class MultiTrajectoryAnalyser:
                     if fit_transform_re:
                         input_data = fitted_trajectory.data_input(model_dict[INPUT_PARAMS])
                         matrix_projection = model_dict[PROJECTION]
-                        reconstruction_score = self._get_reconstruction_score(model, input_data, matrix_projection, component)
+                        reconstruction_score = self._get_reconstruction_score(model, input_data, matrix_projection,
+                                                                              component)
                     else:  # fit on one transform on all
                         transform_score = []
                         for transform_trajectory in self.trajectories:
@@ -589,25 +592,53 @@ class MultiTrajectoryAnalyser:
         AnalyseResultsSaver(self.params[TRAJECTORY_NAME], filename='compare_rmse_kernel').save_to_npz(kernel_accuracies)
         return kernel_accuracies
 
-    def compare_results_on_same_fitting(self, model_params, traj_index):
+    def compare_results_on_same_fitting(self, model_params, traj_index, plot=True):
         fitting_trajectory = self.trajectories[traj_index]
         fitting_results = fitting_trajectory.get_model_result(model_params)
+        fitting_results[FITTED_ON] = fitting_trajectory.filename[:-4]
         model_results_list = []
         for trajectory_nr, trajectory in enumerate(self.trajectories):
             if trajectory_nr == traj_index:
+                fitting_results[TITLE_PREFIX] = trajectory.filename[:-4]
                 model_results_list.append(fitting_results)
             else:
                 transform_results = fitting_results.copy()
                 transform_results[PROJECTION] = fitting_results[MODEL].transform(trajectory.data_input(model_params))
+                transform_results[TITLE_PREFIX] = trajectory.filename[:-4]
                 model_results_list.append(transform_results)
-        st = SingleTrajectoryAnalyser(fitting_trajectory)
-        st.compare_with_plot(model_results_list)
+
+        if plot:
+            SingleTrajectoryAnalyser(
+                trajectory=fitting_trajectory,
+                params=self.params
+            ).compare_with_plot(model_results_list)
+
         saver = AnalyseResultsSaver(self.params[TRAJECTORY_NAME])
         for result_index, model_result in enumerate(model_results_list):
             saver.save_to_npz(
                 model_result,
                 new_filename=f'{self.trajectories[result_index].filename[:-4]}'
                              f'_transformed_on_{fitting_trajectory.filename[:-4]}'
+            )
+
+        return model_results_list
+
+    def compare_projection_matrix(self, model_params_list):
+        for model_params in model_params_list:  # create matrix for every model parameter
+            list_of_list = []
+            for traj_index in range(len(self.trajectories)):
+                fitted_traj_row = self.compare_results_on_same_fitting(model_params, traj_index, plot=False)
+                list_of_list.append(fitted_traj_row)
+
+            ModelResultPlotter(
+                interactive=self.params[INTERACTIVE],
+                for_paper=self.params[PLOT_FOR_PAPER]
+            ).plot_multi_projections(
+                model_result_list_in_list=list_of_list,
+                plot_type=self.params[PLOT_TYPE],
+                center_plot=False,
+                sub_parts=False,
+                show_model_properties=False
             )
 
 
