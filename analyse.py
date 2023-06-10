@@ -13,8 +13,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.model_selection import GridSearchCV
 from tqdm import tqdm
 
+from config import get_data_class
 from plotter import ArrayPlotter, MultiTrajectoryPlotter, ModelResultPlotter
-from trajectory import ProteinTrajectory, TrajectorySubset
+from trajectory import ProteinTrajectory, TrajectorySubset, TrajectoryFile
 from utils import statistical_zero, get_algorithm_name
 from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
 from utils.errors import InvalidReconstructionException, InvalidProteinTrajectory
@@ -140,8 +141,8 @@ class SingleTrajectoryAnalyser:
 
 
 class MultiTrajectoryAnalyser:
-    def __init__(self, kwargs_list, params):
-        self.trajectories: list[ProteinTrajectory] = [ProteinTrajectory(**kwargs) for kwargs in kwargs_list]
+    def __init__(self, kwargs_list: list, params: dict):
+        self.trajectories: list[TrajectoryFile] = [get_data_class(params, kwargs) for kwargs in kwargs_list]
         print(f'Trajectories loaded time: {datetime.now()}')
         self.params: dict = {
             N_COMPONENTS: params.get(N_COMPONENTS, 2),
@@ -166,7 +167,8 @@ class MultiTrajectoryAnalyser:
                 principal_components.append(res['model'].components_)
             pcs = np.asarray(principal_components)
             MultiTrajectoryPlotter(
-                interactive=self.params[INTERACTIVE]
+                interactive=self.params[INTERACTIVE],
+                for_paper=self.params[PLOT_FOR_PAPER]
             ).plot_principal_components(model_parameters, pcs, self.params[N_COMPONENTS])
 
     def _get_trajectories_by_index(self, traj_nrs: [list[int], None]):
@@ -325,7 +327,7 @@ class MultiTrajectoryAnalyser:
                 title_prefix=f'Eigenvector Similarities',
                 x_label='Principal Component Number',
                 y_label='Similarity value',
-                y_range=(0.2, 1),
+                # y_range=(0.2, 1),
                 for_paper=self.params[PLOT_FOR_PAPER]
             ).plot_merged_2ds(model_similarities, error_band=similarity_error_bands)
 
@@ -395,8 +397,8 @@ class MultiTrajectoryAnalyser:
                 input_data = trajectory.data_input(model_dict[INPUT_PARAMS])
                 score = self._get_reconstruction_score(model, input_data, matrix_projection)
                 score_list.append(score)
-            score_list = np.asarray(score_list)
-            model_scores[model_description] = score_list
+            score_ndarray = np.asarray(score_list)
+            model_scores[model_description] = score_ndarray
 
         # model_scores = pretify_dict_model(model_scores)
         ArrayPlotter(

@@ -1,3 +1,4 @@
+import random
 import warnings
 from pathlib import Path
 
@@ -6,7 +7,7 @@ import numpy as np
 from mdtraj import Trajectory
 from sklearn.decomposition import FastICA, PCA
 
-from utils.algorithms.interfaces import DeeptimeTICAInterface, PyemmaTICAInterface, PyemmaPCAInterface
+from utils.algorithms.interfaces import DeeptimeTICAInterface, PyemmaTICAInterface, PyemmaPCAInterface, ICA
 from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
 from utils.algorithms.tsne import MyTSNE, MyTimeLaggedTSNE
 from utils.errors import InvalidSubsetTrajectory
@@ -35,7 +36,7 @@ class TrajectoryFile:
 
 class ProteinTrajectory(TrajectoryFile):
     def __init__(self, filename, topology_filename=None, folder_path='data/2f4k', params=None, atoms=None):
-        super().__init__(filename, topology_filename, folder_path) #ODS: topology_filename not needed. Suggestion: Parent class data_file
+        super().__init__(filename, topology_filename, folder_path)
         try:
             print(f"Loading trajectory {self.filename}...")
             if str(self.filename).endswith('dcd'):
@@ -43,13 +44,14 @@ class ProteinTrajectory(TrajectoryFile):
             else:
                 self.traj: Trajectory = md.load(self.filepath, top=self.topology_path, atom_indices=atoms)
             self.reference_pdb = md.load_pdb(self.topology_path, atom_indices=atoms)
-            # self.traj: Trajectory = self.traj.superpose(self.traj).center_coordinates(mass_weighted=True)
-            self.traj: Trajectory = self.traj.superpose(self.reference_pdb).center_coordinates(mass_weighted=True)
-            self.traj.xyz = (self.traj.xyz - np.mean(self.traj.xyz, axis=0)[np.newaxis, :, :]) / np.std(self.traj.xyz,
-                                                                                                        axis=0)
             self.dim: dict = {TIME_FRAMES: self.traj.xyz.shape[TIME_DIM],
                               ATOMS: self.traj.xyz.shape[ATOM_DIM],
                               COORDINATES: self.traj.xyz.shape[COORDINATE_DIM]}
+            self.traj: Trajectory = self.traj.superpose(
+                self.traj, frame=random.randint(0, self.dim[TIME_FRAMES])).center_coordinates(mass_weighted=True)
+            # self.traj: Trajectory = self.traj.superpose(self.reference_pdb).center_coordinates(mass_weighted=True)
+            self.traj.xyz = (self.traj.xyz - np.mean(self.traj.xyz, axis=0)[np.newaxis, :, :]) / np.std(self.traj.xyz,
+                                                                                                        axis=0)
             self.phi: np.ndarray = md.compute_phi(self.traj)
             self.psi: np.ndarray = md.compute_psi(self.traj)
         except IOError:
@@ -64,7 +66,7 @@ class ProteinTrajectory(TrajectoryFile):
             N_COMPONENTS: params.get(N_COMPONENTS, 2),
             BASIS_TRANSFORMATION: params.get(BASIS_TRANSFORMATION, False),
             RANDOM_SEED: params.get(RANDOM_SEED, 42),
-            USE_ANGLES: params.get(USE_ANGLES, True),
+            USE_ANGLES: params.get(USE_ANGLES, False),
             TRAJECTORY_NAME: params.get(TRAJECTORY_NAME, 'Not Found')
         }
 
@@ -139,6 +141,7 @@ class ProteinTrajectory(TrajectoryFile):
         """
         model, projection = self.get_model_and_projection(model_parameters, log=log)
         try:
+            # TODO: Explained Variance not correctly calculated
             ex_var = explained_variance(model.explained_variance_, self.params[N_COMPONENTS])
         except AttributeError as e:
             warnings.warn(str(e))
@@ -188,7 +191,7 @@ class ProteinTrajectory(TrajectoryFile):
                     return tsne, tsne.fit_transform(inp)
                 elif model_parameters[ALGORITHM_NAME] == 'original_ica':
                     # TODO: Build interface for ICA
-                    ica = FastICA(n_components=self.params[N_COMPONENTS])
+                    ica = ICA(n_components=self.params[N_COMPONENTS])
                     return ica, ica.fit_transform(inp)
                 else:
                     warnings.warn(f'No original algorithm was found with name: {model_parameters[ALGORITHM_NAME]}')
@@ -281,11 +284,15 @@ class ProteinTrajectory(TrajectoryFile):
 
 
 class TrajectorySubset(ProteinTrajectory):
-    def __init__(self, quantity=1, time_window_size=None, **kwargs):
+    def __init__(self,
+                 quantity: int = 1,
+                 time_window_size: int = None,
+                 part_count: int = None,
+                 **kwargs):
         self.quantity = quantity
         self.time_window_size = time_window_size
         self.rest = 0
-        self.part_count = None
+        self.part_count = part_count
         super().__init__(**kwargs)
 
     def _check_init_params(self):
@@ -306,15 +313,11 @@ class TrajectorySubset(ProteinTrajectory):
                 self.time_window_size = self.dim[TIME_FRAMES]
                 warnings.warn(f'The subset of the trajectory is the same as the actual trajectory.')
 
-            if self.dim[TIME_FRAMES] > self.time_window_size:
+            if self.dim[TIME_FRAMES] < self.time_window_size:
                 raise InvalidSubsetTrajectory(f'The time window size `{self.time_window_size}` is invalid '
                                               f'for the trajectory with time steps `{self.dim[TIME_FRAMES]}`')
             self.rest = self.dim[TIME_FRAMES] % self.time_window_size
             self.quantity = self.dim[TIME_FRAMES] // self.time_window_size
-
-    @property
-    def _has_no_rest(self):
-        return self.rest == 0
 
     def get_sub_results(self, model_parameters: dict) -> list:
         results = []
@@ -334,9 +337,10 @@ class TrajectorySubset(ProteinTrajectory):
         if self.part_count is None:
             return whole_input_data
         elif self.part_count == self.quantity - 1:
-            return whole_input_data[-(self.time_window_size+self.rest):]
+            return whole_input_data[-(self.time_window_size + self.rest):]
         else:
-            return whole_input_data[(self.part_count*self.time_window_size):(self.part_count+1)*self.time_window_size]
+            return whole_input_data[
+                   (self.part_count * self.time_window_size):(self.part_count + 1) * self.time_window_size]
 
 
 class TopologyConverter(TrajectoryFile):

@@ -1,7 +1,7 @@
 import json
 import warnings
-from operator import itemgetter
 
+from trajectory import ProteinTrajectory, TrajectorySubset, TrajectoryFile
 from utils.param_keys import *
 from utils.param_keys.analyses import *
 from utils.param_keys.kernel_functions import *
@@ -167,3 +167,25 @@ def get_param_grid(param_grid_json_file: str = None) -> list:
                 ABS_EVAL_SORT: [False, True]
             }
         ]
+
+
+def get_data_class(params: dict, kwargs: dict) -> TrajectoryFile:
+    if DATA_SET in params.keys():
+        data_set_name: str = params[DATA_SET]
+
+        if data_set_name.startswith('sub'):
+            if QUANTITY in params.keys():
+                kwargs[QUANTITY] = params[QUANTITY]
+            if TIME_WINDOW_SIZE in params.keys():
+                kwargs[TIME_WINDOW_SIZE] = params[TIME_WINDOW_SIZE]
+            if PART_COUNT in params.keys():
+                kwargs[PART_COUNT] = params[PART_COUNT]
+
+        # TODO @Andrea: return climate data class
+        #  if data_set_name == 'climate' and equally 'sub_climate'
+        if data_set_name == "sub_protein":
+            return TrajectorySubset(**kwargs)
+        else:
+            return ProteinTrajectory(**kwargs)
+    else:
+        return ProteinTrajectory(**kwargs)

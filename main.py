@@ -44,35 +44,29 @@ def run(kwargs: dict, model_params_list: list, filename_list: list):
     """
     params = kwargs[PARAMS]
     run_option = params[RUN_OPTION]
+    data_class = config.get_data_class(params, kwargs)
     if run_option == 'covert_to_pdb':
         kwargs = {FILENAME: 'protein.xtc', TOPOLOGY_FILENAME: 'protein.gro',
                   GOAL_FILENAME: 'protein.pdb', FOLDER_PATH: 'data/ser-tr'}
         tc = TopologyConverter(**kwargs)
         tc.convert()
     elif run_option == PLOT_WITH_SLIDER:
-        tr = ProteinTrajectory(**kwargs)
-        TrajectoryPlotter(tr, standardize=True).data_with_timestep_slider(min_max=None)  # [0, 1000]
+        TrajectoryPlotter(data_class, standardize=True).data_with_timestep_slider(min_max=None)  # [0, 1000]
     elif run_option == PLOT_RECONSTRUCTED_WITH_SLIDER:
-        tr = ProteinTrajectory(**kwargs)
-        TrajectoryPlotter(tr, reconstruct_params=model_params_list[1]).data_with_timestep_slider()
+        TrajectoryPlotter(data_class, reconstruct_params=model_params_list[1]).data_with_timestep_slider()
     elif run_option == COMPARE:
         if params[N_COMPONENTS] != 2:
             raise ValueError(f'The parameter `{N_COMPONENTS}` has to be 2, but it\'s {params[N_COMPONENTS]}.')
-        tr = ProteinTrajectory(**kwargs)
-        SingleTrajectoryAnalyser(tr, params).compare(model_params_list)
+        SingleTrajectoryAnalyser(data_class, params).compare(model_params_list)
     elif run_option == COMPARE_WITH_CA_ATOMS:
-        tr = ProteinTrajectory(**kwargs)
-        SingleTrajectoryAnalyser(tr, params).compare_with_carbon_alpha_and_all_atoms(model_params_list)
+        SingleTrajectoryAnalyser(data_class, params).compare_with_carbon_alpha_and_all_atoms(model_params_list)
     elif run_option == BASE_TRANSFORMATION:
-        tr = ProteinTrajectory(**kwargs)
-        SingleTrajectoryAnalyser(tr, params).compare_with_basis_transformation(model_params_list)
+        SingleTrajectoryAnalyser(data_class, params).compare_with_basis_transformation(model_params_list)
     elif run_option == PARAMETER_GRID_SEARCH:
         param_grid = config.get_param_grid()
-        tr = ProteinTrajectory(**kwargs)
-        SingleTrajectoryAnalyser(tr, params).grid_search(param_grid)
+        SingleTrajectoryAnalyser(data_class, params).grid_search(param_grid)
     elif run_option == TRAJECTORY_SUBSET_ANALYSIS:
-        sub_tr = TrajectorySubset(quantity=params[QUANTITY], time_window_size=params[TIME_WINDOW_SIZE], **kwargs)
-        SingleTrajectoryAnalyser(sub_tr, params).compare_trajectory_subsets(model_params_list)
+        SingleTrajectoryAnalyser(data_class, params).compare_trajectory_subsets(model_params_list)
     elif run_option.startswith(MULTI):
         run_multi_analyse(filename_list, model_params_list, kwargs)
     else:
