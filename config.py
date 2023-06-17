@@ -82,7 +82,7 @@ def get_files_and_kwargs(params: dict):
     elif trajectory_name == 'weatherDataDK':
         raw_data = pd.read_csv('data/weather_data.csv')
         dk = wp.get_trajectories_per_year(raw_data, 'utc_timestamp', 'DK')
-        filename_list = [f'weather_DK_{i}.xtc' for i in range(1980, 2019 + 1)]
+        filename_list = [f'weather_DK_{i}.csv' for i in range(1980, 2019 + 1)]
         kwargs = {FILENAME: filename_list[file_element],
                   FOLDER_PATH: 'data/weather_data/dk'}
     elif trajectory_name == 'weatherData':
