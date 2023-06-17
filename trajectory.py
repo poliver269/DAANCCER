@@ -4,7 +4,7 @@ import itertools
 import mdtraj as md
 import numpy as np
 import pandas as pd
-from mdtraj import Trajectory
+from mdtraj import Trajectory as MdTrajectory
 from sklearn.decomposition import FastICA, PCA
 
 from utils.algorithms.interfaces import DeeptimeTICAInterface, PyemmaTICAInterface, PyemmaPCAInterface
@@ -36,6 +36,11 @@ class TrajectoryFile:
         self.topology_filename: str = topology_filename
         return 0
 
+class Trajectory:
+    def __init__(self):
+        topology = None
+        xyz: np.array = None
+
 class DataTrajectory(TrajectoryFile):
     def __init__(self, filename, folder_path='data/2f4k', params=None):
         super().__init__(filename, folder_path)
@@ -44,10 +49,9 @@ class DataTrajectory(TrajectoryFile):
         self.params: dict = {
             N_COMPONENTS: params.get(N_COMPONENTS, 2),
             BASIS_TRANSFORMATION: params.get(BASIS_TRANSFORMATION, False),
-            RANDOM_SEED: params.get(RANDOM_SEED, 42),
-            USE_ANGLES: params.get(USE_ANGLES, True),
             TRAJECTORY_NAME: params.get(TRAJECTORY_NAME, 'Not Found')
         }
+
 
     def get_model_result(self, model_parameters: dict, log: bool = True) -> dict:
         """
@@ -120,6 +124,32 @@ class DataTrajectory(TrajectoryFile):
             model = DAANCCER(**model_parameters)
             return model, model.fit_transform(inp, n_components=self.params[N_COMPONENTS])
 
+    def _filter_coordinates_by_coordinates(self, element_list, ac_only=False):
+        coordinates_dict = self.alpha_carbon_coordinates if ac_only else self.atom_coordinates
+        return coordinates_dict[:, :, element_list]
+
+    def _check_init_params(self):
+        if self.params[N_COMPONENTS] is None:
+            self.params[N_COMPONENTS] = self.max_components
+
+    #TODO: Rename ATOM specific params for generalization
+    def _check_init_coords(self):
+        self.dim: dict = {TIME_FRAMES: self.traj.xyz.shape[TIME_DIM],
+                          ATOMS: self.traj.xyz.shape[ATOM_DIM],
+                          COORDINATES: self.traj.xyz.shape[COORDINATE_DIM]}
+        self.x_coordinates = self._filter_coordinates_by_coordinates(0)
+        self.y_coordinates = self._filter_coordinates_by_coordinates(1)
+        self.z_coordinates = self._filter_coordinates_by_coordinates(2)
+        self.coordinate_mins = {X: self.x_coordinates.min(), Y: self.y_coordinates.min(), Z: self.z_coordinates.min()}
+        self.coordinate_maxs = {X: self.x_coordinates.max(), Y: self.y_coordinates.max(), Z: self.z_coordinates.max()}
+
+    #TODO: Rename atom_coordinates for generalization
+    @property
+    def atom_coordinates(self) -> np.ndarray:
+        if self.params[BASIS_TRANSFORMATION]:
+            return self.__basis_transformed_coordinates()
+        else:
+            return self.traj.xyz
 
 class WeatherTrajectory(DataTrajectory):
     def __init__(self, filename, folder_path='data/', params=None):
@@ -127,10 +157,16 @@ class WeatherTrajectory(DataTrajectory):
         try:
             print(f"Loading trajectory {self.filename}...")
             self.weather_df = pd.read_csv(self.filepath)
+            self.traj = Trajectory()
+            self.traj.xyz =  np.array(list(map(np.stack, self.weather_df.applymap(eval).to_numpy())))
+
             #self.countries = list(dict.fromkeys([x[:2] for x in self.weather_df.columns]))[1:]
             #self.features = list(dict.fromkeys([x[3:] for x in self.weather_df.columns]))[1:]
         except IOError:
             raise FileNotFoundError(f"Cannot load {self.filepath}.")
+
+        self._check_init_coords()
+        self._check_init_params()
 
 
 
@@ -174,16 +210,13 @@ class ProteinTrajectory(DataTrajectory):
         try:
             print(f"Loading trajectory {self.filename}...")
             if str(self.filename).endswith('dcd'):
-                self.traj: Trajectory = md.load_dcd(self.filepath, top=self.topology_path, atom_indices=atoms)
+                self.traj: MdTrajectory = md.load_dcd(self.filepath, top=self.topology_path, atom_indices=atoms)
             else:
-                self.traj: Trajectory = md.load(self.filepath, top=self.topology_path, atom_indices=atoms)
+                self.traj: MdTrajectory = md.load(self.filepath, top=self.topology_path, atom_indices=atoms)
             self.reference_pdb = md.load_pdb(self.topology_path, atom_indices=atoms)
-            self.traj: Trajectory = self.traj.superpose(self.reference_pdb).center_coordinates(mass_weighted=True)
+            self.traj: MdTrajectory = self.traj.superpose(self.reference_pdb).center_coordinates(mass_weighted=True)
             self.traj.xyz = (self.traj.xyz - np.mean(self.traj.xyz, axis=0)[np.newaxis, :, :]) / np.std(self.traj.xyz,
                                                                                                         axis=0)
-            self.dim: dict = {TIME_FRAMES: self.traj.xyz.shape[TIME_DIM],
-                              ATOMS: self.traj.xyz.shape[ATOM_DIM],
-                              COORDINATES: self.traj.xyz.shape[COORDINATE_DIM]}
             self.phi: np.ndarray = md.compute_phi(self.traj)
             self.psi: np.ndarray = md.compute_psi(self.traj)
         except IOError:
@@ -191,27 +224,15 @@ class ProteinTrajectory(DataTrajectory):
         else:
             print(f"Trajectory `{self.traj}` successfully loaded.")
 
-        if params is None:
-            params = {}
-        self.params: dict = {
+        self.params.update({
             CARBON_ATOMS_ONLY: params.get(CARBON_ATOMS_ONLY, True),
-            N_COMPONENTS: params.get(N_COMPONENTS, 2),
-            BASIS_TRANSFORMATION: params.get(BASIS_TRANSFORMATION, False),
             RANDOM_SEED: params.get(RANDOM_SEED, 42),
             USE_ANGLES: params.get(USE_ANGLES, True),
-            TRAJECTORY_NAME: params.get(TRAJECTORY_NAME, 'Not Found')
-        }
+        })
 
-        self.x_coordinates = self._filter_coordinates_by_coordinates(0)
-        self.y_coordinates = self._filter_coordinates_by_coordinates(1)
-        self.z_coordinates = self._filter_coordinates_by_coordinates(2)
-        self.coordinate_mins = {X: self.x_coordinates.min(), Y: self.y_coordinates.min(), Z: self.z_coordinates.min()}
-        self.coordinate_maxs = {X: self.x_coordinates.max(), Y: self.y_coordinates.max(), Z: self.z_coordinates.max()}
+        self._check_init_coords()
         self._check_init_params()
 
-    def _check_init_params(self):
-        if self.params[N_COMPONENTS] is None:
-            self.params[N_COMPONENTS] = self.max_components
     @property
     def flattened_coordinates(self) -> np.ndarray:
         if self.params[CARBON_ATOMS_ONLY]:
@@ -220,13 +241,6 @@ class ProteinTrajectory(DataTrajectory):
                                                          self.dim[ATOMS] * self.dim[COORDINATES])
         else:
             return self.atom_coordinates.reshape(self.dim[TIME_FRAMES], self.dim[ATOMS] * self.dim[COORDINATES])
-
-    @property
-    def atom_coordinates(self) -> np.ndarray:
-        if self.params[BASIS_TRANSFORMATION]:
-            return self.__basis_transformed_coordinates()
-        else:
-            return self.traj.xyz
 
     def data_input(self, model_parameters: dict = None) -> np.ndarray:
         """
