@@ -1,0 +1,12 @@
+{
+  "run_option": "load_analyse_result_dict",
+  "plot_type": "color_map",
+  "plot_for_paper": true,
+  "interactive": true,
+  "n_components": null,
+  "trajectory_name": "2f4k",
+  "file_element": 0,
+  "data_set": "sub_protein",
+  "time_window_size": 2000,
+  "part_count": 0
+}

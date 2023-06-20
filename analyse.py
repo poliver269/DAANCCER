@@ -467,7 +467,7 @@ class MultiTrajectoryAnalyser:
                          f'on {self.trajectories[DUMMY_ZERO].max_components} Principal Components ',
             x_label='number of principal components',
             y_label='median REs of the trajectories',
-            y_range=(0, 1),
+            # y_range=(0, 1),
             xtick_start=1
         ).plot_merged_2ds(model_median_scores, error_band=re_error_bands)
 
@@ -485,6 +485,7 @@ class MultiTrajectoryAnalyser:
         saver = AnalyseResultsSaver(trajectory_name=self.params[TRAJECTORY_NAME])
 
         model_median_scores = {}
+        model_mean_scores = {}
         component_wise_scores = {}
         re_error_bands = {}
         for model_params in model_params_list:
@@ -492,14 +493,21 @@ class MultiTrajectoryAnalyser:
             model_dict_list = self._get_model_result_list(model_params)
             model_description = get_algorithm_name(model_dict_list[DUMMY_ZERO][MODEL])
 
-            median_ndarray = self._get_median_over_components_for_trajectories(model_dict_list, component_wise_scores,
-                                                                               model_description, fit_transform_re,
-                                                                               re_error_bands)
-            model_median_scores[model_description] = median_ndarray
-            saver.save_to_npz(model_median_scores, 'median_RE_over_trajectories_on_' +
+            scores_on_component_span = self._get_reconstruction_score_of_component_span(model_dict_list,
+                                                                                        fit_transform_re)
+            component_wise_scores[model_description] = scores_on_component_span
+            model_median_scores[model_description] = np.median(np.array(scores_on_component_span), axis=1)
+            model_mean_scores[model_description] = np.mean(np.array(scores_on_component_span), axis=1)
+            re_error_bands[model_description] = np.vstack((np.min(scores_on_component_span, axis=1),
+                                                           np.max(scores_on_component_span, axis=1)))
+            saver.save_to_npz(model_median_scores, 'median_RE_' +
+                              ('fit-transform' if fit_transform_re else 'FooToa'))
+            saver.save_to_npz(model_mean_scores, 'mean_RE_' +
                               ('fit-transform' if fit_transform_re else 'FooToa'))
             saver.save_to_npz(component_wise_scores, 'component_wise_RE_on_' +
                               ('fit-transform' if fit_transform_re else 'FooToa') + '_traj')
+            saver.save_to_npz(re_error_bands, 'error_bands_' +
+                              ('fit-transform' if fit_transform_re else 'FooToa'))
         return model_median_scores, re_error_bands
 
     def _get_model_result_list(self, model_params: dict):
@@ -511,31 +519,25 @@ class MultiTrajectoryAnalyser:
         """
         model_dict_list = []
         for trajectory in self.trajectories:
+            if isinstance(trajectory, TrajectorySubset) and trajectory.part_count is None:
+                model_dict_list = model_dict_list + trajectory.get_sub_results(model_params)
             model_dict_list.append(trajectory.get_model_result(model_params, log=False))
         return model_dict_list
 
-    def _get_median_over_components_for_trajectories(self,
-                                                     model_dict_list: list[dict],
-                                                     component_wise_scores: dict,
-                                                     model_description: str,
-                                                     fit_transform_re: bool = True,
-                                                     error_bands: dict = None) -> np.ndarray:
+    def _get_reconstruction_score_of_component_span(self,
+                                                    model_dict_list: list[dict],
+                                                    fit_transform_re: bool = True) -> np.ndarray:
         """
-        Calculates the median reconstruction errors of the trajectories over the component span.
-        @param model_dict_list:
-        @param component_wise_scores: dict
-            This dictionary is updated without returning it.
-        @param model_description:
-        @param fit_transform_re:
+        Calculates the reconstruction errors of the trajectories over the component span.
+        @param model_dict_list: list
+            model results dict in a list
+        @param fit_transform_re: bool
+            model to use
         @return:
         """
-        median_component_list = []
-        error_bands_list = []
+        scores_on_component_span: list = []
         for component in tqdm(range(1, self.trajectories[DUMMY_ZERO].max_components + 1)):
-            trajectory_score_list = []
-            if str(component) not in component_wise_scores:
-                component_wise_scores[str(component)] = {}
-
+            trajectory_score_list: list = []
             try:
                 for traj_index, fitted_trajectory in enumerate(self.trajectories):
                     model_dict = model_dict_list[traj_index]
@@ -558,14 +560,8 @@ class MultiTrajectoryAnalyser:
             except InvalidReconstructionException as e:
                 warnings.warn(str(e))
                 break
-            component_wise_scores[str(component)][model_description] = trajectory_score_list
-            median_component_list.append(np.median(trajectory_score_list))
-            if error_bands is not None:
-                error_bands_list.append(np.vstack((np.min(trajectory_score_list, axis=0),
-                                                   np.max(trajectory_score_list, axis=0))))
-        if error_bands is not None:
-            error_bands[model_description] = np.asarray(error_bands_list).squeeze().T
-        return np.asarray(median_component_list)
+            scores_on_component_span.append(trajectory_score_list)
+        return np.array(scores_on_component_span)
 
     def compare_kernel_fitting_scores(self, kernel_names, model_params, load_filename: [str, None] = None):
         if load_filename is None:

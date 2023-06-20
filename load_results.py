@@ -44,25 +44,7 @@ def load_analyse_results_dict(result_load_files: list, kwargs: dict):
     """
     from_other_traj = False
     plot_dict = AnalyseResultLoader(kwargs[PARAMS][TRAJECTORY_NAME]).load_npz_by_filelist(result_load_files)
-    filter_by_indices = True
-    if filter_by_indices:
-        indices = [
-            '[PCA, output dimension = 105]      ',
-            # '[TICA, lag = 10; max. output dim. = 105]',
-            'Tensor-pca, my_gaussian-only       ',
-            'Tensor-pca, my_gaussian-diff       ',
-            'Tensor-pca, my_gaussian-multi      ',
-            # 'Tensor-pca, my_gaussian-only-3rd_ev_eevd',
-            # 'Tensor-pca, my_gaussian-only-2nd_layer_eevd',
-            # 'Tensor-tica, my_gaussian-only      ',
-            # 'Tensor-tica, my_gaussian-diff      ',
-            # 'Tensor-tica, my_gaussian-multi     ',
-            # BIN 'Tensor-tica, my_gaussian-only-3rd_ev_eevd',
-            # BIN 'Tensor-tica, my_gaussian-only-2nd_layer_eevd'
-            # 'my_gaussian', 'my_exponential', 'my_epanechnikov'
-        ]
-        plot_dict = {k: plot_dict[k] for k in indices}
-    pretyfied_dict = pretify_dict_model(plot_dict)
+
     load_option = MULTI_QUALITATIVE_TRANSFORMATION_ON_SAME_FITTING  # TODO: load_option in run_params kwargs[PARAMS]
     if load_option == MULTI_RE_FIT_TRANSFORMED:
         ArrayPlotter(
@@ -75,12 +57,12 @@ def load_analyse_results_dict(result_load_files: list, kwargs: dict):
         ).plot_merged_2ds(plot_dict, statistical_func=np.median)
     elif load_option == MULTI_QUALITATIVE_TRANSFORMATION_ON_SAME_FITTING:
         ArrayPlotter(
-            interactive=True,
+            interactive=kwargs[PARAMS][INTERACTIVE],
             title_prefix=f'Reconstruction Error (RE) ' +
                          (f'from {kwargs[FILENAME]}\n' if from_other_traj else '') +
                          f'on {kwargs[PARAMS][N_COMPONENTS]} Principal Components ',
             x_label='number of principal components',
             y_label='median REs of the trajectories',
             y_range=(0, 1),
-            for_paper=True
-        ).plot_merged_2ds(pretyfied_dict)
+            for_paper=kwargs[PARAMS][PLOT_FOR_PAPER]
+        ).plot_merged_2ds(plot_dict)

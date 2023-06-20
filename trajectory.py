@@ -292,7 +292,7 @@ class TrajectorySubset(ProteinTrajectory):
         self.quantity = quantity
         self.time_window_size = time_window_size
         self.rest = 0
-        self.part_count = part_count
+        self.part_count: [None, int] = part_count
         super().__init__(**kwargs)
 
     def _check_init_params(self):
@@ -318,13 +318,16 @@ class TrajectorySubset(ProteinTrajectory):
                                               f'for the trajectory with time steps `{self.dim[TIME_FRAMES]}`')
             self.rest = self.dim[TIME_FRAMES] % self.time_window_size
             self.quantity = self.dim[TIME_FRAMES] // self.time_window_size
+        if self.part_count is not None and self.part_count < 0:
+            self.part_count = random.randint(0, self.quantity-1)
 
     def get_sub_results(self, model_parameters: dict) -> list:
         results = []
+        tmp_count = self.part_count
         for count in range(self.quantity):
             self.part_count = count
-            results.append(self.get_model_result(model_parameters))
-        self.part_count = None
+            results.append(self.get_model_result(model_parameters, log=False))
+        self.part_count = tmp_count
         return results
 
     def data_input(self, model_parameters: dict = None) -> np.ndarray:
