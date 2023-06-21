@@ -229,7 +229,7 @@ class ModelResultPlotter(MyPlotter):
 
             c_map = plt.cm.viridis
             im = ax.scatter(result_dict[PROJECTION][:, 0], result_dict[PROJECTION][:, 1], c=color_array,
-                            cmap=c_map, vmin=0, vmax=10000, marker='.')
+                            cmap=c_map, marker='.')
             if not self.for_paper and ((ax.get_subplotspec().is_last_col() and show_model_properties) or
                                        (ax.get_subplotspec().is_first_col() and not show_model_properties)):
                 self.fig.colorbar(im, ax=ax)

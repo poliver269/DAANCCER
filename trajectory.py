@@ -152,13 +152,18 @@ class DataTrajectory(TrajectoryFile):
             return self.traj.xyz
 
 class WeatherTrajectory(DataTrajectory):
-    def __init__(self, filename, folder_path='data/', params=None):
+    def __init__(self, filename, folder_path='data/', selected_columns=None, params=None):
         super().__init__(filename, folder_path, params)
         try:
             print(f"Loading trajectory {self.filename}...")
+            self.selected_columns = selected_columns
             self.weather_df = pd.read_csv(self.filepath)
+            #TODO: param columns for radiation stuff
+            self.weather_df = self.weather_df[selected_columns]
             self.traj = Trajectory()
             self.traj.xyz =  np.array(list(map(np.stack, self.weather_df.applymap(eval).to_numpy())))
+            self.traj.xyz = (self.traj.xyz - np.mean(self.traj.xyz, axis=0)[np.newaxis, :, :]) / np.std(self.traj.xyz,
+                                                                                                        axis=0)
 
             #self.countries = list(dict.fromkeys([x[:2] for x in self.weather_df.columns]))[1:]
             #self.features = list(dict.fromkeys([x[3:] for x in self.weather_df.columns]))[1:]

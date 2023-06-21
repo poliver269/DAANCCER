@@ -85,9 +85,13 @@ def get_files_and_kwargs(params: dict):
         filename_list = [f'weather_DK_{i}.csv' for i in range(1980, 2019 + 1)]
         kwargs = {FILENAME: filename_list[file_element],
                   FOLDER_PATH: 'data/weather_data/dk'}
-    elif trajectory_name == 'weatherData':
+    elif trajectory_name == 'weatherDE':
+        country = trajectory_name.split('weather')[1]
+        print(country)
         filename_list = ['weather_DE_1980.csv']
-        kwargs = {FILENAME: filename_list[file_element], FOLDER_PATH: 'data/weather_data/de/'}
+        if params[SEL_COL]:
+            selected_columns=eval(params[SEL_COL])
+        kwargs = {FILENAME: filename_list[file_element], FOLDER_PATH: 'data/weather_data/de/', SEL_COL:selected_columns}
 
     else:
         raise ValueError(f'No data trajectory was found with the name `{trajectory_name}`.')
