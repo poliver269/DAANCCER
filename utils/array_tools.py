@@ -18,7 +18,7 @@ def rescale_center(symmetrical_array, stat_func: callable = np.median):
     :param stat_func: Some statistical function of an array: np.median (default), np.mean, ...
     :return:
     """
-    symmetrical_array = rescale_array(symmetrical_array, stat_func)
+    symmetrical_array = rescale_array(symmetrical_array, stat_func=stat_func)
     return extinct_side_values(symmetrical_array)
 
 

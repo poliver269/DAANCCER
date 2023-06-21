@@ -14,7 +14,7 @@ from utils.errors import InvalidSubsetTrajectory
 from utils.math import basis_transform, explained_variance
 from utils.matrix_tools import reconstruct_matrix
 from utils.param_keys import *
-from utils.param_keys.model import ALGORITHM_NAME, NDIM, LAG_TIME
+from utils.param_keys.model import ALGORITHM_NAME, NDIM, LAG_TIME, KERNEL_STAT_FUNC
 from utils.param_keys.model_result import MODEL, PROJECTION, TITLE_PREFIX, EXPLAINED_VAR, INPUT_PARAMS
 from utils.param_keys.traj_dims import TIME_FRAMES, TIME_DIM, ATOMS, ATOM_DIM, COORDINATES, COORDINATE_DIM
 
@@ -87,6 +87,9 @@ class DataTrajectory(TrajectoryFile):
 
         if inp is None:
             inp = self.data_input(model_parameters)
+
+        if isinstance(self, WeatherTrajectory):
+            model_parameters[KERNEL_STAT_FUNC]=np.min
 
         if ALGORITHM_NAME not in model_parameters.keys():
             raise KeyError(f'{ALGORITHM_NAME} is a mandatory model parameter.')
