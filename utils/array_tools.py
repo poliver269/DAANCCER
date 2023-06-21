@@ -43,7 +43,7 @@ def rescale_array(array, stat_func: callable = np.median, interp_range=None, low
 
 def extinct_side_values(symmetrical_array, smaller_than=0):
     """
-    Takes an array and searches the first value from the center smaller than the given value.
+    Takes an array and searches the first value from the center smaller than 'smaller_than'.
     All the border values from that criteria are zeroed
     :param symmetrical_array: symmetrical (nd)array
     :param smaller_than: int
