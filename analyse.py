@@ -27,7 +27,7 @@ from utils.param_keys.model_result import MODEL, PROJECTION, INPUT_PARAMS, TITLE
 
 class SingleTrajectoryAnalyser:
     def __init__(self, trajectory, params=None):
-        self.trajectory: ProteinTrajectory = trajectory
+        self.trajectory : eval(TRAJECTORY_TYPE+"Trajectory") = trajectory
         self.params: dict = {
             PLOT_TYPE: params.get(PLOT_TYPE, COLOR_MAP),
             PLOT_TICS: params.get(PLOT_TICS, True),

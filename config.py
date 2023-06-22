@@ -1,5 +1,7 @@
 import json
+import pandas as pd
 import warnings
+import weather_preprocessing as wp
 
 from trajectory import ProteinTrajectory, TrajectorySubset, TrajectoryFile
 from utils.param_keys import *
@@ -78,6 +80,21 @@ def get_files_and_kwargs(params: dict):
         filename_list = [f'trajectory-{i}.xtc' for i in range(1, 28 + 1)]
         kwargs = {FILENAME: filename_list[file_element], TOPOLOGY_FILENAME: 'fs-peptide.pdb',
                   FOLDER_PATH: 'data/fs-peptide'}
+    #TODO: Adjust case startswith weather to multi and merge with case 'weatherDataDK'
+    elif trajectory_name == 'weatherDataDK':
+        raw_data = pd.read_csv('data/weather_data.csv')
+        dk = wp.get_trajectories_per_year(raw_data, 'utc_timestamp', 'DK')
+        filename_list = [f'weather_DK_{i}.csv' for i in range(1980, 2019 + 1)]
+        kwargs = {FILENAME: filename_list[file_element],
+                  FOLDER_PATH: 'data/weather_data/dk'}
+    elif trajectory_name.startswith('weather'):
+        country = trajectory_name.split('weather')[1]
+        print(country)
+        filename_list = ['weather_'+country+'_1980.csv']
+        if params[SEL_COL]:
+            selected_columns=eval(params[SEL_COL])
+        kwargs = {FILENAME: filename_list[file_element], FOLDER_PATH: 'data/weather_data/'+country+'/', SEL_COL:selected_columns}
+
     else:
         raise ValueError(f'No data trajectory was found with the name `{trajectory_name}`.')
 

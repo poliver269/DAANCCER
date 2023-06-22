@@ -3,7 +3,7 @@ from datetime import datetime
 import config
 import load_results
 from plotter import TrajectoryPlotter
-from trajectory import ProteinTrajectory, TopologyConverter, TrajectorySubset
+from trajectory import ProteinTrajectory, TopologyConverter, TrajectorySubset, WeatherTrajectory
 from analyse import MultiTrajectoryAnalyser, SingleTrajectoryAnalyser
 from utils.default_argparse import ArgParser
 from utils.errors import InvalidRunningOptionError
