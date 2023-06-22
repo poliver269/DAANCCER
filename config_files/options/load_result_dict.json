@@ -1,5 +1,5 @@
 {
-  "run_option": "load_analyse_result_dict",
+  "run_option": "load_re_over_component_span",
   "plot_type": "color_map",
   "plot_for_paper": true,
   "interactive": true,

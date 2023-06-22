@@ -15,7 +15,7 @@ from utils.param_keys import N_COMPONENTS, MATRIX_NDIM, TENSOR_NDIM
 from utils.param_keys.analyses import CORRELATION_MATRIX_PLOT, EIGENVECTOR_MATRIX_ANALYSE
 from utils.param_keys.kernel_functions import MY_GAUSSIAN, KERNEL_ONLY, KERNEL_DIFFERENCE, KERNEL_MULTIPLICATION
 from utils.param_keys.model import ALGORITHM_NAME, LAG_TIME, NTH_EIGENVECTOR, EXTRA_DR_LAYER
-from utils.param_keys.traj_dims import TIME_DIM, ATOM_DIM, COORDINATE_DIM
+from utils.param_keys.traj_dims import TIME_DIM, CORRELATION_DIM, COMBINED_DIM
 
 
 class DAANCCER(TensorDR):
@@ -120,11 +120,11 @@ class DAANCCER(TensorDR):
 
     @property
     def _combine_dim(self) -> int:
-        return self._standardized_data.shape[COORDINATE_DIM]
+        return self._standardized_data.shape[COMBINED_DIM]
 
     @property
     def _atom_dim(self) -> int:
-        return self._standardized_data.shape[ATOM_DIM]
+        return self._standardized_data.shape[CORRELATION_DIM]
 
     def fit_transform(self, data_tensor, **fit_params):
         return super().fit_transform(data_tensor, **fit_params)
@@ -311,7 +311,7 @@ class DAANCCER(TensorDR):
             return self.get_tensor_covariance()
         else:
             temp_list = []
-            for index in range(self._standardized_data.shape[COORDINATE_DIM]):
+            for index in range(self._combine_dim):
                 dot_i = np.dot(self._standardized_data[:-self.lag_time, :, index].T,
                                self._standardized_data[self.lag_time:, :, index]) / (
                                 self.n_samples - self.lag_time)

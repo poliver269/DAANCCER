@@ -3,7 +3,7 @@ import pandas as pd
 import warnings
 import weather_preprocessing as wp
 
-from trajectory import ProteinTrajectory, TrajectorySubset, TrajectoryFile
+from trajectory import ProteinTrajectory, SubProteinTrajectory, TrajectoryFile, WeatherTrajectory, DataTrajectory
 from utils.param_keys import *
 from utils.param_keys.analyses import *
 from utils.param_keys.kernel_functions import *
@@ -91,9 +91,7 @@ def get_files_and_kwargs(params: dict):
         country = trajectory_name.split('weather')[1]
         print(country)
         filename_list = ['weather_'+country+'_1980.csv']
-        if params[SEL_COL]:
-            selected_columns=eval(params[SEL_COL])
-        kwargs = {FILENAME: filename_list[file_element], FOLDER_PATH: 'data/weather_data/'+country+'/', SEL_COL:selected_columns}
+        kwargs = {FILENAME: filename_list[file_element], FOLDER_PATH: 'data/weather_data/' + country + '/'}
 
     else:
         raise ValueError(f'No data trajectory was found with the name `{trajectory_name}`.')
@@ -186,7 +184,7 @@ def get_param_grid(param_grid_json_file: str = None) -> list:
         ]
 
 
-def get_data_class(params: dict, kwargs: dict) -> TrajectoryFile:
+def get_data_class(params: dict, kwargs: dict) -> DataTrajectory:
     if DATA_SET in params.keys():
         data_set_name: str = params[DATA_SET]
 
@@ -198,11 +196,11 @@ def get_data_class(params: dict, kwargs: dict) -> TrajectoryFile:
             if PART_COUNT in params.keys():
                 kwargs[PART_COUNT] = params[PART_COUNT]
 
-        # TODO @Andrea: return climate data class
-        #  if data_set_name == 'climate' and equally 'sub_climate'
-        if data_set_name == "sub_protein":
-            return TrajectorySubset(**kwargs)
-        else:
+        if data_set_name == "weather":
+            return WeatherTrajectory(**kwargs)
+        elif data_set_name == "sub_protein":
+            return SubProteinTrajectory(**kwargs)
+        else:  # "protein"
             return ProteinTrajectory(**kwargs)
     else:
         return ProteinTrajectory(**kwargs)

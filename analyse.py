@@ -15,7 +15,7 @@ from tqdm import tqdm
 
 from config import get_data_class
 from plotter import ArrayPlotter, MultiTrajectoryPlotter, ModelResultPlotter
-from trajectory import ProteinTrajectory, TrajectorySubset, TrajectoryFile
+from trajectory import ProteinTrajectory, SubProteinTrajectory, TrajectoryFile, DataTrajectory
 from utils import statistical_zero, get_algorithm_name
 from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
 from utils.errors import InvalidReconstructionException, InvalidProteinTrajectory
@@ -27,7 +27,7 @@ from utils.param_keys.model_result import MODEL, PROJECTION, INPUT_PARAMS, TITLE
 
 class SingleTrajectoryAnalyser:
     def __init__(self, trajectory, params=None):
-        self.trajectory : eval(TRAJECTORY_TYPE+"Trajectory") = trajectory
+        self.trajectory: DataTrajectory = trajectory
         self.params: dict = {
             PLOT_TYPE: params.get(PLOT_TYPE, COLOR_MAP),
             PLOT_TICS: params.get(PLOT_TICS, True),
@@ -62,27 +62,6 @@ class SingleTrajectoryAnalyser:
 
         return model_results
 
-    def compare_with_carbon_alpha_and_all_atoms(self, model_params_list):
-        """
-        Compares the same trajectory with using only carbon atoms
-        and using all the atoms of different model_params.
-        @param model_params_list: list[dict]
-            Different model input parameters, saved in a list.
-        """
-        model_results = self.trajectory.get_model_results_with_changing_trajectory_parameter(model_params_list,
-                                                                                             CARBON_ATOMS_ONLY)
-        self.compare_with_plot(model_results)
-
-    def compare_with_basis_transformation(self, model_params_list):
-        """
-        Compares same trajectory with using and not using basis transformation of different model_params.
-        @param model_params_list: list[dict]
-            Different model input parameters, saved in a list.
-        """
-        model_results = self.trajectory.get_model_results_with_changing_trajectory_parameter(model_params_list,
-                                                                                             BASIS_TRANSFORMATION)
-        self.compare_with_plot(model_results)
-
     def compare_with_plot(self, model_results_list):
         """
         This method is used to compare the results in a plot, after fit_transforming different models.
@@ -113,7 +92,7 @@ class SingleTrajectoryAnalyser:
             ).plot_2d(ndarray_data=model.explained_variance_)
 
     def compare_trajectory_subsets(self, model_params_list):
-        if isinstance(self.trajectory, TrajectorySubset):
+        if isinstance(self.trajectory, SubProteinTrajectory):
             results = []
             for model_params in model_params_list:
                 total_result = [self.trajectory.get_model_result(model_params)]
@@ -140,9 +119,36 @@ class SingleTrajectoryAnalyser:
                             filename=f'grid_search_{self.trajectory.filename[:-4]}').save_to_csv(grid.cv_results_)
 
 
+class SingleProteinTrajectoryAnalyser(SingleTrajectoryAnalyser):
+    def __init__(self, trajectory, params=None):
+        super().__init__(trajectory, params)
+        self.trajectory: ProteinTrajectory = trajectory
+
+    def compare_with_carbon_alpha_and_all_atoms(self, model_params_list):
+        """
+        Compares the same trajectory with using only carbon atoms
+        and using all the atoms of different model_params.
+        @param model_params_list: list[dict]
+            Different model input parameters, saved in a list.
+        """
+        model_results = self.trajectory.get_model_results_with_changing_trajectory_parameter(model_params_list,
+                                                                                             CARBON_ATOMS_ONLY)
+        self.compare_with_plot(model_results)
+
+    def compare_with_basis_transformation(self, model_params_list):
+        """
+        Compares same trajectory with using and not using basis transformation of different model_params.
+        @param model_params_list: list[dict]
+            Different model input parameters, saved in a list.
+        """
+        model_results = self.trajectory.get_model_results_with_changing_trajectory_parameter(model_params_list,
+                                                                                             BASIS_TRANSFORMATION)
+        self.compare_with_plot(model_results)
+
+
 class MultiTrajectoryAnalyser:
     def __init__(self, kwargs_list: list, params: dict):
-        self.trajectories: list[TrajectoryFile] = [get_data_class(params, kwargs) for kwargs in kwargs_list]
+        self.trajectories: list[DataTrajectory] = [get_data_class(params, kwargs) for kwargs in kwargs_list]
         print(f'Trajectories loaded time: {datetime.now()}')
         self.params: dict = {
             N_COMPONENTS: params.get(N_COMPONENTS, 2),
@@ -280,7 +286,6 @@ class MultiTrajectoryAnalyser:
             The parameter makes the
         :return:
         """
-        # TODO: Implement the Save Similarities and Load them
         trajectories = self._get_trajectories_by_index(traj_nrs)
 
         model_similarities = {}
@@ -519,7 +524,7 @@ class MultiTrajectoryAnalyser:
         """
         model_dict_list = []
         for trajectory in self.trajectories:
-            if isinstance(trajectory, TrajectorySubset) and trajectory.part_count is None:
+            if isinstance(trajectory, SubProteinTrajectory) and trajectory.part_count is None:
                 model_dict_list = model_dict_list + trajectory.get_sub_results(model_params)
             model_dict_list.append(trajectory.get_model_result(model_params, log=False))
         return model_dict_list

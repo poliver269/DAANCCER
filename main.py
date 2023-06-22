@@ -1,9 +1,7 @@
 from datetime import datetime
 
-import config
-import load_results
-from plotter import TrajectoryPlotter
-from trajectory import ProteinTrajectory, TopologyConverter, TrajectorySubset, WeatherTrajectory
+from trajectory import ProteinTopologyConverter
+from plotter import ProteinPlotter
 from analyse import MultiTrajectoryAnalyser, SingleTrajectoryAnalyser
 from utils.default_argparse import ArgParser
 from utils.errors import InvalidRunningOptionError
@@ -12,6 +10,8 @@ from utils.param_keys.analyses import ANALYSE_PLOT_TYPE, KERNEL_COMPARE
 from utils.param_keys.kernel_functions import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL
 from utils.param_keys.model import ALGORITHM_NAME, NDIM
 from utils.param_keys.run_options import *
+import config
+import load_results
 
 
 def main():
@@ -48,12 +48,12 @@ def run(kwargs: dict, model_params_list: list, filename_list: list):
     if run_option == 'covert_to_pdb':
         kwargs = {FILENAME: 'protein.xtc', TOPOLOGY_FILENAME: 'protein.gro',
                   GOAL_FILENAME: 'protein.pdb', FOLDER_PATH: 'data/ser-tr'}
-        tc = TopologyConverter(**kwargs)
+        tc = ProteinTopologyConverter(**kwargs)
         tc.convert()
     elif run_option == PLOT_WITH_SLIDER:
-        TrajectoryPlotter(data_class, standardize=True).data_with_timestep_slider(min_max=None)  # [0, 1000]
+        ProteinPlotter(data_class, standardize=True).data_with_timestep_slider(min_max=None)  # [0, 1000]
     elif run_option == PLOT_RECONSTRUCTED_WITH_SLIDER:
-        TrajectoryPlotter(data_class, reconstruct_params=model_params_list[1]).data_with_timestep_slider()
+        ProteinPlotter(data_class, reconstruct_params=model_params_list[1]).data_with_timestep_slider()
     elif run_option == COMPARE:
         if params[N_COMPONENTS] != 2:
             raise ValueError(f'The parameter `{N_COMPONENTS}` has to be 2, but it\'s {params[N_COMPONENTS]}.')
@@ -140,6 +140,8 @@ def load(result_load_files: list, kwargs: dict):
     run_option = kwargs[PARAMS][RUN_OPTION]
     if run_option == LOAD_ANALYSE_RESULTS_DICT:
         load_results.load_analyse_results_dict(result_load_files, kwargs)
+    if run_option == LOAD_RE_OVER_COMPONENT_SPAN:
+        load_results.load_re_over_component_span(result_load_files, kwargs)
     elif run_option == LOAD_LIST_OF_DICTS:
         load_results.load_list_of_dicts(sub_dir=result_load_files[DUMMY_ZERO], params=kwargs[PARAMS])
     else:

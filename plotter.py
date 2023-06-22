@@ -43,19 +43,19 @@ class MyPlotter:
         plt.show()
 
 
-class TrajectoryPlotter(MyPlotter):
+class ProteinPlotter(MyPlotter):
     def __init__(self, trajectory, reconstruct_params=None, interactive=True, for_paper=False, standardize=False):
         super().__init__(interactive, for_paper=for_paper)
-        self.data_trajectory = trajectory
-        self.standardize = standardize
+        self.protein_trajectory = trajectory
+        self.standardize: bool = standardize
         if reconstruct_params is not None:
-            self.reconstructed = self.data_trajectory.get_reconstructed_traj(reconstruct_params)
+            self.reconstructed: np.ndarray = self.protein_trajectory.get_reconstructed_traj(reconstruct_params)
         else:
             self.reconstructed = None
 
     def _set_figure_title(self):
-        self.fig.suptitle(f'Trajectory: {self.data_trajectory.params[TRAJECTORY_NAME]}-'
-                          f'{self.data_trajectory.filename}')
+        self.fig.suptitle(f'Trajectory: {self.protein_trajectory.params[TRAJECTORY_NAME]}-'
+                          f'{self.protein_trajectory.filename}')
 
     def plot_trajectory_at(self, timestep: int):
         """
@@ -78,7 +78,7 @@ class TrajectoryPlotter(MyPlotter):
             raise ValueError('Plotter has to be interactive to use this plot.')
 
         if min_max is None:  # min_max is a list of two elements
-            min_max = [0, self.data_trajectory.dim[TIME_FRAMES]]
+            min_max = [0, self.protein_trajectory.dim[TIME_FRAMES]]
 
         self.fig = plt.figure()
         self.axes = Axes3D(self.fig)
@@ -106,14 +106,14 @@ class TrajectoryPlotter(MyPlotter):
         :param timeframe: Input value of the slider.
         :return:
         """
-        if 0 <= timeframe <= self.data_trajectory.traj.n_frames:
+        if 0 <= timeframe <= self.protein_trajectory.traj.n_frames:
             timeframe = int(timeframe)
             if self.reconstructed is not None:
                 data_tensor = self.reconstructed
-            elif self.data_trajectory.params[CARBON_ATOMS_ONLY]:
-                data_tensor = self.data_trajectory.alpha_carbon_coordinates
+            elif self.protein_trajectory.params[CARBON_ATOMS_ONLY]:
+                data_tensor = self.protein_trajectory.alpha_carbon_coordinates
             else:
-                data_tensor = self.data_trajectory.traj.xyz
+                data_tensor = self.protein_trajectory.traj.xyz
 
             if self.standardize:
                 # numerator = data_tensor - np.mean(data_tensor, axis=0)[np.newaxis, :, :]  # PCA - center by atoms
@@ -126,8 +126,8 @@ class TrajectoryPlotter(MyPlotter):
                 coordinate_maxs = {X: data_tensor[:, :, 0].max(), Y: data_tensor[:, :, 1].max(),
                                    Z: data_tensor[:, :, 2].max()}
             else:
-                coordinate_mins = self.data_trajectory.coordinate_mins
-                coordinate_maxs = self.data_trajectory.coordinate_maxs
+                coordinate_mins = self.protein_trajectory.coordinate_mins
+                coordinate_maxs = self.protein_trajectory.coordinate_maxs
 
             x_coordinates = data_tensor[timeframe, :, 0]
             y_coordinates = data_tensor[timeframe, :, 1]

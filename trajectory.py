@@ -5,10 +5,10 @@ import itertools
 import mdtraj as md
 import numpy as np
 import pandas as pd
-from mdtraj import Trajectory as MdTrajectory
+from mdtraj import Trajectory
 from sklearn.decomposition import FastICA, PCA
 
-from utils.algorithms.interfaces import DeeptimeTICAInterface, PyemmaTICAInterface, PyemmaPCAInterface, ICA
+from utils.algorithms.interfaces import DeeptimeTICAInterface, PyemmaTICAInterface, PyemmaPCAInterface
 from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
 from utils.algorithms.tsne import MyTSNE, MyTimeLaggedTSNE
 from utils.errors import InvalidSubsetTrajectory
@@ -31,26 +31,41 @@ class TrajectoryFile:
         return str(self.root_path / self.filename)
 
     @property
-    def topology_path(self) -> str:
+    def extra_filepath(self) -> str:
         return str(self.root_path / self.extra_filename)
-
-
-class Trajectory:
-    def __init__(self):
-        topology = None
-        xyz: np.array = None
 
 
 class DataTrajectory(TrajectoryFile):
     def __init__(self, filename, folder_path='data/2f4k', extra_filename="", params=None):
         super().__init__(filename, folder_path, extra_filename)
-        self.traj = None
         if params is None:
             params = {}
         self.params: dict = {
             N_COMPONENTS: params.get(N_COMPONENTS, 2),
             TRAJECTORY_NAME: params.get(TRAJECTORY_NAME, 'Not Found')
         }
+
+    def _check_init_params(self):
+        """
+        Checks if the initialized parameters are set correctly.
+        """
+        if self.params[N_COMPONENTS] is None:
+            self.params[N_COMPONENTS] = self.max_components
+
+    def _init_preprocessing(self):
+        """
+        Implement here the preprocessing steps for the DataTrajectory (if necessary)
+        """
+        pass
+
+    @property
+    def max_components(self) -> int:
+        """
+        Calculates the correlation dimension (Atom/Hours) of the data
+        :return: int
+            correlation dimension
+        """
+        raise NotImplementedError(f'In `{self.__class__}` the `max_components` variable is not implemented')
 
     def get_model_result(self, model_parameters: dict, log: bool = True) -> dict:
         """
@@ -59,19 +74,29 @@ class DataTrajectory(TrajectoryFile):
             The input parameters for the model
         :param log: bool
             Enables the log output while running the program (default: True)
-        :return: dict of the results: {MODEL, PROJECTION, EXPLAINED_VAR, INPUT_PARAMS}
+        :return: dict
+            of the results with the keys: {MODEL, PROJECTION, EXPLAINED_VAR, INPUT_PARAMS}
         """
         model, projection = self.get_model_and_projection(model_parameters, log=log)
         try:
-            # TODO: Explained Variance not correctly calculated
+            # TODO@Oli&Prio4: Explained Variance not correctly calculated
             ex_var = explained_variance(model.explained_variance_, self.params[N_COMPONENTS])
         except AttributeError as e:
             warnings.warn(str(e))
             ex_var = 0
         return {MODEL: model, PROJECTION: projection, EXPLAINED_VAR: ex_var, INPUT_PARAMS: model_parameters}
 
-    def data_input(self, model_parameters):
-        pass
+    def data_input(self, model_parameters: dict = None) -> np.ndarray:
+        """
+        Determines the input data for the model on the basis of the model_parameters and the trajectory parameters.
+        If the model_parameters are unknown, then the input for TENSOR_NDIM is used.
+        @param model_parameters: dict
+            The input parameters for the model.
+        @return: np.ndarray
+            The input data for the model
+        """
+        raise NotImplementedError(f"Data input could not be calculated, since the method `{self.data_input.__name__}` "
+                                  f"is not implemented.")
 
     def get_model_and_projection(self, model_parameters: dict, inp: np.ndarray = None, log: bool = True):
         """
@@ -115,7 +140,6 @@ class DataTrajectory(TrajectoryFile):
                     tsne = MyTimeLaggedTSNE(lag_time=model_parameters[LAG_TIME], n_components=self.params[N_COMPONENTS])
                     return tsne, tsne.fit_transform(inp)
                 elif model_parameters[ALGORITHM_NAME] == 'original_ica':
-                    # TODO: Build interface for ICA
                     ica = FastICA(n_components=self.params[N_COMPONENTS])
                     return ica, ica.fit_transform(inp)
                 else:
@@ -127,63 +151,48 @@ class DataTrajectory(TrajectoryFile):
             model = DAANCCER(**model_parameters)
             return model, model.fit_transform(inp, n_components=self.params[N_COMPONENTS])
 
-    @property
-    def max_components(self) -> int:
-        return self.dim[ATOMS] * self.dim[COORDINATES]
-
-    def _check_init_params(self):
-        if self.params[N_COMPONENTS] is None:
-            self.params[N_COMPONENTS] = self.max_components
-
-    #TODO: Rename ATOM specific params for generalization
-    def _check_init_coords(self):
-        self.dim: dict = {TIME_FRAMES: self.traj.xyz.shape[TIME_DIM],
-                          ATOMS: self.traj.xyz.shape[ATOM_DIM],
-                          COORDINATES: self.traj.xyz.shape[COORDINATE_DIM]}
-        self.x_coordinates = self._filter_coordinates_by_coordinates(0)
-        self.y_coordinates = self._filter_coordinates_by_coordinates(1)
-        self.z_coordinates = self._filter_coordinates_by_coordinates(2)
-        self.coordinate_mins = {X: self.x_coordinates.min(), Y: self.y_coordinates.min(), Z: self.z_coordinates.min()}
-        self.coordinate_maxs = {X: self.x_coordinates.max(), Y: self.y_coordinates.max(), Z: self.z_coordinates.max()}
-
 
 class WeatherTrajectory(DataTrajectory):
-    def __init__(self, filename, folder_path='data/', selected_columns=None, params=None):
+    def __init__(self, filename, folder_path='data/', params=None):
         super().__init__(filename, folder_path, params)
         try:
             print(f"Loading trajectory {self.filename}...")
-            self.selected_columns = selected_columns
             self.weather_df = pd.read_csv(self.filepath)
-            #TODO: param columns for radiation stuff
-            self.weather_df = self.weather_df[selected_columns]
-            self.traj = Trajectory()
-            self.traj.xyz = np.array(list(map(np.stack, self.weather_df.applymap(eval).to_numpy())))
-            self.traj.xyz = (self.traj.xyz - np.mean(self.traj.xyz, axis=0)[np.newaxis, :, :]) / np.std(self.traj.xyz,
-                                                                                                        axis=0)
+            # TODO: param columns for radiation stuff
+            self.params.update({SEL_COL: params.get(SEL_COL, None)})
+            if self.params[SEL_COL] is not None:
+                self.weather_df = self.weather_df[self.params[SEL_COL]]
 
             # self.countries = list(dict.fromkeys([x[:2] for x in self.weather_df.columns]))[1:]
             # self.features = list(dict.fromkeys([x[3:] for x in self.weather_df.columns]))[1:]
         except IOError:
             raise FileNotFoundError(f"Cannot load {self.filepath}.")
 
-        self._check_init_coords()
         self._check_init_params()
+        self._init_preprocessing()
+
+    def _init_preprocessing(self):
+        # TODO@Andrea preprocess correctly, use it, declare "logical" name for weather data (not xyz)
+        xyz = np.array(list(map(np.stack, self.weather_df.applymap(eval).to_numpy())))
+        xyz = (xyz - np.mean(xyz, axis=0)[np.newaxis, :, :]) / np.std(xyz, axis=0)
+        # TODO@Andrea return ndarray
+
+    @property
+    def max_components(self) -> int:
+        # TODO@Andrea: Implement the correct dimension hours, bzw. the selected columns length if its given
+        if self.params[SEL_COL] is not None:
+            return len(self.params[SEL_COL])
+        else:
+            return 24
 
     def data_input(self, model_parameters: dict = None) -> np.ndarray:
-        """
-        Determines the input data for the model on the basis of the model_parameters and the trajectory parameters.
-        If the model_parameters are unknown, then the input for TENSOR_NDIM is used.
-        @param model_parameters: dict
-            The input parameters for the model.
-        @return: np.ndarray
-            The input data for the model
-        """
         def flattened_coordinates(day):
             return list(itertools.chain.from_iterable(day))
 
         model_parameters[KERNEL_STAT_FUNC] = np.min
 
         df = self.weather_df.applymap(eval)
+        # TODO@Andrea: use the preprocessed data self.preprocessed_weather_in ndarray
         try:
             if model_parameters is None:
                 n_dim = TENSOR_NDIM
@@ -191,11 +200,16 @@ class WeatherTrajectory(DataTrajectory):
                 n_dim = model_parameters[NDIM]
         except KeyError as e:
             raise KeyError(f'Model-parameter-dict needs the key: {e}. Set to ´2´ or ´3´.')
+
+        # TODO@Andrea: these steps belong to preprocessing,
+        #  since we want to use the same input data over and over again
+        #  (in the MultipleTrajectory) --> faster if its done once at init step
         if n_dim == MATRIX_NDIM:
             temp = df.to_numpy()
             flat_coord = np.vstack([flattened_coordinates(day) for day in temp])
             return flat_coord
         else:
+            # TODO@Andrea variable naming is not logical for weather data
             coord = df.to_numpy()
             coord = np.array([np.array([np.array(x) for x in y]) for y in coord])
             return coord
@@ -207,19 +221,17 @@ class ProteinTrajectory(DataTrajectory):
         try:
             print(f"Loading trajectory {self.filename}...")
             if str(self.filename).endswith('dcd'):
-                self.traj: MdTrajectory = md.load_dcd(self.filepath, top=self.topology_path, atom_indices=atoms)
+                self.traj: Trajectory = md.load_dcd(self.filepath, top=self.extra_filepath, atom_indices=atoms)
             else:
-                self.traj: MdTrajectory = md.load(self.filepath, top=self.topology_path, atom_indices=atoms)
-            self.reference_pdb = md.load_pdb(self.topology_path, atom_indices=atoms)
-            self.traj: MdTrajectory = self.traj.superpose(
-                self.traj, frame=random.randint(0, self.dim[TIME_FRAMES])).center_coordinates(mass_weighted=True)
-            # self.traj: MdTrajectory = self.traj.superpose(self.reference_pdb).center_coordinates(mass_weighted=True)
-            self.traj.xyz = (self.traj.xyz - np.mean(self.traj.xyz, axis=0)[np.newaxis, :, :]) / np.std(self.traj.xyz,
-                                                                                                        axis=0)
+                self.traj: Trajectory = md.load(self.filepath, top=self.extra_filepath, atom_indices=atoms)
+            self.reference_pdb = md.load_pdb(self.extra_filepath, atom_indices=atoms)
+            self.dim: dict = {TIME_FRAMES: self.traj.xyz.shape[TIME_DIM],
+                              ATOMS: self.traj.xyz.shape[ATOM_DIM],
+                              COORDINATES: self.traj.xyz.shape[COORDINATE_DIM]}
             self.phi: np.ndarray = md.compute_phi(self.traj)
             self.psi: np.ndarray = md.compute_psi(self.traj)
         except IOError:
-            raise FileNotFoundError(f"Cannot load {self.filepath} or {self.topology_path}.")
+            raise FileNotFoundError(f"Cannot load {self.filepath} or {self.extra_filepath}.")
         else:
             print(f"Trajectory `{self.traj}` successfully loaded.")
 
@@ -230,8 +242,25 @@ class ProteinTrajectory(DataTrajectory):
             USE_ANGLES: params.get(USE_ANGLES, False)
         })
 
-        self._check_init_coords()
         self._check_init_params()
+        self._init_preprocessing()
+        self._init_coordinate_params()
+
+    def _init_coordinate_params(self):
+        self.x_coordinates = self._filter_coordinates_by_coordinates(0)
+        self.y_coordinates = self._filter_coordinates_by_coordinates(1)
+        self.z_coordinates = self._filter_coordinates_by_coordinates(2)
+        self.coordinate_mins = {X: self.x_coordinates.min(), Y: self.y_coordinates.min(),
+                                Z: self.z_coordinates.min()}
+        self.coordinate_maxs = {X: self.x_coordinates.max(), Y: self.y_coordinates.max(),
+                                Z: self.z_coordinates.max()}
+
+    def _init_preprocessing(self):
+        self.traj: Trajectory = self.traj.superpose(
+            self.traj, frame=random.randint(0, self.dim[TIME_FRAMES])).center_coordinates(mass_weighted=True)
+        # self.traj: Trajectory = self.traj.superpose(self.reference_pdb).center_coordinates(mass_weighted=True)
+        self.traj.xyz = (self.traj.xyz - np.mean(self.traj.xyz, axis=0)[np.newaxis, :, :]) / np.std(self.traj.xyz,
+                                                                                                    axis=0)
 
     @property
     def atom_coordinates(self) -> np.ndarray:
@@ -248,38 +277,6 @@ class ProteinTrajectory(DataTrajectory):
                                                          self.dim[ATOMS] * self.dim[COORDINATES])
         else:
             return self.atom_coordinates.reshape(self.dim[TIME_FRAMES], self.dim[ATOMS] * self.dim[COORDINATES])
-
-    def data_input(self, model_parameters: dict = None) -> np.ndarray:
-        """
-        Determines the input data for the model on the basis of the model_parameters and the trajectory parameters.
-        If the model_parameters are unknown, then the input for TENSOR_NDIM is used.
-        @param model_parameters: dict
-            The input parameters for the model.
-        @return: np.ndarray
-            The input data for the model
-        """
-        try:
-            if model_parameters is None:
-                n_dim = TENSOR_NDIM
-            else:
-                n_dim = model_parameters[NDIM]
-        except KeyError as e:
-            raise KeyError(f'Model-parameter-dict needs the key: {e}. Set to ´2´ or ´3´.')
-
-        if self.params[USE_ANGLES]:
-            if n_dim == MATRIX_NDIM:
-                return np.concatenate([self.phi[DIHEDRAL_ANGLE_VALUES], self.psi[DIHEDRAL_ANGLE_VALUES]], axis=1)
-            else:
-                return np.concatenate([self.phi[DIHEDRAL_ANGLE_VALUES][:, :, np.newaxis],
-                                       self.psi[DIHEDRAL_ANGLE_VALUES][:, :, np.newaxis]], axis=2)
-        else:
-            if n_dim == MATRIX_NDIM:
-                return self.flattened_coordinates
-            else:
-                if self.params[CARBON_ATOMS_ONLY]:
-                    return self.alpha_carbon_coordinates
-                else:
-                    return self.atom_coordinates
 
     @property
     def max_components(self) -> int:
@@ -313,6 +310,30 @@ class ProteinTrajectory(DataTrajectory):
     def _filter_coordinates_by_coordinates(self, element_list, ac_only=False):
         coordinates_dict = self.alpha_carbon_coordinates if ac_only else self.atom_coordinates
         return coordinates_dict[:, :, element_list]
+
+    def data_input(self, model_parameters: dict = None) -> np.ndarray:
+        try:
+            if model_parameters is None:
+                n_dim = TENSOR_NDIM
+            else:
+                n_dim = model_parameters[NDIM]
+        except KeyError as e:
+            raise KeyError(f'Model-parameter-dict needs the key: {e}. Set to ´2´ or ´3´.')
+
+        if self.params[USE_ANGLES]:
+            if n_dim == MATRIX_NDIM:
+                return np.concatenate([self.phi[DIHEDRAL_ANGLE_VALUES], self.psi[DIHEDRAL_ANGLE_VALUES]], axis=1)
+            else:
+                return np.concatenate([self.phi[DIHEDRAL_ANGLE_VALUES][:, :, np.newaxis],
+                                       self.psi[DIHEDRAL_ANGLE_VALUES][:, :, np.newaxis]], axis=2)
+        else:
+            if n_dim == MATRIX_NDIM:
+                return self.flattened_coordinates
+            else:
+                if self.params[CARBON_ATOMS_ONLY]:
+                    return self.alpha_carbon_coordinates
+                else:
+                    return self.atom_coordinates
 
     def get_model_results_with_changing_trajectory_parameter(
             self,
@@ -363,7 +384,7 @@ class ProteinTrajectory(DataTrajectory):
                                                  self.dim[COORDINATES]))
 
 
-class TrajectorySubset(ProteinTrajectory):
+class SubProteinTrajectory(ProteinTrajectory):
     def __init__(self,
                  quantity: int = 1,
                  time_window_size: int = None,
@@ -426,7 +447,7 @@ class TrajectorySubset(ProteinTrajectory):
                    (self.part_count * self.time_window_size):(self.part_count + 1) * self.time_window_size]
 
 
-class TopologyConverter(TrajectoryFile):
+class ProteinTopologyConverter(TrajectoryFile):
     def __init__(self, filename, topology_filename, goal_filename, folder_path='data/2f4k'):
         super().__init__(filename, extra_filename=topology_filename, folder_path=folder_path)
         self.goal_filename = goal_filename
@@ -440,7 +461,7 @@ class TopologyConverter(TrajectoryFile):
         print(f'Convert Topology {self.extra_filename} to {self.goal_filename}...')
         # noinspection PyProtectedMember
         if self.extra_filename.split('.')[-1].upper() in MDAnalysis._PARSERS:
-            universe = MDAnalysis.Universe(self.topology_path)
+            universe = MDAnalysis.Universe(self.extra_filepath)
             with MDAnalysis.Writer(self.goal_filepath) as writer:
                 writer.write(universe)
         else:

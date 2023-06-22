@@ -8,7 +8,6 @@ from utils.param_keys import TRAJECTORY_NAME, PLOT_TYPE, N_COMPONENTS, FILENAME,
     PLOT_FOR_PAPER
 from utils.param_keys.run_options import *
 from plotter import ModelResultPlotter, ArrayPlotter
-from utils import pretify_dict_model
 
 
 def load_list_of_dicts(sub_dir: str, params: dict):
@@ -66,3 +65,16 @@ def load_analyse_results_dict(result_load_files: list, kwargs: dict):
             y_range=(0, 1),
             for_paper=kwargs[PARAMS][PLOT_FOR_PAPER]
         ).plot_merged_2ds(plot_dict)
+
+
+# def load_re_over_component_span(result_load_files: list, kwargs: dict):
+#     ArrayPlotter(
+#         interactive=kwargs[PARAMS][INTERACTIVE],
+#         title_prefix=f'Reconstruction Error (RE) ' +
+#                      (f'from {kwargs[FILENAME]}\n' if from_other_traj else '') +
+#                      f'on {kwargs[PARAMS][N_COMPONENTS]} Principal Components ',
+#         x_label='number of principal components',
+#         y_label='median REs of the trajectories',
+#         y_range=(0, 1),
+#         for_paper=kwargs[PARAMS][PLOT_FOR_PAPER]
+#     ).plot_merged_2ds(plot_dict, error_band)
