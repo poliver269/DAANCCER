@@ -18,7 +18,7 @@ def rescale_center(symmetrical_array, stat_func: callable = np.median):
     :param stat_func: Some statistical function of an array: np.median (default), np.mean, ...
     :return:
     """
-    symmetrical_array = rescale_array(symmetrical_array, stat_func)
+    symmetrical_array = rescale_array(symmetrical_array, stat_func=stat_func)
     return extinct_side_values(symmetrical_array)
 
 
@@ -43,7 +43,7 @@ def rescale_array(array, stat_func: callable = np.median, interp_range=None, low
 
 def extinct_side_values(symmetrical_array, smaller_than=0):
     """
-    Takes an array and searches the first value from the center smaller than the given value.
+    Takes an array and searches the first value from the center smaller than 'smaller_than'.
     All the border values from that criteria are zeroed
     :param symmetrical_array: symmetrical (nd)array
     :param smaller_than: int

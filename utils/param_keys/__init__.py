@@ -18,6 +18,7 @@ CARBON_ATOMS_ONLY = 'carbon_atoms_only'
 RANDOM_SEED = 'random_seed'
 USE_ANGLES = 'use_angles'
 MAIN_MODEL_PARAMS = 'main_model_params'
+SEL_COL = 'selected_columns'
 # Subset Trajectory params
 QUANTITY = 'quantity'
 TIME_WINDOW_SIZE = 'time_window_size'
