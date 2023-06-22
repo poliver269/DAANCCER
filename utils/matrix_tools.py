@@ -278,7 +278,6 @@ def reconstruct_matrix(projection, eigenvectors, dim, mean, std=1):
     if is_matrix_orthogonal(eigenvectors.T):
         reconstructed_matrix = np.dot(projection[:, :dim], eigenvectors[:dim])
     else:
-        print('not orthogonal')
         reconstructed_matrix = np.dot(projection[:, :dim], np.linalg.inv(eigenvectors.T)[:dim])
     reconstructed_matrix *= std
     reconstructed_matrix += mean

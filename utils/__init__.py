@@ -1,8 +1,24 @@
-def function_name(function: callable):
+from sklearn.utils import deprecated
+
+from utils.param_keys import DUMMY_ZERO
+
+
+def function_name(function: callable) -> str:
+    """
+    Does the same as function.__name__
+    :param function: callable
+    :return: str
+        The function name extracted from the function
+    """
     return str(function).split()[1]
 
 
-def statistical_zero(_):
+def statistical_zero(_) -> int:
+    """
+    Is equally to a numpy min/max function to set the statistical zero
+    :param _: np.ndarray but basically any
+    :return: 0
+    """
     return 0
 
 
@@ -19,6 +35,7 @@ def ordinal(n: int) -> str:
     return str(n) + suffix
 
 
+@deprecated
 def pretify_dict_model(ugly_dict: dict) -> dict:
     fill_dict = {}
     for k, v in ugly_dict.items():
@@ -46,3 +63,15 @@ def pretify_dict_model(ugly_dict: dict) -> dict:
         elif k.startswith('Tensor-tica, my_gaussian-multi'):
             fill_dict['DAANCCER Kernel-Product'] = v
     return fill_dict
+
+
+def get_algorithm_name(model) -> str:
+    """
+    Extracts the algorithm name from the model (e.g. PCA).
+    This is split by the first opening bracket and takes everything before that
+    :param model: object
+        Dimension Reduction Model class (such as PCA)
+    :return: str
+        Model algorithm name
+    """
+    return str(model).split('(')[DUMMY_ZERO]

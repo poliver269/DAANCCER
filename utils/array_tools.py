@@ -51,6 +51,8 @@ def extinct_side_values(symmetrical_array, smaller_than=0):
     :return:
     """
     right_i = np.argmax(split_list_in_half(symmetrical_array)[1] <= smaller_than)
+    if right_i == 0:
+        return symmetrical_array
     center_i = len(symmetrical_array) // 2
     new_y = np.zeros_like(symmetrical_array)
     new_y[center_i - right_i:center_i + right_i] = symmetrical_array[center_i - right_i:center_i + right_i]
