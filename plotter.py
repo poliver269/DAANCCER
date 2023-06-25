@@ -193,7 +193,7 @@ class ModelResultPlotter(MyPlotter):
     def _plot_transformed_trajectory(self, ax, result_dict: dict, color_map: str, show_model_properties: bool = False,
                                      center_plot: bool = False, sub_part: [int, None] = None):
         """
-        Plot the projection results of the transformed trajectory on an axis
+        Plot the projection results of the transformed trajectory in a 2d-axis
         :param ax: Which axis the result should be plotted on
         :param result_dict: dictionary
             dict should contain the keys: 'model', 'projection',
@@ -201,7 +201,9 @@ class ModelResultPlotter(MyPlotter):
         :param color_map: str
             String value of the plot mapping type
         :param show_model_properties: bool
+            Show the model name and explained variance as title
         :param center_plot: bool
+            Parameter for centering the projection
         """
         ax.cla()
         if show_model_properties:
@@ -234,7 +236,7 @@ class ModelResultPlotter(MyPlotter):
 
             c_map = plt.cm.viridis
             im = ax.scatter(result_dict[PROJECTION][:, 0], result_dict[PROJECTION][:, 1], c=color_array,
-                            cmap=c_map, marker='.')
+                            cmap=c_map, marker='.', alpha=0.1)
             if not self.for_paper and ((ax.get_subplotspec().is_last_col() and sub_part is None) or
                                        (ax.get_subplotspec().is_first_col() and sub_part is not None)):
                 self.fig.colorbar(im, ax=ax)
@@ -313,7 +315,7 @@ class ModelResultPlotter(MyPlotter):
     def plot_multi_projections(self, model_result_list_in_list, plot_type, center_plot=True, sub_parts=False,
                                show_model_properties=True):
         self.fig, self.axes = plt.subplots(len(model_result_list_in_list), len(model_result_list_in_list[DUMMY_ZERO]),
-                                           sharex='row', sharey='row')
+                                           sharex='all', sharey='all')
         for row_index, model_results in enumerate(model_result_list_in_list):
             if len(model_results) == 1:
                 self._plot_transformed_trajectory(self.axes[row_index], model_results[DUMMY_ZERO], color_map=plot_type,
