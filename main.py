@@ -2,7 +2,7 @@ from datetime import datetime
 
 from trajectory import ProteinTopologyConverter
 from plotter import ProteinPlotter
-from analyse import MultiTrajectoryAnalyser, SingleTrajectoryAnalyser
+from analyse import MultiTrajectoryAnalyser, SingleTrajectoryAnalyser, SingleProteinTrajectoryAnalyser
 from utils.default_argparse import ArgParser
 from utils.errors import InvalidRunningOptionError
 from utils.param_keys import *
@@ -59,9 +59,9 @@ def run(kwargs: dict, model_params_list: list, filename_list: list):
             raise ValueError(f'The parameter `{N_COMPONENTS}` has to be 2, but it\'s {params[N_COMPONENTS]}.')
         SingleTrajectoryAnalyser(data_class, params).compare(model_params_list)
     elif run_option == COMPARE_WITH_CA_ATOMS:
-        SingleTrajectoryAnalyser(data_class, params).compare_with_carbon_alpha_and_all_atoms(model_params_list)
+        SingleProteinTrajectoryAnalyser(data_class, params).compare_with_carbon_alpha_and_all_atoms(model_params_list)
     elif run_option == BASE_TRANSFORMATION:
-        SingleTrajectoryAnalyser(data_class, params).compare_with_basis_transformation(model_params_list)
+        SingleProteinTrajectoryAnalyser(data_class, params).compare_with_basis_transformation(model_params_list)
     elif run_option == PARAMETER_GRID_SEARCH:
         param_grid = config.get_param_grid()
         SingleTrajectoryAnalyser(data_class, params).grid_search(param_grid)
