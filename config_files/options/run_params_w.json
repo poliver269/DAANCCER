@@ -7,7 +7,7 @@
   "n_components": 2,
   "basis_transformation": false,
   "use_angles": false,
-  "trajectory_name": "weatherDE",
+  "trajectory_name": "AT",
   "data_set":"weather",
   "file_element": 0,
   "selected_columns": [

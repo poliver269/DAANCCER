@@ -54,6 +54,7 @@ def get_files_and_kwargs(params: dict):
     try:
         trajectory_name = params[TRAJECTORY_NAME]
         file_element = params[FILE_ELEMENT]
+        data_set: str = params[DATA_SET]
     except KeyError as e:
         raise KeyError(f'Run option parameter is missing the key: `{e}`. This parameter is mandatory.')
 
@@ -82,8 +83,8 @@ def get_files_and_kwargs(params: dict):
         kwargs = {FILENAME: filename_list[file_element], TOPOLOGY_FILENAME: 'fs-peptide.pdb',
                   FOLDER_PATH: 'data/fs-peptide'}
     #TODO: Adjust case startswith weather to multi and merge with case 'weatherDataDK'
-    elif trajectory_name.startswith('weather'):
-        country = trajectory_name.split('weather')[1]
+    elif data_set == 'weather':
+        country = trajectory_name
         folder_path = f'data/weather_data/{country}/'
         filename_list = [f'weather_{country}_{i}.csv' for i in range(1980, 1982)]#2019 + 1)]
 
