@@ -10,7 +10,7 @@ from matplotlib.widgets import Slider
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.metrics.pairwise import cosine_similarity
 
-from utils import function_name, get_algorithm_name
+from utils import function_name, get_algorithm_name, ordinal
 from utils.param_keys import TRAJECTORY_NAME, CARBON_ATOMS_ONLY, X, Y, Z, DUMMY_ZERO, DUMMY_ONE
 from utils.param_keys.analyses import HEAT_MAP, COLOR_MAP, PLOT_3D_MAP
 from utils.param_keys.model_result import MODEL, PROJECTION, TITLE_PREFIX, EXPLAINED_VAR, FITTED_ON
@@ -394,7 +394,8 @@ class ArrayPlotter(MyPlotter):
             matrix, which should be plotted
         :param as_surface: str
             Plot as a 3d-surface if value PLOT_3D_MAP else 2d-axes
-        :param show_values: If true, then show the values in the matrix
+        :param show_values: bool
+            If True (default: False), then show the values in the matrix
         """
         c_map = plt.cm.viridis
         # c_map = plt.cm.seismic
@@ -414,7 +415,7 @@ class ArrayPlotter(MyPlotter):
                     self.axes.text(j, i, '{:0.2f}'.format(value), ha='center', va='center', fontsize=8)
         if not self.for_paper:
             self.fig.colorbar(im, ax=self.axes)
-            plt.xticks(np.arange(matrix.shape[1]), np.arange(self.xtick_start, matrix.shape[1] + self.xtick_start))
+            # plt.xticks(np.arange(matrix.shape[1]), np.arange(self.xtick_start, matrix.shape[1] + self.xtick_start))
             # plt.xticks(np.arange(matrix.shape[1], step=5),
             #            np.arange(self.xtick_start, matrix.shape[1] + self.xtick_start, step=5))
         self._post_processing()
@@ -513,3 +514,17 @@ class ArrayPlotter(MyPlotter):
                     self.axes.fill_between(range(error_band[key].shape[DUMMY_ONE]),
                                            error_band[key][DUMMY_ZERO], error_band[key][DUMMY_ONE], alpha=0.2)
         self._post_processing()
+
+
+class MultiArrayPlotter:
+    @staticmethod
+    def plot_tensor_layers(tensor, combined, title_part='Covariance'):
+        for i in range(tensor.shape[0]):  # for each combined dimension
+            ArrayPlotter(
+                interactive=True,
+                title_prefix=f'{ordinal(i)} {title_part} Matrix'
+            ).matrix_plot(tensor[i])
+        ArrayPlotter(
+            interactive=True,
+            title_prefix=f'Combined {title_part} Matrix'
+        ).matrix_plot(combined)  # and for the mean-ed

@@ -1,0 +1,7 @@
+[
+  {
+    "algorithm_name": "pca",
+    "ndim": 3,
+    "analyse_plot_type": "covariance_matrix_plot"
+  }
+]
