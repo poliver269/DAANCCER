@@ -163,8 +163,6 @@ class WeatherTrajectory(DataTrajectory):
             if self.params[SEL_COL] is not None:
                 self.weather_df = self.weather_df[self.params[SEL_COL]]
 
-            # self.countries = list(dict.fromkeys([x[:2] for x in self.weather_df.columns]))[1:]
-            # self.features = list(dict.fromkeys([x[3:] for x in self.weather_df.columns]))[1:]
         except IOError:
             raise FileNotFoundError(f"Cannot load {self.filepath}.")
 
