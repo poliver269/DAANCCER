@@ -4,6 +4,7 @@ import os
 import warnings
 import weather_preprocessing as wp
 
+from trajectory import ProteinTrajectory, SubProteinTrajectory, TrajectoryFile, WeatherTrajectory, DataTrajectory
 from utils.param_keys import *
 from utils.param_keys.analyses import *
 from utils.param_keys.kernel_functions import *
@@ -95,13 +96,16 @@ def get_files_and_kwargs(params: dict):
 
         kwargs = {FILENAME: filename_list[file_element],
                 FOLDER_PATH: folder_path}
-        if SEL_COL in params:
-            selected_columns=eval(params[SEL_COL])
-            kwargs[SEL_COL]=selected_columns
     else:
         raise ValueError(f'No data trajectory was found with the name `{trajectory_name}`.')
 
-    filename_list.pop(file_element)
+    if SUBSET_LIST in params.keys():
+        subset_indexes: list = params[SUBSET_LIST]
+        if file_element in subset_indexes:
+            subset_indexes.remove(file_element)  # file_element already on kwargs
+        filename_list = [filename_list[i] for i in subset_indexes if i < len(filename_list)]
+    else:
+        filename_list.pop(file_element)  # file_element already on kwargs
     kwargs[PARAMS] = params
     return filename_list, kwargs
 
@@ -148,8 +152,7 @@ def get_model_params_list(alg_json_file: str) -> list[dict]:
             # *** Boolean Parameters:
             # CORR_KERNEL, ONES_ON_KERNEL_DIAG, USE_STD, CENTER_OVER_TIME, EXTRA_DR_LAYER
 
-            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, ANALYSE_PLOT_TYPE: FITTED_KERNEL_CURVES,
-             KERNEL_TYPE: MY_GAUSSIAN},
+            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_GAUSSIAN},
             # {ALGORITHM_NAME: 'tica', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, LAG_TIME: params[LAG_TIME]},
         ]
 
@@ -182,3 +185,25 @@ def get_param_grid(param_grid_json_file: str = None) -> list:
                 ABS_EVAL_SORT: [False, True]
             }
         ]
+
+
+def get_data_class(params: dict, kwargs: dict) -> DataTrajectory:
+    if DATA_SET in params.keys():
+        data_set_name: str = params[DATA_SET]
+
+        if data_set_name.startswith('sub'):
+            if QUANTITY in params.keys():
+                kwargs[QUANTITY] = params[QUANTITY]
+            if TIME_WINDOW_SIZE in params.keys():
+                kwargs[TIME_WINDOW_SIZE] = params[TIME_WINDOW_SIZE]
+            if PART_COUNT in params.keys():
+                kwargs[PART_COUNT] = params[PART_COUNT]
+
+        if data_set_name == "weather":
+            return WeatherTrajectory(**kwargs)
+        elif data_set_name == "sub_protein":
+            return SubProteinTrajectory(**kwargs)
+        else:  # "protein"
+            return ProteinTrajectory(**kwargs)
+    else:
+        return ProteinTrajectory(**kwargs)

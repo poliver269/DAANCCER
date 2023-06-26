@@ -4,6 +4,8 @@
 RUN_OPTION = 'run_option'
 TRAJECTORY_NAME = 'trajectory_name'
 FILE_ELEMENT = 'file_element'
+DATA_SET = 'data_set'
+SUBSET_LIST = 'subset_list'
 # Plot params
 PLOT_TYPE = 'plot_type'
 PLOT_TICS = 'plot_tics'
@@ -22,6 +24,7 @@ SEL_COL = 'selected_columns'
 # Subset Trajectory params
 QUANTITY = 'quantity'
 TIME_WINDOW_SIZE = 'time_window_size'
+PART_COUNT = 'part_count'
 
 # TODO: No name
 FILENAME = 'filename'

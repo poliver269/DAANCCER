@@ -1,9 +1,7 @@
 from datetime import datetime
 
-import config
-import load_results
-from plotter import TrajectoryPlotter
-from trajectory import ProteinTrajectory, TopologyConverter, TrajectorySubset, WeatherTrajectory
+from trajectory import ProteinTopologyConverter
+from plotter import ProteinPlotter
 from analyse import MultiTrajectoryAnalyser, SingleTrajectoryAnalyser
 from utils.default_argparse import ArgParser
 from utils.errors import InvalidRunningOptionError
@@ -12,6 +10,8 @@ from utils.param_keys.analyses import ANALYSE_PLOT_TYPE, KERNEL_COMPARE
 from utils.param_keys.kernel_functions import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL
 from utils.param_keys.model import ALGORITHM_NAME, NDIM
 from utils.param_keys.run_options import *
+import config
+import load_results
 
 
 def main():
@@ -44,42 +44,29 @@ def run(kwargs: dict, model_params_list: list, filename_list: list):
     """
     params = kwargs[PARAMS]
     run_option = params[RUN_OPTION]
-
-    print(kwargs[FILENAME])
-    if "weather" in kwargs[FILENAME]:
-        TRAJECTORY_TYPE = "Weather"
-    else:
-        TRAJECTORY_TYPE = "Protein"
-
+    data_class = config.get_data_class(params, kwargs)
     if run_option == 'covert_to_pdb':
         kwargs = {FILENAME: 'protein.xtc', TOPOLOGY_FILENAME: 'protein.gro',
                   GOAL_FILENAME: 'protein.pdb', FOLDER_PATH: 'data/ser-tr'}
-        tc = TopologyConverter(**kwargs)
+        tc = ProteinTopologyConverter(**kwargs)
         tc.convert()
     elif run_option == PLOT_WITH_SLIDER:
-        tr = eval(TRAJECTORY_TYPE+"Trajectory(**kwargs)")
-        TrajectoryPlotter(tr, standardize=True).data_with_timestep_slider(min_max=None)  # [0, 1000]
+        ProteinPlotter(data_class, standardize=True).data_with_timestep_slider(min_max=None)  # [0, 1000]
     elif run_option == PLOT_RECONSTRUCTED_WITH_SLIDER:
-        tr = eval(TRAJECTORY_TYPE+"Trajectory(**kwargs)")
-        TrajectoryPlotter(tr, reconstruct_params=model_params_list[1]).data_with_timestep_slider()
+        ProteinPlotter(data_class, reconstruct_params=model_params_list[1]).data_with_timestep_slider()
     elif run_option == COMPARE:
         if params[N_COMPONENTS] != 2:
             raise ValueError(f'The parameter `{N_COMPONENTS}` has to be 2, but it\'s {params[N_COMPONENTS]}.')
-        tr = eval(TRAJECTORY_TYPE+"Trajectory(**kwargs)")
-        SingleTrajectoryAnalyser(tr, params).compare(model_params_list)
+        SingleTrajectoryAnalyser(data_class, params).compare(model_params_list)
     elif run_option == COMPARE_WITH_CA_ATOMS:
-        tr = ProteinTrajectory(**kwargs)
-        SingleTrajectoryAnalyser(tr, params).compare_with_carbon_alpha_and_all_atoms(model_params_list)
+        SingleTrajectoryAnalyser(data_class, params).compare_with_carbon_alpha_and_all_atoms(model_params_list)
     elif run_option == BASE_TRANSFORMATION:
-        tr = eval(TRAJECTORY_TYPE+"Trajectory(**kwargs)")
-        SingleTrajectoryAnalyser(tr, params).compare_with_basis_transformation(model_params_list)
+        SingleTrajectoryAnalyser(data_class, params).compare_with_basis_transformation(model_params_list)
     elif run_option == PARAMETER_GRID_SEARCH:
         param_grid = config.get_param_grid()
-        tr = eval(TRAJECTORY_TYPE+"Trajectory(**kwargs)")
-        SingleTrajectoryAnalyser(tr, params).grid_search(param_grid)
+        SingleTrajectoryAnalyser(data_class, params).grid_search(param_grid)
     elif run_option == TRAJECTORY_SUBSET_ANALYSIS:
-        sub_tr = TrajectorySubset(quantity=params[QUANTITY], time_window_size=params[TIME_WINDOW_SIZE], **kwargs)
-        SingleTrajectoryAnalyser(sub_tr, params).compare_trajectory_subsets(model_params_list)
+        SingleTrajectoryAnalyser(data_class, params).compare_trajectory_subsets(model_params_list)
     elif run_option.startswith(MULTI):
         run_multi_analyse(filename_list, model_params_list, kwargs)
     else:
@@ -134,8 +121,11 @@ def run_multi_analyse(filename_list, model_params_list, kwargs):
     elif run_option == MULTI_QUALITATIVE_TRANSFORMATION_ON_SAME_FITTING:
         mtr = MultiTrajectoryAnalyser(kwargs_list, kwargs[PARAMS])
         mtr.compare_results_on_same_fitting(model_params_list[DUMMY_ZERO], DUMMY_ZERO)
+    elif run_option == MULTI_QUALITATIVE_PROJECTION_MATRIX:
+        mtr = MultiTrajectoryAnalyser(kwargs_list, kwargs[PARAMS])
+        mtr.compare_projection_matrix(model_params_list)
     else:
-        raise InvalidRunningOptionError(f'The run_option: `{run_option}` in the (json) configuration '
+        raise InvalidRunningOptionError(f'The \"run_option\": \"{run_option}\" in the (json) configuration '
                                         f'does not exists or it is not a loading option.\n')
 
 
@@ -150,6 +140,8 @@ def load(result_load_files: list, kwargs: dict):
     run_option = kwargs[PARAMS][RUN_OPTION]
     if run_option == LOAD_ANALYSE_RESULTS_DICT:
         load_results.load_analyse_results_dict(result_load_files, kwargs)
+    if run_option == LOAD_RE_OVER_COMPONENT_SPAN:
+        load_results.load_re_over_component_span(result_load_files, kwargs)
     elif run_option == LOAD_LIST_OF_DICTS:
         load_results.load_list_of_dicts(sub_dir=result_load_files[DUMMY_ZERO], params=kwargs[PARAMS])
     else:
