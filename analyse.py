@@ -15,7 +15,7 @@ from tqdm import tqdm
 
 from config import get_data_class
 from plotter import ArrayPlotter, MultiTrajectoryPlotter, ModelResultPlotter
-from trajectory import ProteinTrajectory, SubProteinTrajectory, TrajectoryFile, DataTrajectory
+from trajectory import ProteinTrajectory, SubProteinTrajectory, DataTrajectory
 from utils import statistical_zero, get_algorithm_name
 from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
 from utils.errors import InvalidReconstructionException, InvalidProteinTrajectory
@@ -156,7 +156,8 @@ class MultiTrajectoryAnalyser:
             PLOT_TYPE: params.get(PLOT_TYPE, COLOR_MAP),
             PLOT_TICS: params.get(PLOT_TICS, True),
             INTERACTIVE: params.get(INTERACTIVE, True),
-            PLOT_FOR_PAPER: params.get(PLOT_FOR_PAPER, False)
+            PLOT_FOR_PAPER: params.get(PLOT_FOR_PAPER, False),
+            TRANSFORM_ON_WHOLE: params.get(TRANSFORM_ON_WHOLE, False)
         }
 
     def compare_pcs(self, model_params_list: list[dict]):
@@ -375,16 +376,15 @@ class MultiTrajectoryAnalyser:
 
     def compare_reconstruction_scores(self, model_params_list: list, fit_transform_re: bool = True):
         """
-        Calculate the reconstruction error of the trajectories
-        if from_other_traj is True than reconstruct from the model fitted on specific trajectory
-        (0th-element in self trajectories)
-        :param fit_transform_re: Fit-transform reconstruction error or Fit-on-all-Transform-on-one
+        Calculate the reconstruction error over the trajectory span for different model_params.
+        If from_other_traj is True than reconstruct from the model fitted on specific trajectory set
         :param model_params_list: list[dict]
-            Different model input parameters, saved in a list.
+            Different model input parameters, saved in a list
+        :param fit_transform_re: bool
+            Fit-transform (Default: True) or Fit-on-all-Transform-on-one (False) reconstruction error
         """
-
         model_scores = {}
-        for model_index, model_params in enumerate(model_params_list):
+        for model_params in model_params_list:
             # model: [ParameterModel, StreamingEstimationTransformer] = model_dict[MODEL]
             print(f'Calculating reconstruction errors ({model_params})...')
             model_dict_list = self._get_model_result_list(model_params)
@@ -405,7 +405,6 @@ class MultiTrajectoryAnalyser:
             score_ndarray = np.asarray(score_list)
             model_scores[model_description] = score_ndarray
 
-        # model_scores = pretify_dict_model(model_scores)
         ArrayPlotter(
             interactive=self.params[INTERACTIVE],
             title_prefix='Reconstruction Error (RE) ' + (
@@ -536,8 +535,10 @@ class MultiTrajectoryAnalyser:
         Calculates the reconstruction errors of the trajectories over the component span.
         @param model_dict_list: list
             model results dict in a list
-        @param fit_transform_re: bool
-            model to use
+        @param fit_transform_re: bool (default = True)
+            Should be calculated the fit_transform on the same data
+            or the transformation steps of trajectories should be applied
+            to models fitted on a different trajectory.
         @return:
         """
         scores_on_component_span: list = []
@@ -548,6 +549,9 @@ class MultiTrajectoryAnalyser:
                     model_dict = model_dict_list[traj_index]
                     model = model_dict[MODEL]
                     if fit_transform_re:
+                        if (isinstance(fitted_trajectory, SubProteinTrajectory) and
+                                self.params[TRANSFORM_ON_WHOLE]):
+                            fitted_trajectory.part_count = None
                         input_data = fitted_trajectory.data_input(model_dict[INPUT_PARAMS])
                         matrix_projection = model_dict[PROJECTION]
                         reconstruction_score = self._get_reconstruction_score(model, input_data, matrix_projection,
@@ -555,6 +559,9 @@ class MultiTrajectoryAnalyser:
                     else:  # fit on one transform on all
                         transform_score = []
                         for transform_trajectory in self.trajectories:
+                            if (isinstance(transform_trajectory, SubProteinTrajectory) and
+                                    self.params[TRANSFORM_ON_WHOLE]):
+                                transform_trajectory.part_count = None
                             input_data = transform_trajectory.data_input(model_dict[INPUT_PARAMS])
                             matrix_projection = model.transform(input_data)
 

@@ -25,6 +25,7 @@ SEL_COL = 'selected_columns'
 QUANTITY = 'quantity'
 TIME_WINDOW_SIZE = 'time_window_size'
 PART_COUNT = 'part_count'
+TRANSFORM_ON_WHOLE = 'transform_on_whole'
 
 # TODO: No name
 FILENAME = 'filename'
