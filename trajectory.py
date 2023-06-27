@@ -390,6 +390,7 @@ class SubProteinTrajectory(ProteinTrajectory):
                  time_window_size: int = None,
                  part_count: int = None,
                  **kwargs):
+        self._tmp_part_count = part_count
         self.quantity = quantity
         self.time_window_size = time_window_size
         self.rest = 0
@@ -445,6 +446,13 @@ class SubProteinTrajectory(ProteinTrajectory):
         else:
             return whole_input_data[
                    (self.part_count * self.time_window_size):(self.part_count + 1) * self.time_window_size]
+
+    def set_tmp_count(self, value):
+        self._tmp_part_count = self.part_count
+        self.part_count = value
+
+    def reset_part_count(self):
+        self.part_count = self._tmp_part_count
 
 
 class ProteinTopologyConverter(TrajectoryFile):

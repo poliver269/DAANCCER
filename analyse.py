@@ -551,22 +551,28 @@ class MultiTrajectoryAnalyser:
                     if fit_transform_re:
                         if (isinstance(fitted_trajectory, SubProteinTrajectory) and
                                 self.params[TRANSFORM_ON_WHOLE]):
-                            fitted_trajectory.part_count = None
+                            fitted_trajectory.set_tmp_count(None)
                         input_data = fitted_trajectory.data_input(model_dict[INPUT_PARAMS])
                         matrix_projection = model_dict[PROJECTION]
                         reconstruction_score = self._get_reconstruction_score(model, input_data, matrix_projection,
                                                                               component)
+                        if (isinstance(fitted_trajectory, SubProteinTrajectory) and
+                                self.params[TRANSFORM_ON_WHOLE]):
+                            fitted_trajectory.reset_part_count()
                     else:  # fit on one transform on all
                         transform_score = []
                         for transform_trajectory in self.trajectories:
                             if (isinstance(transform_trajectory, SubProteinTrajectory) and
                                     self.params[TRANSFORM_ON_WHOLE]):
-                                transform_trajectory.part_count = None
+                                transform_trajectory.set_tmp_count(None)
                             input_data = transform_trajectory.data_input(model_dict[INPUT_PARAMS])
                             matrix_projection = model.transform(input_data)
 
                             transform_score.append(
                                 self._get_reconstruction_score(model, input_data, matrix_projection, component))
+                            if (isinstance(transform_trajectory, SubProteinTrajectory) and
+                                    self.params[TRANSFORM_ON_WHOLE]):
+                                transform_trajectory.reset_part_count()
                         reconstruction_score = np.median(transform_score)
                     trajectory_score_list.append(reconstruction_score)
             except InvalidReconstructionException as e:
