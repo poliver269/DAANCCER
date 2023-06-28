@@ -82,8 +82,9 @@ def get_files_and_kwargs(params: dict):
         filename_list = [f'trajectory-{i}.xtc' for i in range(1, 28 + 1)]
         kwargs = {FILENAME: filename_list[file_element], TOPOLOGY_FILENAME: 'fs-peptide.pdb',
                   FOLDER_PATH: 'data/fs-peptide'}
-    #TODO: Adjust case startswith weather to multi and merge with case 'weatherDataDK'
+    #TODO: Adjust case startswith weather to multi
     elif data_set == 'weather':
+        reducee_feature: str = params[REDUCEE_FEATURE]
         country = trajectory_name
         folder_path = f'data/weather_data/{country}/'
         filename_list = [f'weather_{country}_{i}.csv' for i in range(1980, 1982)]#2019 + 1)]
