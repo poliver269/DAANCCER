@@ -167,13 +167,20 @@ class WeatherTrajectory(DataTrajectory):
             raise FileNotFoundError(f"Cannot load {self.filepath}.")
 
         self._check_init_params()
-        self._init_preprocessing()
+        self.feat_traj = self._init_preprocessing()
+
+
 
     def _init_preprocessing(self):
+        def get_feature( list_as_text, feature=1):
+            result = eval(list_as_text)
+            return [result[feature]]
+
         # TODO@Andrea preprocess correctly, use it, declare "logical" name for weather data (not xyz)
-        xyz = np.array(list(map(np.stack, self.weather_df.applymap(eval).to_numpy())))
-        xyz = (xyz - np.mean(xyz, axis=0)[np.newaxis, :, :]) / np.std(xyz, axis=0)
-        # TODO@Andrea return ndarray
+        feat_traj = np.array(list(map(np.stack, self.weather_df.applymap(get_feature).to_numpy())))
+        #xyz = np.array(list(map(np.stack, self.weather_df.applymap(eval).to_numpy())))
+        feat_traj = (feat_traj - np.mean(feat_traj, axis=0)[np.newaxis, :, :]) / np.std(feat_traj, axis=0)
+        return feat_traj
 
     @property
     def max_components(self) -> int:
@@ -190,7 +197,8 @@ class WeatherTrajectory(DataTrajectory):
         model_parameters[KERNEL_STAT_FUNC] = np.min
 
         df = self.weather_df.applymap(eval)
-        # TODO@Andrea: use the preprocessed data self.preprocessed_weather_in ndarray
+        ft_traj = self.feat_traj
+        # TODO@Andrea: WIP use the preprocessed data self.preprocessed_weather_in ndarray
         try:
             if model_parameters is None:
                 n_dim = TENSOR_NDIM
@@ -202,14 +210,17 @@ class WeatherTrajectory(DataTrajectory):
         # TODO@Andrea: these steps belong to preprocessing,
         #  since we want to use the same input data over and over again
         #  (in the MultipleTrajectory) --> faster if its done once at init step
+        return ft_traj
         if n_dim == MATRIX_NDIM:
             temp = df.to_numpy()
             flat_coord = np.vstack([flattened_coordinates(day) for day in temp])
+            print("INFO: FLAT COORDINATES", flat_coord)
             return flat_coord
         else:
             # TODO@Andrea variable naming is not logical for weather data
             coord = df.to_numpy()
             coord = np.array([np.array([np.array(x) for x in y]) for y in coord])
+            print("INFO: COORDINATES", coord)
             return coord
 
 
