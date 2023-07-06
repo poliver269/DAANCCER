@@ -1,0 +1,13 @@
+{
+  "run_option": "compare",
+  "plot_type": "color_map",
+  "plot_tics": true,
+  "carbon_atoms_only": true,
+  "interactive": true,
+  "n_components": 2,
+  "basis_transformation": false,
+  "use_angles": false,
+  "trajectory_name": "DK",
+  "data_set":"synthetic",
+  "file_element": 0
+}

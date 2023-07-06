@@ -4,7 +4,7 @@ import os
 import warnings
 import weather_preprocessing as wp
 
-from trajectory import ProteinTrajectory, SubProteinTrajectory, TrajectoryFile, WeatherTrajectory, DataTrajectory
+from trajectory import ProteinTrajectory, SubProteinTrajectory, TrajectoryFile, WeatherTrajectory, DataTrajectory, SyntheticTrajectory
 from utils.param_keys import *
 from utils.param_keys.analyses import *
 from utils.param_keys.kernel_functions import *
@@ -96,8 +96,10 @@ def get_files_and_kwargs(params: dict):
 
             dk = wp.get_trajectories_per_year(raw_data, 'utc_timestamp', country)
 
-        kwargs = {FILENAME: filename_list[file_element],
-                FOLDER_PATH: folder_path}
+        kwargs = {FILENAME: filename_list[file_element], FOLDER_PATH: folder_path}
+    elif data_set == 'synthetic':
+        filename_list = []
+        kwargs = {FILENAME: 'n/a'}
     else:
         raise ValueError(f'No data trajectory was found with the name `{trajectory_name}`.')
 
@@ -106,7 +108,7 @@ def get_files_and_kwargs(params: dict):
         if file_element in subset_indexes:
             subset_indexes.remove(file_element)  # file_element already on kwargs
         filename_list = [filename_list[i] for i in subset_indexes if i < len(filename_list)]
-    else:
+    elif filename_list:
         filename_list.pop(file_element)  # file_element already on kwargs
     kwargs[PARAMS] = params
     return filename_list, kwargs
@@ -203,6 +205,8 @@ def get_data_class(params: dict, kwargs: dict) -> DataTrajectory:
 
         if data_set_name == "weather":
             return WeatherTrajectory(**kwargs)
+        elif data_set_name == "synthetic":
+            return SyntheticTrajectory(**kwargs)
         elif data_set_name == "sub_protein":
             return SubProteinTrajectory(**kwargs)
         else:  # "protein"

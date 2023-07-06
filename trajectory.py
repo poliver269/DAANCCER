@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from mdtraj import Trajectory
 from sklearn.decomposition import FastICA, PCA
+from scipy.interpolate import CubicSpline
 
 from utils.algorithms.interfaces import DeeptimeTICAInterface, PyemmaTICAInterface, PyemmaPCAInterface
 from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
@@ -152,6 +153,59 @@ class DataTrajectory(TrajectoryFile):
             return model, model.fit_transform(inp, n_components=self.params[N_COMPONENTS])
 
 
+class SyntheticTrajectory(DataTrajectory):
+    def __init__(self, filename, folder_path='data/', params=None):
+        # No file to load but we call this for consistency
+        super().__init__(filename, folder_path, params)
+        if not 'dim' in self.params:
+            self.params['dim'] = 50
+        if not 'timestamps' in self.params:
+            self.params['timestamps'] = 100
+        if not 'n_landmarks' in self.params:
+            self.params['n_landmarks'] = 10
+        if not 'n_copies' in self.params:
+            self.params['n_copies'] = 30
+        if not 'noise' in self.params:
+            self.params['noise'] = 0.1
+
+        assert 0 <= self.params['noise']
+        self.feat_traj = self.generate_trajectories()
+
+    def generate_trajectories(self):
+        X = np.zeros((self.params['dim'], self.params['timestamps']))
+        landmark_time_stamps = np.arange(0, self.params['timestamps'] + 1, self.params['timestamps'] / (self.params['n_landmarks'] - 1))
+        global_landmarks = np.random.normal(0, 1, (self.params['n_landmarks'], self.params['dim']))
+        traj_landmarks = global_landmarks + np.random.normal(0, self.params['noise'], (self.params['n_landmarks'], self.params['dim']))
+        spline = CubicSpline(landmark_time_stamps, traj_landmarks)
+        locations = spline(np.arange(self.params['timestamps']))
+        X = locations.T
+
+        return X
+
+    # def generate_trajectories(self):
+    #     X = np.zeros((self.params['n_copies'], self.params['dim'], self.params['timestamps']))
+    #     landmark_time_stamps = np.arange(0, self.params['timestamps'] + 1, self.params['timestamps'] / (self.params['n_landmarks'] - 1))
+    #     global_landmarks = np.random.normal(0, 1, (self.params['n_landmarks'], self.params['dim']))
+    #     for trajectory in range(self.params['n_copies']):
+    #         traj_landmarks = global_landmarks + np.random.normal(0, self.params['noise'], (self.params['n_landmarks'], self.params['dim']))
+    #         spline = CubicSpline(landmark_time_stamps, traj_landmarks)
+    #         locations = spline(np.arange(self.params['timestamps']))
+    #         X[trajectory] = locations.T
+
+    #     return X
+
+    @property
+    def max_components(self) -> int:
+        if self.params[SEL_COL] is not None:
+            return len(self.params[SEL_COL])
+        else:
+            # FIXME FIXME
+            return self.params['dim']
+
+    def data_input(self, model_parameters: dict = None) -> np.ndarray:
+        return self.feat_traj
+
+
 class WeatherTrajectory(DataTrajectory):
     def __init__(self, filename, folder_path='data/', params=None):
         super().__init__(filename, folder_path, params)
@@ -168,8 +222,6 @@ class WeatherTrajectory(DataTrajectory):
 
         self._check_init_params()
         self.feat_traj = self._init_preprocessing()
-
-
 
     def _init_preprocessing(self):
         def get_feature( list_as_text, feature=1):
