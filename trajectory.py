@@ -172,14 +172,12 @@ class WeatherTrajectory(DataTrajectory):
 
 
     def _init_preprocessing(self):
-        def get_feature( list_as_text, feature=1):
+        def get_feature( list_as_text, feature=2):
             result = eval(list_as_text)
-            return [result[feature]]
+            return result[feature]
 
-        # TODO@Andrea preprocess correctly, use it, declare "logical" name for weather data (not xyz)
         feat_traj = np.array(list(map(np.stack, self.weather_df.applymap(get_feature).to_numpy())))
-        #xyz = np.array(list(map(np.stack, self.weather_df.applymap(eval).to_numpy())))
-        feat_traj = (feat_traj - np.mean(feat_traj, axis=0)[np.newaxis, :, :]) / np.std(feat_traj, axis=0)
+        feat_traj = (feat_traj - np.mean(feat_traj, axis=0)[np.newaxis, :]) / np.std(feat_traj, axis=0)
         return feat_traj
 
     @property
@@ -210,19 +208,12 @@ class WeatherTrajectory(DataTrajectory):
         # TODO@Andrea: these steps belong to preprocessing,
         #  since we want to use the same input data over and over again
         #  (in the MultipleTrajectory) --> faster if its done once at init step
-        return ft_traj
         if n_dim == MATRIX_NDIM:
-            temp = df.to_numpy()
-            flat_coord = np.vstack([flattened_coordinates(day) for day in temp])
-            print("INFO: FLAT COORDINATES", flat_coord)
-            return flat_coord
+            print("INFO: FLAT FEATURE", ft_traj)
         else:
-            # TODO@Andrea variable naming is not logical for weather data
-            coord = df.to_numpy()
-            coord = np.array([np.array([np.array(x) for x in y]) for y in coord])
-            print("INFO: COORDINATES", coord)
-            return coord
-
+            ft_traj = np.array([np.array([np.array([hour]) for hour in day]) for day in ft_traj])
+            print("INFO: FEATURE", ft_traj)
+        return ft_traj
 
 class ProteinTrajectory(DataTrajectory):
     def __init__(self, filename, topology_filename=None, folder_path='data/2f4k', params=None, atoms=None):
