@@ -84,6 +84,7 @@ def get_files_and_kwargs(params: dict):
                   FOLDER_PATH: 'data/fs-peptide'}
     #TODO: Adjust case startswith weather to multi
     elif data_set == 'weather':
+        reducee_feature: str = params[REDUCEE_FEATURE]
         country = trajectory_name
         folder_path = f'data/weather_data/{country}/'
         filename_list = [f'weather_{country}_{i}.csv' for i in range(1980, 1982)]#2019 + 1)]
@@ -93,7 +94,7 @@ def get_files_and_kwargs(params: dict):
             os.makedirs(folder_path, exist_ok=True)
             print('INFO: Created directory ', folder_path)
 
-            dk = wp.get_trajectories_per_year(raw_data, 'utc_timestamp', country)
+            wp.get_trajectories_per_year(raw_data, 'utc_timestamp', country)
 
         kwargs = {FILENAME: filename_list[file_element],
                 FOLDER_PATH: folder_path}
