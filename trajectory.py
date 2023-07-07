@@ -158,21 +158,34 @@ class WeatherTrajectory(DataTrajectory):
         try:
             print(f"Loading trajectory {self.filename}...")
             self.weather_df = pd.read_csv(self.filepath)
-            # TODO: param columns for radiation stuff
             self.params.update({SEL_COL: params.get(SEL_COL, None)})
+            self.params.update({REDUCEE_FEATURE: params.get(REDUCEE_FEATURE, None)})
+
             if self.params[SEL_COL] is not None:
                 self.weather_df = self.weather_df[self.params[SEL_COL]]
+
+            if self.params[REDUCEE_FEATURE] is not None:
+                feature_name = self.params[REDUCEE_FEATURE]
+                print("INFO: For WeatherTrajectory selected feature:", feature_name)
+                features_encoding = {
+                        'temperature':0,
+                        'radiation_direct_horizontal':1,
+                        'radiation_diffuse_horizontal':2
+                        }
+                if feature_name in features_encoding:
+                    self.params[REDUCEE_FEATURE]=features_encoding[feature_name]
+                else:
+                    raise KeyError(f'WeatherTrajectory needs a specific reducee_feature:{feature_name}. Set to one of {features_encoding.keys()}')
 
         except IOError:
             raise FileNotFoundError(f"Cannot load {self.filepath}.")
 
         self._check_init_params()
-        self.feat_traj = self._init_preprocessing()
+        print(self.params)
+        self.feat_traj = self._init_preprocessing(self.params[REDUCEE_FEATURE])
 
-
-
-    def _init_preprocessing(self):
-        def get_feature( list_as_text, feature=2):
+    def _init_preprocessing(self, feature=2):
+        def get_feature( list_as_text):
             result = eval(list_as_text)
             return result[feature]
 
@@ -196,7 +209,7 @@ class WeatherTrajectory(DataTrajectory):
 
         df = self.weather_df.applymap(eval)
         ft_traj = self.feat_traj
-        # TODO@Andrea: WIP use the preprocessed data self.preprocessed_weather_in ndarray
+
         try:
             if model_parameters is None:
                 n_dim = TENSOR_NDIM

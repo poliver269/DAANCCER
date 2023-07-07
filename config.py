@@ -94,7 +94,7 @@ def get_files_and_kwargs(params: dict):
             os.makedirs(folder_path, exist_ok=True)
             print('INFO: Created directory ', folder_path)
 
-            dk = wp.get_trajectories_per_year(raw_data, 'utc_timestamp', country)
+            wp.get_trajectories_per_year(raw_data, 'utc_timestamp', country)
 
         kwargs = {FILENAME: filename_list[file_element],
                 FOLDER_PATH: folder_path}
