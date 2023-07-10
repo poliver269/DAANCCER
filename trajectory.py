@@ -181,7 +181,6 @@ class WeatherTrajectory(DataTrajectory):
             raise FileNotFoundError(f"Cannot load {self.filepath}.")
 
         self._check_init_params()
-        print(self.params)
         self.feat_traj = self._init_preprocessing(self.params[REDUCEE_FEATURE])
 
     def _init_preprocessing(self, feature=2):
@@ -190,7 +189,7 @@ class WeatherTrajectory(DataTrajectory):
             return result[feature]
 
         feat_traj = np.array(list(map(np.stack, self.weather_df.applymap(get_feature).to_numpy())))
-        feat_traj = (feat_traj - np.mean(feat_traj, axis=0)[np.newaxis, :]) / np.std(feat_traj, axis=0)
+        feat_traj = (feat_traj - np.mean(feat_traj, axis=1)[:, np.newaxis]) / np.std(feat_traj, axis=0)
         return feat_traj
 
     @property
@@ -204,8 +203,6 @@ class WeatherTrajectory(DataTrajectory):
     def data_input(self, model_parameters: dict = None) -> np.ndarray:
         def flattened_coordinates(day):
             return list(itertools.chain.from_iterable(day))
-
-        model_parameters[KERNEL_STAT_FUNC] = np.min
 
         df = self.weather_df.applymap(eval)
         ft_traj = self.feat_traj
@@ -222,10 +219,10 @@ class WeatherTrajectory(DataTrajectory):
         #  since we want to use the same input data over and over again
         #  (in the MultipleTrajectory) --> faster if its done once at init step
         if n_dim == MATRIX_NDIM:
-            print("INFO: FLAT FEATURE", ft_traj)
+            print("INFO: Flat feature trajectory has shape", ft_traj.shape)
         else:
             ft_traj = np.array([np.array([np.array([hour]) for hour in day]) for day in ft_traj])
-            print("INFO: FEATURE", ft_traj)
+            print("INFO: Feature trajectory has shape", ft_traj.shape)
         return ft_traj
 
 class ProteinTrajectory(DataTrajectory):
