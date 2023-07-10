@@ -67,14 +67,18 @@ def load_analyse_results_dict(result_load_files: list, kwargs: dict):
         ).plot_merged_2ds(plot_dict)
 
 
-# def load_re_over_component_span(result_load_files: list, kwargs: dict):
-#     ArrayPlotter(
-#         interactive=kwargs[PARAMS][INTERACTIVE],
-#         title_prefix=f'Reconstruction Error (RE) ' +
-#                      (f'from {kwargs[FILENAME]}\n' if from_other_traj else '') +
-#                      f'on {kwargs[PARAMS][N_COMPONENTS]} Principal Components ',
-#         x_label='number of principal components',
-#         y_label='median REs of the trajectories',
-#         y_range=(0, 1),
-#         for_paper=kwargs[PARAMS][PLOT_FOR_PAPER]
-#     ).plot_merged_2ds(plot_dict, error_band)
+def load_re_over_component_span(directory_root: str, kwargs: dict):
+    npzs = AnalyseResultLoader(kwargs[PARAMS][TRAJECTORY_NAME]).load_npz_files_in_directory(directory_root)
+    plot_dict = next(v for k, v in npzs.items() if 'median' in k)
+    error_band = next(v for k, v in npzs.items() if 'error_bands' in k)
+    from_other_traj = True
+    ArrayPlotter(
+        interactive=kwargs[PARAMS][INTERACTIVE],
+        title_prefix=f'Reconstruction Error (RE) ' +
+                     (f'from {kwargs[FILENAME]}\n' if from_other_traj else '') +
+                     f'on {kwargs[PARAMS][N_COMPONENTS]} Principal Components ',
+        x_label='number of principal components',
+        y_label='median REs of the trajectories',
+        y_range=(0, 1),
+        for_paper=kwargs[PARAMS][PLOT_FOR_PAPER]
+    ).plot_merged_2ds(plot_dict, error_band=error_band)

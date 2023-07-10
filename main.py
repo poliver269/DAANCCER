@@ -22,11 +22,13 @@ def main():
     run_params = config.get_run_params(args.run_params_json)
     filename_list, kwargs = config.get_files_and_kwargs(run_params)
 
-    if args.result_load_files is None:
+    if args.result_load_files is not None:
+        load(args.result_load_files, kwargs)
+    elif args.loading_directory is not None:
+        load_directory(args.loading_directory, kwargs)
+    else:
         model_params_list = config.get_model_params_list(args.alg_params_json)
         run(kwargs, model_params_list, filename_list)
-    else:
-        load(args.result_load_files, kwargs)
 
     print(f'Finishing time: {datetime.now()}')
 
@@ -140,14 +142,24 @@ def load(result_load_files: list, kwargs: dict):
     run_option = kwargs[PARAMS][RUN_OPTION]
     if run_option == LOAD_ANALYSE_RESULTS_DICT:
         load_results.load_analyse_results_dict(result_load_files, kwargs)
-    if run_option == LOAD_RE_OVER_COMPONENT_SPAN:
-        load_results.load_re_over_component_span(result_load_files, kwargs)
-    elif run_option == LOAD_LIST_OF_DICTS:
-        load_results.load_list_of_dicts(sub_dir=result_load_files[DUMMY_ZERO], params=kwargs[PARAMS])
     else:
         raise InvalidRunningOptionError(f'The loading files are set to: {result_load_files},\n'
                                         f'but the run_option: `{run_option}` in the (json) configuration '
                                         f'does not exists or it is not a loading option.\n'
+                                        f'Make sure, that the input arguments are '
+                                        f'set correctly in combination with the run_option.')
+
+
+def load_directory(directory_root: str, kwargs: dict):
+    run_option = kwargs[PARAMS][RUN_OPTION]
+    if run_option == LOAD_RE_OVER_COMPONENT_SPAN:
+        load_results.load_re_over_component_span(directory_root, kwargs)
+    elif run_option == LOAD_LIST_OF_DICTS:
+        load_results.load_list_of_dicts(sub_dir=directory_root, params=kwargs[PARAMS])
+    else:
+        raise InvalidRunningOptionError(f'The loading directory is set to: {directory_root},\n'
+                                        f'but the run_option: `{run_option}` in the (json) configuration '
+                                        f'does not exists or it is not a directory loading option.\n'
                                         f'Make sure, that the input arguments are '
                                         f'set correctly in combination with the run_option.')
 

@@ -25,4 +25,10 @@ class ArgParser(object):
             nargs='+',
             help='the list of path destinations of the results to load of the analyse'
         )
+        parser.add_argument(
+            '-d',
+            '--load-dir',
+            dest='loading_directory',
+            help='a directory root where the data should be loaded'
+        )
         return parser.parse_args()
