@@ -11,8 +11,8 @@
   "trajectory_name": "2f4k",
   "file_element": 0,
   "data_set": "sub_protein",
-  "subset_list": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+  "subset_list": [0, 1, 2],
   "time_window_size": 200,
   "part_count": 0,
-  "transform_on_whole": true
+  "transform_on_whole": false
 }

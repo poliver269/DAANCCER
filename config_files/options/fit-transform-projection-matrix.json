@@ -2,7 +2,7 @@
   "run_option": "multi_qualitative_compare_projection_matrix",
   "plot_type": "color_map",
   "carbon_atoms_only": true,
-  "interactive": false,
+  "interactive": true,
   "n_components": 2,
   "basis_transformation": false,
   "use_angles": false,

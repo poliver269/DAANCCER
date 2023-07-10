@@ -15,7 +15,7 @@ from tqdm import tqdm
 
 from config import get_data_class
 from plotter import ArrayPlotter, MultiTrajectoryPlotter, ModelResultPlotter
-from trajectory import ProteinTrajectory, SubProteinTrajectory, DataTrajectory
+from trajectory import ProteinTrajectory, DataTrajectory, SubTrajectoryDecorator
 from utils import statistical_zero, get_algorithm_name
 from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
 from utils.errors import InvalidReconstructionException, InvalidProteinTrajectory
@@ -23,6 +23,7 @@ from utils.matrix_tools import calculate_symmetrical_kernel_matrix, reconstruct_
 from utils.param_keys import *
 from utils.param_keys.analyses import COLOR_MAP, KERNEL_COMPARE
 from utils.param_keys.model_result import MODEL, PROJECTION, INPUT_PARAMS, TITLE_PREFIX, FITTED_ON
+from utils.param_keys.traj_dims import TIME_FRAMES
 
 
 class SingleTrajectoryAnalyser:
@@ -92,7 +93,7 @@ class SingleTrajectoryAnalyser:
             ).plot_2d(ndarray_data=model.explained_variance_)
 
     def compare_trajectory_subsets(self, model_params_list):
-        if isinstance(self.trajectory, SubProteinTrajectory):
+        if isinstance(self.trajectory, SubTrajectoryDecorator):
             results = []
             for model_params in model_params_list:
                 total_result = [self.trajectory.get_model_result(model_params)]
@@ -523,7 +524,7 @@ class MultiTrajectoryAnalyser:
         """
         model_dict_list = []
         for trajectory in self.trajectories:
-            if isinstance(trajectory, SubProteinTrajectory) and trajectory.part_count is None:
+            if isinstance(trajectory, SubTrajectoryDecorator) and trajectory.part_count is None:
                 model_dict_list = model_dict_list + trajectory.get_sub_results(model_params)
             model_dict_list.append(trajectory.get_model_result(model_params, log=False))
         return model_dict_list
@@ -543,43 +544,80 @@ class MultiTrajectoryAnalyser:
         """
         scores_on_component_span: list = []
         for component in tqdm(range(1, self.trajectories[DUMMY_ZERO].max_components + 1)):
-            trajectory_score_list: list = []
             try:
-                for traj_index, fitted_trajectory in enumerate(self.trajectories):
-                    model_dict = model_dict_list[traj_index]
-                    model = model_dict[MODEL]
-                    if fit_transform_re:
-                        if (isinstance(fitted_trajectory, SubProteinTrajectory) and
-                                self.params[TRANSFORM_ON_WHOLE]):
-                            fitted_trajectory.set_tmp_count(None)
-                        input_data = fitted_trajectory.data_input(model_dict[INPUT_PARAMS])
-                        matrix_projection = model_dict[PROJECTION]
-                        reconstruction_score = self._get_reconstruction_score(model, input_data, matrix_projection,
-                                                                              component)
-                        if (isinstance(fitted_trajectory, SubProteinTrajectory) and
-                                self.params[TRANSFORM_ON_WHOLE]):
-                            fitted_trajectory.reset_part_count()
-                    else:  # fit on one transform on all
-                        transform_score = []
-                        for transform_trajectory in self.trajectories:
-                            if (isinstance(transform_trajectory, SubProteinTrajectory) and
-                                    self.params[TRANSFORM_ON_WHOLE]):
-                                transform_trajectory.set_tmp_count(None)
-                            input_data = transform_trajectory.data_input(model_dict[INPUT_PARAMS])
-                            matrix_projection = model.transform(input_data)
-
-                            transform_score.append(
-                                self._get_reconstruction_score(model, input_data, matrix_projection, component))
-                            if (isinstance(transform_trajectory, SubProteinTrajectory) and
-                                    self.params[TRANSFORM_ON_WHOLE]):
-                                transform_trajectory.reset_part_count()
-                        reconstruction_score = np.median(transform_score)
-                    trajectory_score_list.append(reconstruction_score)
+                scores_on_component_span.append(
+                    self._models_re_for_component(component, fit_transform_re, model_dict_list))
             except InvalidReconstructionException as e:
                 warnings.warn(str(e))
                 break
-            scores_on_component_span.append(trajectory_score_list)
         return np.array(scores_on_component_span)
+
+    def _models_re_for_component(self, component: int, fit_transform_re: bool, model_dict_list: list) -> list:
+        all_models_reconstruction_scores: list = []
+        for traj_index, fitted_trajectory in enumerate(self.trajectories):
+            model_dict = model_dict_list[traj_index]
+            model = model_dict[MODEL]
+            if fit_transform_re:
+                model_reconstruction_score = self._reconstruction_score_ftoa(component, fitted_trajectory, model,
+                                                                             model_dict)
+            else:  # fit on one transform on all
+                model_reconstruction_score = self._reconstruction_score_footoa(component, model,
+                                                                               model_dict[INPUT_PARAMS])
+            all_models_reconstruction_scores.append(model_reconstruction_score)
+        return all_models_reconstruction_scores
+
+    def _reconstruction_score_ftoa(self, component: int, fitted_trajectory: DataTrajectory, model,
+                                   model_result_dict: dict):
+        """
+        Calculate the reconstruction score of a model, while using the
+        reconstruction of the same dataset after fit transforming it.
+        :param component:
+        :param fitted_trajectory:
+        :param model:
+            Model with parent class TransformerMixin, BaseEstimator of sklearn
+        :param model_result_dict:
+        :return:
+        """
+        if (self.params[TRANSFORM_ON_WHOLE] and
+                isinstance(fitted_trajectory, SubTrajectoryDecorator)):
+            with fitted_trajectory.use_full_input():
+                input_data = fitted_trajectory.data_input(model_result_dict[INPUT_PARAMS])
+        else:
+            input_data = fitted_trajectory.data_input(model_result_dict[INPUT_PARAMS])
+        matrix_ndim_projection = model_result_dict[PROJECTION]
+        return self._get_reconstruction_score(model, input_data, matrix_ndim_projection, component)
+
+    def _reconstruction_score_footoa(self, component: int, model, model_params: dict):
+        """
+        Calculate the reconstruction score of a model, while using the
+        Fit on one Transform (FooToa) approach.
+        In this approach the model is already fitted,
+        and the trajectories of the dataset are transformed on this model.
+        The calculation is for a specific number of component
+        :param component: int
+            number of principal components used
+        :param model: model
+            with parent class TransformerMixin, BaseEstimator of sklearn
+        :param model_params: dict
+            used to determine the data_input of the trajectories
+        :return: float
+            median of the reconstruction errors of the trajectories of a model
+        """
+        transform_score = []
+        for transform_trajectory in self.trajectories:
+            if (self.params[TRANSFORM_ON_WHOLE] and
+                    isinstance(transform_trajectory, SubTrajectoryDecorator)):
+                with transform_trajectory.use_full_input():
+                    input_data = transform_trajectory.data_input(model_params)
+            else:
+                input_data = transform_trajectory.data_input(model_params)
+
+            matrix_projection = model.transform(input_data)
+
+            transform_score.append(
+                self._get_reconstruction_score(model, input_data, matrix_projection, component))
+
+        return np.median(transform_score)
 
     def compare_kernel_fitting_scores(self, kernel_names, model_params, load_filename: [str, None] = None):
         if load_filename is None:
@@ -658,7 +696,39 @@ class MultiTrajectoryAnalyser:
             )
 
 
+class MultiSubTrajectoryAnalyser(MultiTrajectoryAnalyser):
+    def __init__(self, kwargs_list: list, params: dict):
+        super().__init__(kwargs_list, params)
+        self.trajectories: list[SubTrajectoryDecorator] = [get_data_class(params, kwargs) for kwargs in kwargs_list]
+
+    def compare_re_on_small_parts(self, model_params_list):
+        max_time_steps = self.trajectories[DUMMY_ZERO].dim[TIME_FRAMES]  # e.g. 10000
+        time_steps = np.geomspace(2, max_time_steps, num=10, dtype=int)
+        component_list = np.asarray([2, 5, 50])
+
+        model_median_scores = {}  # {'PCA': {'1': }, 'DAANCCER', 'TICA'}
+        for model_params in model_params_list:
+            print(f'Calculating reconstruction errors ({model_params})...')
+
+            for time_window_size in time_steps:  # TODO Hardcoded numbers
+                self.change_time_window_sizes(time_window_size)
+                model_dict_list = self._get_model_result_list(model_params)
+                model_description = get_algorithm_name(model_dict_list[DUMMY_ZERO][MODEL])
+                if model_description not in model_median_scores.keys():
+                    model_median_scores[model_description] = []
+
+                for component in component_list:
+                    models_re_for_component: list = self._models_re_for_component(component, fit_transform_re=False,
+                                                                                  model_dict_list=model_dict_list)
+                    model_median_scores[model_description].append(np.median(models_re_for_component))
+
+    def change_time_window_sizes(self, new_time_window_size):
+        self.trajectories = [trajectory.change_time_window_size(new_time_window_size) for trajectory in
+                             self.trajectories]
+
+
 class AnalyseResultsSaver:
+    # TODO: Refactor Saver und Loader in other file
     def __init__(self, trajectory_name, filename=''):
         self.current_result_path: Path = Path('analyse_results') / trajectory_name / datetime.now().strftime(
             "%Y-%m-%d_%H.%M.%S")
@@ -718,7 +788,7 @@ class AnalyseResultLoader:
         return self.load_npz_list(directory_name, filename_list)
 
     def load_npz_list(self, root_dir, filename_list):
-        loaded_list = []
+        loaded_dict = {}
         for filename in filename_list:
-            loaded_list.append(self.load_npz(Path(root_dir) / filename))
-        return loaded_list
+            loaded_dict[filename] = self.load_npz(Path(root_dir) / filename)
+        return loaded_dict

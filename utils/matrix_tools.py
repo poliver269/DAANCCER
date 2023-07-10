@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.linalg import LinAlgError
 from scipy.optimize import curve_fit
 from sklearn.model_selection import GridSearchCV, LeaveOneOut
 from sklearn.neighbors import KernelDensity
