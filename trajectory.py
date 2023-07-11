@@ -124,7 +124,7 @@ class DataTrajectory(TrajectoryFile):
         if model_parameters[ALGORITHM_NAME].startswith('original'):
             try:
                 if model_parameters[ALGORITHM_NAME] == 'original_pca':
-                    pca = PCA(n_components=self.params[N_COMPONENTS], svd_solver="full")
+                    pca = PCA(n_components=self.params[N_COMPONENTS])
                     return pca, pca.fit_transform(inp)
                 elif model_parameters[ALGORITHM_NAME] == 'original_pyemma_pca':
                     pca = PyemmaPCAInterface(dim=self.params[N_COMPONENTS])
@@ -415,7 +415,7 @@ class SubTrajectoryDecorator(DataTrajectory):
             super().__setattr__(name, value)
 
             # Update the parameter in the data_trajectory object
-            if hasattr(self, 'data_trajectory') and name in self.data_trajectory.__dict__ and name is not "params":
+            if hasattr(self, 'data_trajectory') and name in self.data_trajectory.__dict__ and name != "params":
                 setattr(self.data_trajectory, name, value)
 
     @property

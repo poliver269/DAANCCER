@@ -34,7 +34,8 @@ class SingleTrajectoryAnalyser:
             PLOT_TICS: params.get(PLOT_TICS, True),
             INTERACTIVE: params.get(INTERACTIVE, True),
             N_COMPONENTS: params.get(N_COMPONENTS, 2),
-            PLOT_FOR_PAPER: params.get(PLOT_FOR_PAPER, False)
+            PLOT_FOR_PAPER: params.get(PLOT_FOR_PAPER, False),
+            ENABLE_SAVE: params.get(ENABLE_SAVE, False)
         }
 
     def compare(self, model_parameter_list: list[dict], plot_results: bool = True) -> list[dict]:
@@ -69,7 +70,10 @@ class SingleTrajectoryAnalyser:
         @param model_results_list: list[dict]
             Different model input parameters, saved in a list.
         """
-        ModelResultPlotter().plot_models(
+        ModelResultPlotter(
+            interactive=self.params[INTERACTIVE],
+            for_paper=self.params[PLOT_FOR_PAPER]
+        ).plot_models(
             model_results_list,
             plot_type=self.params[PLOT_TYPE],
             plot_tics=self.params[PLOT_TICS],
@@ -116,8 +120,11 @@ class SingleTrajectoryAnalyser:
         cv = [(slice(None), slice(None))]  # get rid of cross validation
         grid = GridSearchCV(model, param_grid, cv=cv, verbose=1)
         grid.fit(inp, n_components=self.trajectory.params[N_COMPONENTS])
-        AnalyseResultsSaver(trajectory_name=self.trajectory.params[TRAJECTORY_NAME],
-                            filename=f'grid_search_{self.trajectory.filename[:-4]}').save_to_csv(grid.cv_results_)
+        AnalyseResultsSaver(
+            trajectory_name=self.trajectory.params[TRAJECTORY_NAME],
+            filename=f'grid_search_{self.trajectory.filename[:-4]}',
+            enable_save=self.params[ENABLE_SAVE]
+        ).save_to_csv(grid.cv_results_)
 
 
 class SingleProteinTrajectoryAnalyser(SingleTrajectoryAnalyser):
@@ -158,7 +165,8 @@ class MultiTrajectoryAnalyser:
             PLOT_TICS: params.get(PLOT_TICS, True),
             INTERACTIVE: params.get(INTERACTIVE, True),
             PLOT_FOR_PAPER: params.get(PLOT_FOR_PAPER, False),
-            TRANSFORM_ON_WHOLE: params.get(TRANSFORM_ON_WHOLE, False)
+            TRANSFORM_ON_WHOLE: params.get(TRANSFORM_ON_WHOLE, False),
+            ENABLE_SAVE: params.get(ENABLE_SAVE, False)
         }
 
     def compare_pcs(self, model_params_list: list[dict]):
@@ -327,7 +335,7 @@ class MultiTrajectoryAnalyser:
                             for_paper=self.params[PLOT_FOR_PAPER]
                         ).matrix_plot(tria)
         if merged_plot:
-            AnalyseResultsSaver(self.params[TRAJECTORY_NAME]).save_to_npz(
+            AnalyseResultsSaver(self.params[TRAJECTORY_NAME], enable_save=self.params[ENABLE_SAVE]).save_to_npz(
                 model_similarities, 'eigenvector_similarities')
             ArrayPlotter(
                 interactive=self.params[INTERACTIVE],
@@ -372,7 +380,8 @@ class MultiTrajectoryAnalyser:
         grid.fit(inp, n_components=self.params[N_COMPONENTS])
         AnalyseResultsSaver(
             trajectory_name=self.params[TRAJECTORY_NAME],
-            filename='grid_search_all'
+            filename='grid_search_all',
+            enable_save=self.params[ENABLE_SAVE]
         ).save_to_csv(grid.cv_results_, header=['params', 'mean_test_score', 'std_test_score', 'rank_test_score'])
 
     def compare_reconstruction_scores(self, model_params_list: list, fit_transform_re: bool = True):
@@ -487,7 +496,10 @@ class MultiTrajectoryAnalyser:
             to models fitted on a different trajectory.
         @return:
         """
-        saver = AnalyseResultsSaver(trajectory_name=self.params[TRAJECTORY_NAME])
+        saver = AnalyseResultsSaver(
+            trajectory_name=self.params[TRAJECTORY_NAME],
+            enable_save=self.params[ENABLE_SAVE]
+        )
 
         model_median_scores = {}
         model_mean_scores = {}
@@ -643,7 +655,11 @@ class MultiTrajectoryAnalyser:
                     matrix, statistical_zero, kernel_name,
                     analyse_mode=KERNEL_COMPARE)
                 kernel_accuracies[kernel_name].append(variance)
-        AnalyseResultsSaver(self.params[TRAJECTORY_NAME], filename='compare_rmse_kernel').save_to_npz(kernel_accuracies)
+        AnalyseResultsSaver(
+            self.params[TRAJECTORY_NAME],
+            filename='compare_rmse_kernel',
+            enable_save=self.params[ENABLE_SAVE]
+        ).save_to_npz(kernel_accuracies)
         return kernel_accuracies
 
     def compare_results_on_same_fitting(self, model_params, traj_index, plot=True):
@@ -667,7 +683,7 @@ class MultiTrajectoryAnalyser:
                 params=self.params
             ).compare_with_plot(model_results_list)
 
-        saver = AnalyseResultsSaver(self.params[TRAJECTORY_NAME])
+        saver = AnalyseResultsSaver(self.params[TRAJECTORY_NAME], enable_save=self.params[ENABLE_SAVE])
         for result_index, model_result in enumerate(model_results_list):
             saver.save_to_npz(
                 model_result,
@@ -727,18 +743,27 @@ class MultiSubTrajectoryAnalyser(MultiTrajectoryAnalyser):
                              self.trajectories]
 
 
+def execute_if_save_enabled(func):
+    def wrapper(self, *args, **kwargs):
+        if self.enable_save:
+            return func(self, *args, **kwargs)
+    return wrapper
+
+
 class AnalyseResultsSaver:
     # TODO: Refactor Saver und Loader in other file
-    def __init__(self, trajectory_name, filename=''):
+    def __init__(self, trajectory_name, filename='', enable_save=True):
         self.current_result_path: Path = Path('analyse_results') / trajectory_name / datetime.now().strftime(
             "%Y-%m-%d_%H.%M.%S")
-        if not self.current_result_path.exists():
+        if enable_save and not self.current_result_path.exists():
             os.makedirs(self.current_result_path)
         self.filename = filename
+        self.enable_save = enable_save
 
     def goal_filename(self, extension):
         return self.current_result_path / (self.filename + extension)
 
+    @execute_if_save_enabled
     def save_to_csv(self, result, header=None):
         if header is None:
             result_df = pd.DataFrame(result)
@@ -748,11 +773,13 @@ class AnalyseResultsSaver:
         result_df.to_csv(goal_path)
         print(f'Results successfully saved into: {goal_path}')
 
+    @execute_if_save_enabled
     def save_to_npy(self, array: np.ndarray, new_filename=None):
         if new_filename is not None:
             self.filename = new_filename
         np.save(self.goal_filename('.npy'), array)
 
+    @execute_if_save_enabled
     def save_to_npz(self, dictionary: dict, new_filename=None):
         if new_filename is not None:
             self.filename = new_filename

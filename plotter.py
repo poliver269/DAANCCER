@@ -40,6 +40,8 @@ class MyPlotter:
     def _post_processing(self):
         if not self.for_paper:
             self._set_figure_title()
+        else:
+            plt.tight_layout(rect=[0.03, 0.03, 1, 0.95])
         plt.show()
 
 
@@ -226,7 +228,7 @@ class ModelResultPlotter(MyPlotter):
                 color_array = np.arange(result_dict[PROJECTION].shape[0])
             else:
                 shape = result_dict[PROJECTION].shape[0]
-                color_array = np.arange((sub_part-1)*shape, sub_part*shape)
+                color_array = np.arange((sub_part - 1) * shape, sub_part * shape)
 
             if not show_model_properties and sub_part is not None:  # else part of show_model_properties
                 if ax.get_subplotspec().is_first_col():
@@ -234,12 +236,19 @@ class ModelResultPlotter(MyPlotter):
                 if ax.get_subplotspec().is_first_row():
                     ax.set_title(f'Steps {color_array[0]}-{color_array[-1]}')
 
+            row_start = ax.get_subplotspec().rowspan.start
+            col_start = ax.get_subplotspec().colspan.start
+            conditions = {(0, 2), (4, 0), (4, 1), (4, 2)}
+
+            if (row_start, col_start) in conditions:
+                # result_dict[PROJECTION] = -result_dict[PROJECTION]
+                print('flipped')
             c_map = plt.cm.viridis
             im = ax.scatter(result_dict[PROJECTION][:, 0], result_dict[PROJECTION][:, 1], c=color_array,
                             cmap=c_map, marker='.', alpha=0.1)
             if not self.for_paper and ((ax.get_subplotspec().is_last_col() and sub_part is None) or
                                        (ax.get_subplotspec().is_first_col() and sub_part is not None)):
-                self.fig.colorbar(im, ax=ax)
+                self.fig.colorbar(im, ax=ax, alpha=10.0)
         else:
             ax.scatter(result_dict[PROJECTION][:, 0], result_dict[PROJECTION][:, 1], marker='.')
 
@@ -315,7 +324,7 @@ class ModelResultPlotter(MyPlotter):
     def plot_multi_projections(self, model_result_list_in_list, plot_type, center_plot=True, sub_parts=False,
                                show_model_properties=True):
         self.fig, self.axes = plt.subplots(len(model_result_list_in_list), len(model_result_list_in_list[DUMMY_ZERO]),
-                                           sharex='all', sharey='all')
+                                           figsize=(1920 / 100, 1080 / 100), dpi=100, sharex='all', sharey='all')
         for row_index, model_results in enumerate(model_result_list_in_list):
             if len(model_results) == 1:
                 self._plot_transformed_trajectory(self.axes[row_index], model_results[DUMMY_ZERO], color_map=plot_type,
