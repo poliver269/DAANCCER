@@ -158,11 +158,7 @@ class WeatherTrajectory(DataTrajectory):
         try:
             print(f"Loading trajectory {self.filename}...")
             self.weather_df = pd.read_csv(self.filepath)
-            self.params.update({SEL_COL: params.get(SEL_COL, None)})
             self.params.update({REDUCEE_FEATURE: params.get(REDUCEE_FEATURE, None)})
-
-            if self.params[SEL_COL] is not None:
-                self.weather_df = self.weather_df[self.params[SEL_COL]]
 
             if self.params[REDUCEE_FEATURE] is not None:
                 feature_name = self.params[REDUCEE_FEATURE]
@@ -181,30 +177,28 @@ class WeatherTrajectory(DataTrajectory):
             raise FileNotFoundError(f"Cannot load {self.filepath}.")
 
         self._check_init_params()
-        self.feat_traj = self._init_preprocessing(self.params[REDUCEE_FEATURE])
+        self._init_preprocessing(self.params[REDUCEE_FEATURE])
 
     def _init_preprocessing(self, feature=2):
         def get_feature( list_as_text):
             result = eval(list_as_text)
             return result[feature]
 
-        feat_traj = np.array(list(map(np.stack, self.weather_df.applymap(get_feature).to_numpy())))
-        feat_traj = (feat_traj - np.mean(feat_traj, axis=1)[:, np.newaxis]) / np.std(feat_traj, axis=0)
-        return feat_traj
+        self.weather_df = self.weather_df.applymap(get_feature)
+        self.weather_df = self.weather_df.loc[:, (round(self.weather_df) != 0).any()]
+
+        self.feat_traj = np.array(list(map(np.stack, self.weather_df.to_numpy())))
+        self.feat_traj = (self.feat_traj - np.mean(self.feat_traj, axis=1)[:, np.newaxis]) / np.std(self.feat_traj, axis=0)
 
     @property
     def max_components(self) -> int:
-        # TODO@Andrea: Implement the correct dimension hours, bzw. the selected columns length if its given
-        if self.params[SEL_COL] is not None:
-            return len(self.params[SEL_COL])
-        else:
-            return 24
+        return len(self.weather_df.columns)
 
     def data_input(self, model_parameters: dict = None) -> np.ndarray:
         def flattened_coordinates(day):
             return list(itertools.chain.from_iterable(day))
 
-        df = self.weather_df.applymap(eval)
+        df = self.weather_df
         ft_traj = self.feat_traj
 
         try:
