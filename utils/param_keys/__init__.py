@@ -20,6 +20,7 @@ BASIS_TRANSFORMATION = 'basis_transformation'
 CARBON_ATOMS_ONLY = 'carbon_atoms_only'
 RANDOM_SEED = 'random_seed'
 USE_ANGLES = 'use_angles'
+SUPERPOSING_INDEX = 'superposing_index'
 MAIN_MODEL_PARAMS = 'main_model_params'
 SEL_COL = 'selected_columns'
 # Subset Trajectory params

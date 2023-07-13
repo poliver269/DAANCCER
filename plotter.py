@@ -41,7 +41,7 @@ class MyPlotter:
         if not self.for_paper:
             self._set_figure_title()
         else:
-            plt.tight_layout(rect=[0.03, 0.03, 1, 0.95])
+            plt.tight_layout(rect=[0, 0, 1, 1])
         plt.show()
 
 
@@ -236,19 +236,56 @@ class ModelResultPlotter(MyPlotter):
                 if ax.get_subplotspec().is_first_row():
                     ax.set_title(f'Steps {color_array[0]}-{color_array[-1]}')
 
-            row_start = ax.get_subplotspec().rowspan.start
-            col_start = ax.get_subplotspec().colspan.start
-            conditions = {(0, 2), (4, 0), (4, 1), (4, 2)}
+            row_index = ax.get_subplotspec().rowspan.start
+            col_index = ax.get_subplotspec().colspan.start
+            model_description = get_algorithm_name(result_dict[MODEL])
 
-            if (row_start, col_start) in conditions:
-                # result_dict[PROJECTION] = -result_dict[PROJECTION]
-                print('flipped')
+            # TODO: dont use hardcoded flipping
+            # flip_x_axis_pca = {(2, 4), (4, 0), (4, 1), (4, 2), (4, 3), (4, 4)}  # PDB-Superposing PCA
+            flip_x_axis_pca = {(0, 2), (0, 3), (2, 3), (2, 0), (3, 0), (4, 0), (1, 4), (2, 4)}  # Random-Superposing PCA
+            flip_x_axis = [(x[0], x[1], 'PCA') for x in flip_x_axis_pca]
+            # flip_x_axis_daanccer = {(2, 0), (3, 0), (4, 0), (3, 4), (1, 1),
+            #                         (1, 2), (1, 3), (2, 4), (4, 4)}  # PDB_Superposing DAANCCER
+            flip_x_axis_daanccer = {(0, 1), (0, 3), (0, 4), (1, 0), (2, 0),
+                                    (2, 1), (2, 3), (3, 2), (3, 4), (4, 2), (4, 4)}  # PDB_Superposing DAANCCER
+            # flip_x_axis_daanccer = {}
+            flip_x_axis += [(x[0], x[1], 'DAANCCER') for x in flip_x_axis_daanccer]
+
+            # flip_y_axis_pca = {(4, 0), (4, 1), (4, 2), (4, 3), (4, 4)}  # PDB-Superposing PCA
+            flip_y_axis_pca = {(1, 4), (3, 4)}  # Random-Superposing PCA
+            flip_y_axis = [(x[0], x[1], 'PCA') for x in flip_y_axis_pca]
+            # flip_y_axis_daanccer = {(1, 2), (4, 2), (2, 4), (3, 4)}  # PDB-Superposing DAANCCER
+            flip_y_axis_daanccer = {(0, 4), (1, 1), (1, 2), (2, 0), (3, 0), (4, 0)}  # Random-Superposing DAANCCER
+            flip_y_axis += [(x[0], x[1], 'DAANCCER') for x in flip_y_axis_daanccer]
+
+            flip_components_pca = {}
+            flip_components = [(x[0], x[1], 'PCA') for x in flip_components_pca]
+            flip_components_daanccer = {}
+            flip_components += [(x[0], x[1], 'DAANCCER') for x in flip_components_daanccer]
+
+            if (row_index, col_index, model_description) in flip_x_axis:
+                result_dict[PROJECTION][:, 0] = -result_dict[PROJECTION][:, 0]
+                print(f'flipped x-axis {(row_index, col_index, model_description)}')
+
+            if (row_index, col_index, model_description) in flip_y_axis:
+                result_dict[PROJECTION][:, 1] = -result_dict[PROJECTION][:, 1]
+                print(f'flipped y-axis {(row_index, col_index, model_description)}')
+
+            if (row_index, col_index, model_description) in flip_components:
+                result_dict[PROJECTION] = result_dict[PROJECTION][:, ::-1]
             c_map = plt.cm.viridis
             im = ax.scatter(result_dict[PROJECTION][:, 0], result_dict[PROJECTION][:, 1], c=color_array,
                             cmap=c_map, marker='.', alpha=0.1)
             if not self.for_paper and ((ax.get_subplotspec().is_last_col() and sub_part is None) or
                                        (ax.get_subplotspec().is_first_col() and sub_part is not None)):
                 self.fig.colorbar(im, ax=ax, alpha=10.0)
+            elif self.for_paper:
+                if get_algorithm_name(result_dict[MODEL]) == 'PCA':
+                    ax.set_xlim((-15, 15))
+                    ax.set_ylim((-15, 15))
+                elif get_algorithm_name(result_dict[MODEL]) == 'DAANCCER':
+                    ax.set_xlim(-5, 5)
+                    ax.set_ylim(-5, 5)
         else:
             ax.scatter(result_dict[PROJECTION][:, 0], result_dict[PROJECTION][:, 1], marker='.')
 
@@ -324,7 +361,7 @@ class ModelResultPlotter(MyPlotter):
     def plot_multi_projections(self, model_result_list_in_list, plot_type, center_plot=True, sub_parts=False,
                                show_model_properties=True):
         self.fig, self.axes = plt.subplots(len(model_result_list_in_list), len(model_result_list_in_list[DUMMY_ZERO]),
-                                           figsize=(1920 / 100, 1080 / 100), dpi=100, sharex='all', sharey='all')
+                                           figsize=(1080 / 100, 1080 / 100), dpi=100, sharex='all', sharey='all')
         for row_index, model_results in enumerate(model_result_list_in_list):
             if len(model_results) == 1:
                 self._plot_transformed_trajectory(self.axes[row_index], model_results[DUMMY_ZERO], color_map=plot_type,

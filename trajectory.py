@@ -245,7 +245,8 @@ class ProteinTrajectory(DataTrajectory):
             CARBON_ATOMS_ONLY: params.get(CARBON_ATOMS_ONLY, True),
             BASIS_TRANSFORMATION: params.get(BASIS_TRANSFORMATION, False),
             RANDOM_SEED: params.get(RANDOM_SEED, 42),
-            USE_ANGLES: params.get(USE_ANGLES, False)
+            USE_ANGLES: params.get(USE_ANGLES, False),
+            SUPERPOSING_INDEX: params.get(SUPERPOSING_INDEX, -1)
         })
 
         self._check_init_params()
@@ -262,9 +263,17 @@ class ProteinTrajectory(DataTrajectory):
                                 Z: self.z_coordinates.max()}
 
     def _init_preprocessing(self):
-        self.traj: Trajectory = self.traj.superpose(
-            self.traj, frame=random.randint(0, self.dim[TIME_FRAMES])).center_coordinates(mass_weighted=True)
-        # self.traj: Trajectory = self.traj.superpose(self.reference_pdb).center_coordinates(mass_weighted=True)
+        if self.params[SUPERPOSING_INDEX] is not None:
+            if self.params[SUPERPOSING_INDEX] < 0:
+                # random.seed(self.params[RANDOM_SEED])
+                superposing_frame = random.randint(0, self.dim[TIME_FRAMES])
+                print(f'Random frame: {superposing_frame}')
+            else:
+                superposing_frame = self.params[SUPERPOSING_INDEX]
+            self.traj = self.traj.superpose(
+                self.traj, frame=superposing_frame).center_coordinates(mass_weighted=True)
+        else:
+            self.traj = self.traj.superpose(self.reference_pdb).center_coordinates(mass_weighted=True)
         self.traj.xyz = (self.traj.xyz - np.mean(self.traj.xyz, axis=0)[np.newaxis, :, :]) / np.std(self.traj.xyz,
                                                                                                     axis=0)
 

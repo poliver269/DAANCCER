@@ -719,7 +719,7 @@ class MultiSubTrajectoryAnalyser(MultiTrajectoryAnalyser):
 
     def compare_re_on_small_parts(self, model_params_list):
         max_time_steps = self.trajectories[DUMMY_ZERO].dim[TIME_FRAMES]  # e.g. 10000
-        time_steps = np.geomspace(2, max_time_steps, num=10, dtype=int)
+        time_steps = np.geomspace(self.trajectories[DUMMY_ZERO].max_components, max_time_steps, num=10, dtype=int)
         component_list = np.asarray([2, 5, 50])
 
         model_median_scores = {}  # {'PCA': {'1': }, 'DAANCCER', 'TICA'}
