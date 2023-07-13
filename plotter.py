@@ -216,7 +216,7 @@ class ModelResultPlotter(MyPlotter):
                          fontsize=8, wrap=True)
             ax.set_xlabel('1st component')
             ax.set_ylabel('2nd component')
-            self._print_model_properties(result_dict)
+            # self._print_model_properties(result_dict)
         elif sub_part is None:
             if ax.get_subplotspec().is_first_col():
                 ax.set_ylabel(result_dict.get(FITTED_ON, 'Not Found'))
@@ -341,7 +341,7 @@ class ModelResultPlotter(MyPlotter):
         free_energies = -np.log(z, dtype='float')
         np.seterr(divide='warn')
         ax.contourf(free_energies.T, bins, cmap=plt.cm.hot, extent=[x[0], x[-1], y[0], y[-1]])
-        self._print_model_properties(result_dict)
+        # self._print_model_properties(result_dict)
 
     @staticmethod
     def _print_model_properties(projection_dict):
