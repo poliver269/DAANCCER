@@ -28,6 +28,7 @@ class DAANCCER(TensorDR):
                  corr_kernel=False,  # only for tica: True, False
                  kernel_type=MY_GAUSSIAN,
                  ones_on_kernel_diag=False,
+                 use_original_data_for_kernel=False,
                  cov_function=np.cov,  # np.cov, np.corrcoef, co_mad
                  lag_time=0,
                  nth_eigenvector=1,
@@ -37,13 +38,15 @@ class DAANCCER(TensorDR):
                  use_std=True,
                  center_over_time=True
                  ):
-        super().__init__(cov_stat_func, kernel_stat_func)
+        super().__init__(cov_stat_func)
 
         self.algorithm_name = algorithm_name
         self.ndim = ndim
 
         self.kernel = kernel
         self.kernel_type = kernel_type
+        self.kernel_stat_func = kernel_stat_func
+        self.use_original_data_for_kernel = use_original_data_for_kernel
         self.corr_kernel = corr_kernel
         self.ones_on_kernel_diag = ones_on_kernel_diag
 
@@ -70,6 +73,9 @@ class DAANCCER(TensorDR):
         if self._is_time_lagged_algorithm() and self.lag_time == 0:
             warnings.warn(f'The `{ALGORITHM_NAME}` is set to a time-lagged approach: {self.algorithm_name}, '
                           f'but the `{LAG_TIME}` is not set is equal to: {self.lag_time}')
+
+        if isinstance(self.kernel_stat_func, str):
+            self.kernel_stat_func = eval(self.kernel_stat_func)
 
     def __str__(self):
         sb = 'DAANCCER('
@@ -243,8 +249,13 @@ class DAANCCER(TensorDR):
 
     def _map_kernel(self, matrix):
         kernel_matrix = calculate_symmetrical_kernel_matrix(
-            matrix, self.kernel_stat_func, self.kernel_type,
-            analyse_mode=self.analyse_plot_type, flattened=self._is_matrix_model)
+            matrix,
+            stat_func=self.kernel_stat_func,
+            kernel_name=self.kernel_type,
+            analyse_mode=self.analyse_plot_type,
+            flattened=self._is_matrix_model,
+            use_original_data=self.use_original_data_for_kernel
+        )
         if self.kernel == KERNEL_ONLY:
             matrix = kernel_matrix
         elif self.kernel == KERNEL_DIFFERENCE:

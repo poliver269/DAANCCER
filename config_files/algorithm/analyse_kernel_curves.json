@@ -9,8 +9,16 @@
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "kernel_type": "sinc",
+    "kernel_type": "my_sinc_sum",
     "kernel": "only",
-    "analyse_plot_type": "fitted_kernel_curves"
+    "analyse_plot_type": "fitted_kernel_curves",
+    "use_original_data_for_kernel": true
+  },{
+    "algorithm_name": "pca",
+    "ndim": 3,
+    "kernel_type": "my_sinc",
+    "kernel": "only",
+    "analyse_plot_type": "fitted_kernel_curves",
+    "use_original_data_for_kernel": false
   }
 ]

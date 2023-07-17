@@ -490,7 +490,7 @@ class ArrayPlotter(MyPlotter):
             Some statistical numpy function
         :return:
         """
-        self.fig, self.axes = plt.subplots(1, 1, dpi=80)
+        self.fig, self.axes = plt.subplots(1, 1, figsize=(1080 / 100, 1080 / 100), dpi=100)
         self.axes.plot(x_index, gauss_fitted, '-', label=f'fit {fit_method}', linewidth=3.0)
         # self.axes.plot(x_index, gauss_fitted, ' ')
         self.axes.plot(x_index, ydata, '.', label='original data')
@@ -507,8 +507,8 @@ class ArrayPlotter(MyPlotter):
             self._activate_legend = True
         self.axes.plot(x_index, statistical_value, '-', label=function_label)
         # self.axes.plot(x_index, statistical_value, ' ')
-        # self.axes.plot(x_index, new_ydata, '.', label='re-scaled data')
-        self.axes.plot(x_index, new_ydata, ' ')
+        self.axes.plot(x_index, new_ydata, '+', label='re-scaled data')
+        # self.axes.plot(x_index, new_ydata, ' ')
         self._post_processing()
 
     def plot_2d(self, ndarray_data, statistical_func=None):

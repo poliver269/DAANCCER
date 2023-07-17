@@ -60,6 +60,8 @@ def run(kwargs: dict, model_params_list: list, filename_list: list):
         if params[N_COMPONENTS] != 2:
             raise ValueError(f'The parameter `{N_COMPONENTS}` has to be 2, but it\'s {params[N_COMPONENTS]}.')
         SingleTrajectoryAnalyser(data_class, params).compare(model_params_list)
+    elif run_option == 'plot_kernels':
+        SingleTrajectoryAnalyser(data_class, params).compare(model_params_list, plot_results=False)
     elif run_option == COMPARE_WITH_CA_ATOMS:
         SingleProteinTrajectoryAnalyser(data_class, params).compare_with_carbon_alpha_and_all_atoms(model_params_list)
     elif run_option == BASE_TRANSFORMATION:
@@ -109,11 +111,14 @@ def run_multi_analyse(filename_list, model_params_list, kwargs):
     elif run_option == MULTI_MEDIAN_RE_FIT_ON_ONE_TRANSFORM_ON_ALL:
         mtr = MultiTrajectoryAnalyser(kwargs_list, kwargs[PARAMS])
         mtr.compare_median_reconstruction_scores(model_params_list, fit_transform_re=False)
-    elif run_option == MULTI_KERNEL_COMPARE:
+    elif run_option == MULTI_KERNEL_COMPARE + '_on_same_model':
         kernel_names = [MY_GAUSSIAN, MY_EXPONENTIAL, MY_EPANECHNIKOV]
         model_params = {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, ANALYSE_PLOT_TYPE: KERNEL_COMPARE}
         mtr = MultiTrajectoryAnalyser(kwargs_list, kwargs[PARAMS])
-        mtr.compare_kernel_fitting_scores(kernel_names, model_params)
+        mtr.compare_kernel_fitting_scores_on_same_model(kernel_names, model_params)
+    elif run_option == MULTI_KERNEL_COMPARE:
+        mtr = MultiTrajectoryAnalyser(kwargs_list, kwargs[PARAMS])
+        mtr.compare_kernel_fitting_scores(model_params_list)
     elif run_option == MULTI_RE_FIT_TRANSFORMED:
         mtr = MultiTrajectoryAnalyser(kwargs_list, kwargs[PARAMS])
         mtr.compare_reconstruction_scores(model_params_list)

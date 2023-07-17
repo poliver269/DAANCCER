@@ -9,11 +9,12 @@ from scipy.spatial.transform import Rotation
 from plotter import ArrayPlotter
 from utils import function_name
 from utils.array_tools import rescale_array, rescale_center
-from utils.math import is_matrix_symmetric, exponential_2d, epanechnikov_2d, gaussian_2d, is_matrix_orthogonal, my_sinc
+from utils.math import is_matrix_symmetric, exponential_2d, epanechnikov_2d, gaussian_2d, is_matrix_orthogonal, my_sinc, \
+    my_sinc_sum
 from utils.param_keys.analyses import PLOT_3D_MAP, WEIGHTED_DIAGONAL, FITTED_KERNEL_CURVES, KERNEL_COMPARE, \
     PLOT_KERNEL_MATRIX_3D
 from utils.param_keys.kernel_functions import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL, MY_LINEAR, \
-    MY_LINEAR_INVERSE_P1, MY_LINEAR_NORM, MY_LINEAR_INVERSE_NORM, MY_SINC
+    MY_LINEAR_INVERSE_P1, MY_LINEAR_NORM, MY_LINEAR_INVERSE_NORM, MY_SINC, MY_SINC_SUM
 
 
 def diagonal_indices(matrix: np.ndarray):
@@ -123,14 +124,14 @@ def calculate_symmetrical_kernel_matrix(
         kernel_name: str = 'gaussian',
         analyse_mode: str = None,
         flattened: bool = False,
-        use_original_data: bool = True) -> np.ndarray:
+        use_original_data: bool = False) -> np.ndarray:
     """
     Creates a symmetrical kernel matrix out of a symmetrical matrix.
     :param matrix: ndarray (symmetrical)
     :param stat_func: Numpy statistical function: np.median (default), np.mean, np.min, ... (See link below)
         https://www.tutorialspoint.com/numpy/numpy_statistical_functions.htm
     :param kernel_name: str
-        (my_)gaussian, (my_)exponential, (my_)epanechnikov, (my_)linear
+        (my_)gaussian, (my_)exponential, (my_)epanechnikov, (my_)linear, my_sinc(_sum)
     :param analyse_mode: str
         If the name of the trajectory is given than a plot of the gauss curve will be plotted with the given
     :param flattened: bool
@@ -181,7 +182,7 @@ def calculate_symmetrical_kernel_matrix(
         elif analyse_mode == FITTED_KERNEL_CURVES:
             ArrayPlotter(
                 interactive=False,
-                title_prefix=f'Trajectory: {analyse_mode}, on diagonal of cov',
+                title_prefix=f'Kernel Curves: {kernel_name}, use_original_data={use_original_data}',
                 x_label='Off-Diagonal Index',
                 y_label='Correlation Value',
                 for_paper=False
@@ -209,7 +210,7 @@ def _get_rescaled_array(original_ydata, stat_func, flattened):
 # noinspection PyTupleAssignmentBalance
 def _get_curve_fitted_y(matrix, kernel_name, xdata, rescaled_ydata):
     kernel_funcs = {MY_EXPONENTIAL: exponential_2d, MY_EPANECHNIKOV: epanechnikov_2d, MY_GAUSSIAN: gaussian_2d,
-                    MY_SINC: my_sinc}
+                    MY_SINC: my_sinc, MY_SINC_SUM: my_sinc_sum}
 
     if kernel_name in kernel_funcs.keys():
         if kernel_name == MY_EPANECHNIKOV:
@@ -226,7 +227,10 @@ def _get_curve_fitted_y(matrix, kernel_name, xdata, rescaled_ydata):
             fit_y[non_zero_i:-non_zero_i] = center_fit_y
             return fit_y
         else:
-            fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata, rescaled_ydata)
+            try:
+                fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata, rescaled_ydata)
+            except RuntimeError:
+                fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata, rescaled_ydata, maxfev=5000)
             return kernel_funcs[kernel_name](xdata, *fit_parameters)
     elif kernel_name.startswith('my_linear'):
         if kernel_name == MY_LINEAR_NORM:

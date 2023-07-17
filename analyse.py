@@ -22,6 +22,7 @@ from utils.errors import InvalidReconstructionException, InvalidProteinTrajector
 from utils.matrix_tools import calculate_symmetrical_kernel_matrix, reconstruct_matrix
 from utils.param_keys import *
 from utils.param_keys.analyses import COLOR_MAP, KERNEL_COMPARE
+from utils.param_keys.model import KERNEL_TYPE, USE_ORIGINAL_DATA
 from utils.param_keys.model_result import MODEL, PROJECTION, INPUT_PARAMS, TITLE_PREFIX, FITTED_ON
 from utils.param_keys.traj_dims import TIME_FRAMES
 
@@ -631,9 +632,10 @@ class MultiTrajectoryAnalyser:
 
         return np.median(transform_score)
 
-    def compare_kernel_fitting_scores(self, kernel_names, model_params, load_filename: [str, None] = None):
+    def compare_kernel_fitting_scores_on_same_model(self, kernel_names, model_params,
+                                                    load_filename: [str, None] = None):
         if load_filename is None:
-            kernel_accuracies = self._calculate_kernel_accuracies(kernel_names, model_params)
+            kernel_accuracies = self._calculate_kernel_accuracies_same_model(kernel_names, model_params)
         else:
             kernel_accuracies = AnalyseResultLoader(self.params[TRAJECTORY_NAME]).load_npz(load_filename)
         ArrayPlotter(
@@ -645,7 +647,42 @@ class MultiTrajectoryAnalyser:
             for_paper=self.params[PLOT_FOR_PAPER]
         ).plot_merged_2ds(kernel_accuracies, statistical_func=np.median)
 
-    def _calculate_kernel_accuracies(self, kernel_names, model_params):
+    def compare_kernel_fitting_scores(self, model_params_list):
+        kernel_accuracies = self._calculate_kernel_accuracies(model_params_list)
+        ArrayPlotter(
+            interactive=self.params[INTERACTIVE],
+            title_prefix=f'Compare Kernels ',
+            x_label='Trajectory Number',
+            y_label='RMSE of the fitting kernel',
+            y_range=(0, 0.2),
+            for_paper=self.params[PLOT_FOR_PAPER]
+        ).plot_merged_2ds(kernel_accuracies, statistical_func=np.median)
+
+    def _calculate_kernel_accuracies(self, model_params_list: list[dict]):
+        kernel_accuracies = {}
+
+        for model_params in model_params_list:
+
+            kernel_description = f'{model_params[KERNEL_TYPE]}'
+            if USE_ORIGINAL_DATA in model_params.keys():
+                if model_params[USE_ORIGINAL_DATA]:
+                    kernel_description += "use original data"
+                else:
+                    kernel_description += "with rescaled data"
+
+            if kernel_description not in kernel_accuracies.keys():
+                kernel_accuracies[kernel_description] = []
+
+            for trajectory in self.trajectories:
+                model, _ = trajectory.get_model_and_projection(model_params)
+                matrix = model.get_combined_covariance_matrix()
+                variance = calculate_symmetrical_kernel_matrix(
+                    matrix, statistical_zero, model_params[KERNEL_TYPE],
+                    analyse_mode=KERNEL_COMPARE)
+                kernel_accuracies[kernel_description].append(variance)
+        return kernel_accuracies
+
+    def _calculate_kernel_accuracies_same_model(self, kernel_names, model_params):
         kernel_accuracies = {kernel_name: [] for kernel_name in kernel_names}
         for trajectory in self.trajectories:
             model, _ = trajectory.get_model_and_projection(model_params)
@@ -743,10 +780,11 @@ class MultiSubTrajectoryAnalyser(MultiTrajectoryAnalyser):
                              self.trajectories]
 
 
-def execute_if_save_enabled(func):
-    def wrapper(self, *args, **kwargs):
-        if self.enable_save:
-            return func(self, *args, **kwargs)
+def execute_if_save_enabled(func: callable):
+    def wrapper(*args, **kwargs):
+        if args[DUMMY_ZERO].enable_save:
+            return func(*args, **kwargs)
+
     return wrapper
 
 
