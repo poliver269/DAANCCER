@@ -225,6 +225,7 @@ class WeatherTrajectory(DataTrajectory):
             print("INFO: Feature trajectory has shape", ft_traj.shape)
         return ft_traj
 
+
 class ProteinTrajectory(DataTrajectory):
     def __init__(self, filename, topology_filename=None, folder_path='data/2f4k', params=None, atoms=None, **kwargs):
         super().__init__(filename, folder_path, extra_filename=topology_filename, params=params)

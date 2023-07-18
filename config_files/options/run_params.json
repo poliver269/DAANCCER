@@ -4,7 +4,7 @@
   "plot_tics": true,
   "interactive": true,
   "n_components": 2,
-  "trajectory_name": "2f4k",
+  "trajectory_name": "prot2",
   "file_element": 0,
   "data_set": "protein"
 }

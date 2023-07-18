@@ -763,7 +763,7 @@ class MultiSubTrajectoryAnalyser(MultiTrajectoryAnalyser):
         for model_params in model_params_list:
             print(f'Calculating reconstruction errors ({model_params})...')
 
-            for time_window_size in time_steps:  # TODO Hardcoded numbers
+            for time_window_size in time_steps:
                 self.change_time_window_sizes(time_window_size)
                 model_dict_list = self._get_model_result_list(model_params)
                 model_description = get_algorithm_name(model_dict_list[DUMMY_ZERO][MODEL])

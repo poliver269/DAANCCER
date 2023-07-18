@@ -5,17 +5,21 @@
     "kernel_type": "my_gaussian",
     "kernel": "only",
     "analyse_plot_type": "fitted_kernel_curves"
-  },
-    {
+  },{
     "algorithm_name": "pca",
-    "ndim": 2,
-    "kernel_type": "my_gaussian",
+    "ndim": 3,
+    "kernel_type": "my_cos",
     "kernel": "only",
     "analyse_plot_type": "fitted_kernel_curves"
-  },
-  {
+  },{
     "algorithm_name": "pca",
-    "ndim": 2,
+    "ndim": 3,
+    "kernel_type": "my_sinc_center",
+    "kernel": "only",
+    "analyse_plot_type": "fitted_kernel_curves"
+  },{
+    "algorithm_name": "pca",
+    "ndim": 3,
     "kernel_type": "my_sinc",
     "kernel": "only",
     "analyse_plot_type": "fitted_kernel_curves",

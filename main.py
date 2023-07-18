@@ -2,7 +2,8 @@ from datetime import datetime
 
 from trajectory import ProteinTopologyConverter
 from plotter import ProteinPlotter
-from analyse import MultiTrajectoryAnalyser, SingleTrajectoryAnalyser, SingleProteinTrajectoryAnalyser
+from analyse import MultiTrajectoryAnalyser, SingleTrajectoryAnalyser, SingleProteinTrajectoryAnalyser, \
+    MultiSubTrajectoryAnalyser
 from utils.default_argparse import ArgParser
 from utils.errors import InvalidRunningOptionError
 from utils.param_keys import *
@@ -131,6 +132,9 @@ def run_multi_analyse(filename_list, model_params_list, kwargs):
     elif run_option == MULTI_QUALITATIVE_PROJECTION_MATRIX:
         mtr = MultiTrajectoryAnalyser(kwargs_list, kwargs[PARAMS])
         mtr.compare_projection_matrix(model_params_list)
+    elif run_option == 'multi_compare_re_on_small_parts':
+        mst = MultiSubTrajectoryAnalyser(kwargs_list, kwargs[PARAMS])
+        mst.compare_re_on_small_parts(model_params_list)
     else:
         raise InvalidRunningOptionError(f'The \"run_option\": \"{run_option}\" in the (json) configuration '
                                         f'does not exists or it is not a loading option.\n')
