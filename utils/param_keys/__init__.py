@@ -7,6 +7,7 @@ FILE_ELEMENT = 'file_element'
 DATA_SET = 'data_set'
 SUBSET_LIST = 'subset_list'
 ENABLE_SAVE = 'enable_save'
+REDUCEE_FEATURE = 'reducee_feature'
 # Plot params
 PLOT_TYPE = 'plot_type'
 PLOT_TICS = 'plot_tics'

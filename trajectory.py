@@ -164,41 +164,49 @@ class WeatherTrajectory(DataTrajectory):
         try:
             print(f"Loading trajectory {self.filename}...")
             self.weather_df = pd.read_csv(self.filepath)
-            # TODO: param columns for radiation stuff
-            self.params.update({SEL_COL: params.get(SEL_COL, None)})
-            if self.params[SEL_COL] is not None:
-                self.weather_df = self.weather_df[self.params[SEL_COL]]
+            self.params.update({REDUCEE_FEATURE: params.get(REDUCEE_FEATURE, None)})
 
-            # self.countries = list(dict.fromkeys([x[:2] for x in self.weather_df.columns]))[1:]
-            # self.features = list(dict.fromkeys([x[3:] for x in self.weather_df.columns]))[1:]
+            if self.params[REDUCEE_FEATURE] is not None:
+                feature_name = self.params[REDUCEE_FEATURE]
+                print("INFO: For WeatherTrajectory selected feature:", feature_name)
+                features_encoding = {
+                        'temperature':0,
+                        'radiation_direct_horizontal':1,
+                        'radiation_diffuse_horizontal':2
+                        }
+                if feature_name in features_encoding:
+                    self.params[REDUCEE_FEATURE]=features_encoding[feature_name]
+                else:
+                    raise KeyError(f'WeatherTrajectory needs a specific reducee_feature:{feature_name}. Set to one of {features_encoding.keys()}')
+
         except IOError:
             raise FileNotFoundError(f"Cannot load {self.filepath}.")
 
         self._check_init_params()
-        self._init_preprocessing()
+        self._init_preprocessing(self.params[REDUCEE_FEATURE])
 
-    def _init_preprocessing(self):
-        # TODO@Andrea preprocess correctly, use it, declare "logical" name for weather data (not xyz)
-        xyz = np.array(list(map(np.stack, self.weather_df.applymap(eval).to_numpy())))
-        xyz = (xyz - np.mean(xyz, axis=0)[np.newaxis, :, :]) / np.std(xyz, axis=0)
-        # TODO@Andrea return ndarray
+    def _init_preprocessing(self, feature=2):
+        def get_feature( list_as_text):
+            result = eval(list_as_text)
+            return result[feature]
+
+        self.weather_df = self.weather_df.applymap(get_feature)
+        self.weather_df = self.weather_df.loc[:, (round(self.weather_df) != 0).any()]
+
+        self.feat_traj = np.array(list(map(np.stack, self.weather_df.to_numpy())))
+        self.feat_traj = (self.feat_traj - np.mean(self.feat_traj, axis=1)[:, np.newaxis]) / np.std(self.feat_traj, axis=0)
 
     @property
     def max_components(self) -> int:
-        # TODO@Andrea: Implement the correct dimension hours, bzw. the selected columns length if its given
-        if self.params[SEL_COL] is not None:
-            return len(self.params[SEL_COL])
-        else:
-            return 24
+        return len(self.weather_df.columns)
 
     def data_input(self, model_parameters: dict = None) -> np.ndarray:
         def flattened_coordinates(day):
             return list(itertools.chain.from_iterable(day))
 
-        model_parameters[KERNEL_STAT_FUNC] = np.min
+        df = self.weather_df
+        ft_traj = self.feat_traj
 
-        df = self.weather_df.applymap(eval)
-        # TODO@Andrea: use the preprocessed data self.preprocessed_weather_in ndarray
         try:
             if model_parameters is None:
                 n_dim = TENSOR_NDIM
@@ -211,15 +219,11 @@ class WeatherTrajectory(DataTrajectory):
         #  since we want to use the same input data over and over again
         #  (in the MultipleTrajectory) --> faster if its done once at init step
         if n_dim == MATRIX_NDIM:
-            temp = df.to_numpy()
-            flat_coord = np.vstack([flattened_coordinates(day) for day in temp])
-            return flat_coord
+            print("INFO: Flat feature trajectory has shape", ft_traj.shape)
         else:
-            # TODO@Andrea variable naming is not logical for weather data
-            coord = df.to_numpy()
-            coord = np.array([np.array([np.array(x) for x in y]) for y in coord])
-            return coord
-
+            ft_traj = np.array([np.array([np.array([hour]) for hour in day]) for day in ft_traj])
+            print("INFO: Feature trajectory has shape", ft_traj.shape)
+        return ft_traj
 
 class ProteinTrajectory(DataTrajectory):
     def __init__(self, filename, topology_filename=None, folder_path='data/2f4k', params=None, atoms=None, **kwargs):
