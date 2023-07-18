@@ -5,14 +5,14 @@ import scipy
 from sklearn.decomposition import PCA
 from sklearn.metrics import mean_squared_error
 
-from plotter import ArrayPlotter
+from plotter import ArrayPlotter, MultiArrayPlotter
 from utils import statistical_zero, ordinal
 from utils.algorithms.tensor_dim_reductions import TensorDR
 from utils.errors import NonInvertibleEigenvectorException, InvalidComponentNumberException
 from utils.math import is_matrix_orthogonal
 from utils.matrix_tools import diagonal_block_expand, calculate_symmetrical_kernel_matrix, ensure_matrix_symmetry
 from utils.param_keys import N_COMPONENTS, MATRIX_NDIM, TENSOR_NDIM
-from utils.param_keys.analyses import CORRELATION_MATRIX_PLOT, EIGENVECTOR_MATRIX_ANALYSE
+from utils.param_keys.analyses import CORRELATION_MATRIX_PLOT, EIGENVECTOR_MATRIX_ANALYSE, COVARIANCE_MATRIX_PLOT
 from utils.param_keys.kernel_functions import MY_GAUSSIAN, KERNEL_ONLY, KERNEL_DIFFERENCE, KERNEL_MULTIPLICATION
 from utils.param_keys.model import ALGORITHM_NAME, LAG_TIME, NTH_EIGENVECTOR, EXTRA_DR_LAYER
 from utils.param_keys.traj_dims import TIME_DIM, CORRELATION_DIM, COMBINED_DIM
@@ -28,6 +28,7 @@ class DAANCCER(TensorDR):
                  corr_kernel=False,  # only for tica: True, False
                  kernel_type=MY_GAUSSIAN,
                  ones_on_kernel_diag=False,
+                 use_original_data_for_kernel=False,
                  cov_function=np.cov,  # np.cov, np.corrcoef, co_mad
                  lag_time=0,
                  nth_eigenvector=1,
@@ -37,13 +38,15 @@ class DAANCCER(TensorDR):
                  use_std=True,
                  center_over_time=True
                  ):
-        super().__init__(cov_stat_func, kernel_stat_func)
+        super().__init__(cov_stat_func)
 
         self.algorithm_name = algorithm_name
         self.ndim = ndim
 
         self.kernel = kernel
         self.kernel_type = kernel_type
+        self.kernel_stat_func = kernel_stat_func
+        self.use_original_data_for_kernel = use_original_data_for_kernel
         self.corr_kernel = corr_kernel
         self.ones_on_kernel_diag = ones_on_kernel_diag
 
@@ -70,6 +73,9 @@ class DAANCCER(TensorDR):
         if self._is_time_lagged_algorithm() and self.lag_time == 0:
             warnings.warn(f'The `{ALGORITHM_NAME}` is set to a time-lagged approach: {self.algorithm_name}, '
                           f'but the `{LAG_TIME}` is not set is equal to: {self.lag_time}')
+
+        if isinstance(self.kernel_stat_func, str):
+            self.kernel_stat_func = eval(self.kernel_stat_func)
 
     def __str__(self):
         sb = 'DAANCCER('
@@ -120,10 +126,22 @@ class DAANCCER(TensorDR):
 
     @property
     def _combine_dim(self) -> int:
+        """
+        The _combine_dim is the size of the (3rd) dimension from the tensor
+        which will be combined after calculating the covariance matrix separately.
+        :return: int
+            size of combined dimension
+        """
         return self._standardized_data.shape[COMBINED_DIM]
 
     @property
-    def _atom_dim(self) -> int:
+    def _correlation_dim(self) -> int:
+        """
+        The _correlation_dim is the size of the (2nd) dimension from the tensor
+        which is the size of the correlated features of the data
+        :return: int
+            size of the correlation dimension
+        """
         return self._standardized_data.shape[CORRELATION_DIM]
 
     def fit_transform(self, data_tensor, **fit_params):
@@ -169,14 +187,19 @@ class DAANCCER(TensorDR):
             self.mean = np.mean(tensor, axis=0)[np.newaxis, :, :]
         return tensor - self.mean
 
-    def _standardize(self, tensor):
-        tensor -= self.mean
-        # tensor -= np.mean(tensor, axis=0)[np.newaxis, :, :]
-        tensor /= self._std  # fitted std
-        # tensor /= np.std(tensor, axis=0)  # original std
-        return tensor
-
-    def get_covariance_matrix(self):
+    def get_covariance_matrix(self) -> np.ndarray:
+        """
+        Returns the covariance matrix.
+        The calculation depends on the ndim of the model.
+            If the input is a matrix the covariance matrix is calculated as usual.
+            Else the covariance matrix is calculated over the combined dimension span separately
+            and forced the not correlated values not to correlate by block expanding it
+            setting the values to zeros.
+        The DAANCCER algorithm maps a gaussian curve onto the covariance matrix in default
+        :return: np.ndarray
+            Covariance matrix shape: _correlation_dim*_combined_dim x _correlation_dim*_combined_dim
+            (or _correlation_dim x _correlation_dim, if _is_matrix_model)
+        """
         if self._is_matrix_model:
             cov = self._get_matrix_covariance()
             if self.kernel is not None and not self._use_kernel_as_correlations_matrix():
@@ -188,15 +211,28 @@ class DAANCCER(TensorDR):
                 ccm = self._map_kernel(ccm)
             return diagonal_block_expand(ccm, self._combine_dim)
 
-    def _get_matrix_covariance(self):
+    def _get_matrix_covariance(self) -> np.ndarray:
+        """
+        Get the covariance matrix for a _standardized_data in matrix shape.
+        If the algorithm is time-lagged, then the lag_time is truncated from the matrix.
+        Else the standard covariance matrix is used.
+        :return: np.ndarray
+        """
         if self._is_time_lagged_algorithm() and self.lag_time > 0:
             return np.cov(self._standardized_data[:-self.lag_time].T)
         else:
             return super().get_covariance_matrix()
 
     def get_combined_covariance_matrix(self):
+        """
+
+        :return:
+        """
         tensor_cov = self.get_tensor_covariance()
-        return self.cov_stat_func(tensor_cov, axis=0)
+        cov = self.cov_stat_func(tensor_cov, axis=0)
+        if self.analyse_plot_type == COVARIANCE_MATRIX_PLOT:
+            MultiArrayPlotter().plot_tensor_layers(tensor_cov, cov, 'Covariance')
+        return cov
 
     def get_tensor_covariance(self):
         if self._is_time_lagged_algorithm() and self.lag_time > 0:
@@ -213,8 +249,13 @@ class DAANCCER(TensorDR):
 
     def _map_kernel(self, matrix):
         kernel_matrix = calculate_symmetrical_kernel_matrix(
-            matrix, self.kernel_stat_func, self.kernel_type,
-            analyse_mode=self.analyse_plot_type, flattened=self._is_matrix_model)
+            matrix,
+            stat_func=self.kernel_stat_func,
+            kernel_name=self.kernel_type,
+            analyse_mode=self.analyse_plot_type,
+            flattened=self._is_matrix_model,
+            use_original_data=self.use_original_data_for_kernel
+        )
         if self.kernel == KERNEL_ONLY:
             matrix = kernel_matrix
         elif self.kernel == KERNEL_DIFFERENCE:
@@ -258,7 +299,7 @@ class DAANCCER(TensorDR):
     def _get_eigenvectors_with_dr_layer(self, eigenvectors):
         eigenvalues2 = []
         eigenvectors2 = []
-        for component in range(self._atom_dim):
+        for component in range(self._correlation_dim):
             vector_from = component * self._combine_dim
             vector_to = (component + 1) * self._combine_dim
             model = PCA(n_components=1)
@@ -289,9 +330,7 @@ class DAANCCER(TensorDR):
             corr = self.cov_stat_func(tensor_corr, axis=0)
 
             if self.analyse_plot_type == CORRELATION_MATRIX_PLOT:
-                for i in range(tensor_corr.shape[0]):  # for each axis
-                    ArrayPlotter(interactive=False).matrix_plot(tensor_corr[i])
-                ArrayPlotter(interactive=False).matrix_plot(corr)  # and for the mean-ed
+                MultiArrayPlotter().plot_tensor_layers(tensor_corr, corr, 'Correlation')
 
             if self.corr_kernel or self._use_kernel_as_correlations_matrix():
                 corr = self._map_kernel(corr)
@@ -353,7 +392,7 @@ class DAANCCER(TensorDR):
 
     def reconstruct(self, projection_matrix, component_count=None):
         if component_count is None:
-            component_count = self._atom_dim * self._combine_dim
+            component_count = self._correlation_dim * self._combine_dim
         elif component_count > self.components_.shape[0]:
             raise InvalidComponentNumberException(f'Model does not have {component_count} many components. '
                                                   f'Max: {self.components_.shape[0]}')

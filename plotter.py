@@ -10,7 +10,7 @@ from matplotlib.widgets import Slider
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.metrics.pairwise import cosine_similarity
 
-from utils import function_name, get_algorithm_name
+from utils import function_name, get_algorithm_name, ordinal
 from utils.param_keys import TRAJECTORY_NAME, CARBON_ATOMS_ONLY, X, Y, Z, DUMMY_ZERO, DUMMY_ONE
 from utils.param_keys.analyses import HEAT_MAP, COLOR_MAP, PLOT_3D_MAP
 from utils.param_keys.model_result import MODEL, PROJECTION, TITLE_PREFIX, EXPLAINED_VAR, FITTED_ON
@@ -40,6 +40,8 @@ class MyPlotter:
     def _post_processing(self):
         if not self.for_paper:
             self._set_figure_title()
+        else:
+            plt.tight_layout(rect=[0, 0, 1, 1])
         plt.show()
 
 
@@ -193,7 +195,7 @@ class ModelResultPlotter(MyPlotter):
     def _plot_transformed_trajectory(self, ax, result_dict: dict, color_map: str, show_model_properties: bool = False,
                                      center_plot: bool = False, sub_part: [int, None] = None):
         """
-        Plot the projection results of the transformed trajectory on an axis
+        Plot the projection results of the transformed trajectory in a 2d-axis
         :param ax: Which axis the result should be plotted on
         :param result_dict: dictionary
             dict should contain the keys: 'model', 'projection',
@@ -201,7 +203,9 @@ class ModelResultPlotter(MyPlotter):
         :param color_map: str
             String value of the plot mapping type
         :param show_model_properties: bool
+            Show the model name and explained variance as title
         :param center_plot: bool
+            Parameter for centering the projection
         """
         ax.cla()
         if show_model_properties:
@@ -212,7 +216,7 @@ class ModelResultPlotter(MyPlotter):
                          fontsize=8, wrap=True)
             ax.set_xlabel('1st component')
             ax.set_ylabel('2nd component')
-            self._print_model_properties(result_dict)
+            # self._print_model_properties(result_dict)
         elif sub_part is None:
             if ax.get_subplotspec().is_first_col():
                 ax.set_ylabel(result_dict.get(FITTED_ON, 'Not Found'))
@@ -224,7 +228,7 @@ class ModelResultPlotter(MyPlotter):
                 color_array = np.arange(result_dict[PROJECTION].shape[0])
             else:
                 shape = result_dict[PROJECTION].shape[0]
-                color_array = np.arange((sub_part-1)*shape, sub_part*shape)
+                color_array = np.arange((sub_part - 1) * shape, sub_part * shape)
 
             if not show_model_properties and sub_part is not None:  # else part of show_model_properties
                 if ax.get_subplotspec().is_first_col():
@@ -232,12 +236,56 @@ class ModelResultPlotter(MyPlotter):
                 if ax.get_subplotspec().is_first_row():
                     ax.set_title(f'Steps {color_array[0]}-{color_array[-1]}')
 
+            row_index = ax.get_subplotspec().rowspan.start
+            col_index = ax.get_subplotspec().colspan.start
+            model_description = get_algorithm_name(result_dict[MODEL])
+
+            # TODO: dont use hardcoded flipping
+            # flip_x_axis_pca = {(2, 4), (4, 0), (4, 1), (4, 2), (4, 3), (4, 4)}  # PDB-Superposing PCA
+            flip_x_axis_pca = {(0, 2), (0, 3), (2, 3), (2, 0), (3, 0), (4, 0), (1, 4), (2, 4)}  # Random-Superposing PCA
+            flip_x_axis = [(x[0], x[1], 'PCA') for x in flip_x_axis_pca]
+            # flip_x_axis_daanccer = {(2, 0), (3, 0), (4, 0), (3, 4), (1, 1),
+            #                         (1, 2), (1, 3), (2, 4), (4, 4)}  # PDB_Superposing DAANCCER
+            flip_x_axis_daanccer = {(0, 1), (0, 3), (0, 4), (1, 0), (2, 0),
+                                    (2, 1), (2, 3), (3, 2), (3, 4), (4, 2), (4, 4)}  # PDB_Superposing DAANCCER
+            # flip_x_axis_daanccer = {}
+            flip_x_axis += [(x[0], x[1], 'DAANCCER') for x in flip_x_axis_daanccer]
+
+            # flip_y_axis_pca = {(4, 0), (4, 1), (4, 2), (4, 3), (4, 4)}  # PDB-Superposing PCA
+            flip_y_axis_pca = {(1, 4), (3, 4)}  # Random-Superposing PCA
+            flip_y_axis = [(x[0], x[1], 'PCA') for x in flip_y_axis_pca]
+            # flip_y_axis_daanccer = {(1, 2), (4, 2), (2, 4), (3, 4)}  # PDB-Superposing DAANCCER
+            flip_y_axis_daanccer = {(0, 4), (1, 1), (1, 2), (2, 0), (3, 0), (4, 0)}  # Random-Superposing DAANCCER
+            flip_y_axis += [(x[0], x[1], 'DAANCCER') for x in flip_y_axis_daanccer]
+
+            flip_components_pca = {}
+            flip_components = [(x[0], x[1], 'PCA') for x in flip_components_pca]
+            flip_components_daanccer = {}
+            flip_components += [(x[0], x[1], 'DAANCCER') for x in flip_components_daanccer]
+
+            if (row_index, col_index, model_description) in flip_x_axis:
+                result_dict[PROJECTION][:, 0] = -result_dict[PROJECTION][:, 0]
+                print(f'flipped x-axis {(row_index, col_index, model_description)}')
+
+            if (row_index, col_index, model_description) in flip_y_axis:
+                result_dict[PROJECTION][:, 1] = -result_dict[PROJECTION][:, 1]
+                print(f'flipped y-axis {(row_index, col_index, model_description)}')
+
+            if (row_index, col_index, model_description) in flip_components:
+                result_dict[PROJECTION] = result_dict[PROJECTION][:, ::-1]
             c_map = plt.cm.viridis
             im = ax.scatter(result_dict[PROJECTION][:, 0], result_dict[PROJECTION][:, 1], c=color_array,
-                            cmap=c_map, marker='.')
+                            cmap=c_map, marker='.', alpha=0.1)
             if not self.for_paper and ((ax.get_subplotspec().is_last_col() and sub_part is None) or
                                        (ax.get_subplotspec().is_first_col() and sub_part is not None)):
-                self.fig.colorbar(im, ax=ax)
+                self.fig.colorbar(im, ax=ax, alpha=10.0)
+            elif self.for_paper:
+                if get_algorithm_name(result_dict[MODEL]) == 'PCA':
+                    ax.set_xlim((-15, 15))
+                    ax.set_ylim((-15, 15))
+                elif get_algorithm_name(result_dict[MODEL]) == 'DAANCCER':
+                    ax.set_xlim(-5, 5)
+                    ax.set_ylim(-5, 5)
         else:
             ax.scatter(result_dict[PROJECTION][:, 0], result_dict[PROJECTION][:, 1], marker='.')
 
@@ -293,7 +341,7 @@ class ModelResultPlotter(MyPlotter):
         free_energies = -np.log(z, dtype='float')
         np.seterr(divide='warn')
         ax.contourf(free_energies.T, bins, cmap=plt.cm.hot, extent=[x[0], x[-1], y[0], y[-1]])
-        self._print_model_properties(result_dict)
+        # self._print_model_properties(result_dict)
 
     @staticmethod
     def _print_model_properties(projection_dict):
@@ -313,7 +361,7 @@ class ModelResultPlotter(MyPlotter):
     def plot_multi_projections(self, model_result_list_in_list, plot_type, center_plot=True, sub_parts=False,
                                show_model_properties=True):
         self.fig, self.axes = plt.subplots(len(model_result_list_in_list), len(model_result_list_in_list[DUMMY_ZERO]),
-                                           sharex='row', sharey='row')
+                                           figsize=(1080 / 100, 1080 / 100), dpi=100, sharex='all', sharey='all')
         for row_index, model_results in enumerate(model_result_list_in_list):
             if len(model_results) == 1:
                 self._plot_transformed_trajectory(self.axes[row_index], model_results[DUMMY_ZERO], color_map=plot_type,
@@ -392,7 +440,8 @@ class ArrayPlotter(MyPlotter):
             matrix, which should be plotted
         :param as_surface: str
             Plot as a 3d-surface if value PLOT_3D_MAP else 2d-axes
-        :param show_values: If true, then show the values in the matrix
+        :param show_values: bool
+            If True (default: False), then show the values in the matrix
         """
         c_map = plt.cm.viridis
         # c_map = plt.cm.seismic
@@ -412,7 +461,7 @@ class ArrayPlotter(MyPlotter):
                     self.axes.text(j, i, '{:0.2f}'.format(value), ha='center', va='center', fontsize=8)
         if not self.for_paper:
             self.fig.colorbar(im, ax=self.axes)
-            plt.xticks(np.arange(matrix.shape[1]), np.arange(self.xtick_start, matrix.shape[1] + self.xtick_start))
+            # plt.xticks(np.arange(matrix.shape[1]), np.arange(self.xtick_start, matrix.shape[1] + self.xtick_start))
             # plt.xticks(np.arange(matrix.shape[1], step=5),
             #            np.arange(self.xtick_start, matrix.shape[1] + self.xtick_start, step=5))
         self._post_processing()
@@ -441,7 +490,7 @@ class ArrayPlotter(MyPlotter):
             Some statistical numpy function
         :return:
         """
-        self.fig, self.axes = plt.subplots(1, 1, dpi=80)
+        self.fig, self.axes = plt.subplots(1, 1, figsize=(1080 / 100, 1080 / 100), dpi=100)
         self.axes.plot(x_index, gauss_fitted, '-', label=f'fit {fit_method}', linewidth=3.0)
         # self.axes.plot(x_index, gauss_fitted, ' ')
         self.axes.plot(x_index, ydata, '.', label='original data')
@@ -458,8 +507,8 @@ class ArrayPlotter(MyPlotter):
             self._activate_legend = True
         self.axes.plot(x_index, statistical_value, '-', label=function_label)
         # self.axes.plot(x_index, statistical_value, ' ')
-        # self.axes.plot(x_index, new_ydata, '.', label='re-scaled data')
-        self.axes.plot(x_index, new_ydata, ' ')
+        self.axes.plot(x_index, new_ydata, '+', label='re-scaled data')
+        # self.axes.plot(x_index, new_ydata, ' ')
         self._post_processing()
 
     def plot_2d(self, ndarray_data, statistical_func=None):
@@ -511,3 +560,17 @@ class ArrayPlotter(MyPlotter):
                     self.axes.fill_between(range(error_band[key].shape[DUMMY_ONE]),
                                            error_band[key][DUMMY_ZERO], error_band[key][DUMMY_ONE], alpha=0.2)
         self._post_processing()
+
+
+class MultiArrayPlotter:
+    @staticmethod
+    def plot_tensor_layers(tensor, combined, title_part='Covariance'):
+        for i in range(tensor.shape[0]):  # for each combined dimension
+            ArrayPlotter(
+                interactive=True,
+                title_prefix=f'{ordinal(i)} {title_part} Matrix'
+            ).matrix_plot(tensor[i])
+        ArrayPlotter(
+            interactive=True,
+            title_prefix=f'Combined {title_part} Matrix'
+        ).matrix_plot(combined)  # and for the mean-ed

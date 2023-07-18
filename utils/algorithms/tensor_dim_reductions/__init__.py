@@ -8,16 +8,13 @@ from utils.param_keys.traj_dims import TIME_DIM, ATOM_DIM, COORDINATE_DIM
 
 
 class TensorDR(MyModel):
-    def __init__(self, cov_stat_func=np.mean, kernel_stat_func=np.median):
+    def __init__(self, cov_stat_func=np.mean):
         super().__init__()
 
         if isinstance(cov_stat_func, str):
             cov_stat_func = eval(cov_stat_func)
-        if isinstance(kernel_stat_func, str):
-            kernel_stat_func = eval(kernel_stat_func)
 
         self.cov_stat_func = cov_stat_func
-        self.kernel_stat_func = kernel_stat_func
 
     def fit(self, data_tensor, **fit_params):
         self.n_samples = data_tensor.shape[TIME_DIM]

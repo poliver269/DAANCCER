@@ -6,6 +6,7 @@ TRAJECTORY_NAME = 'trajectory_name'
 FILE_ELEMENT = 'file_element'
 DATA_SET = 'data_set'
 SUBSET_LIST = 'subset_list'
+ENABLE_SAVE = 'enable_save'
 REDUCEE_FEATURE = 'reducee_feature'
 # Plot params
 PLOT_TYPE = 'plot_type'
@@ -20,11 +21,14 @@ BASIS_TRANSFORMATION = 'basis_transformation'
 CARBON_ATOMS_ONLY = 'carbon_atoms_only'
 RANDOM_SEED = 'random_seed'
 USE_ANGLES = 'use_angles'
+SUPERPOSING_INDEX = 'superposing_index'
 MAIN_MODEL_PARAMS = 'main_model_params'
+SEL_COL = 'selected_columns'
 # Subset Trajectory params
 QUANTITY = 'quantity'
 TIME_WINDOW_SIZE = 'time_window_size'
 PART_COUNT = 'part_count'
+TRANSFORM_ON_WHOLE = 'transform_on_whole'
 
 # TODO: No name
 FILENAME = 'filename'

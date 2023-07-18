@@ -5,6 +5,7 @@ PLOT_3D_MAP = '3d_map'
 EXPL_VAR_PLOT = 'explained_variance_plot'
 ANALYSE_PLOT_TYPE = 'analyse_plot_type'
 CORRELATION_MATRIX_PLOT = 'correlation_matrix_plot'
+COVARIANCE_MATRIX_PLOT = 'covariance_matrix_plot'
 
 # Analysing Types in model parameters
 WEIGHTED_DIAGONAL = 'weighted_diagonal'

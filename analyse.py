@@ -15,14 +15,16 @@ from tqdm import tqdm
 
 from config import get_data_class
 from plotter import ArrayPlotter, MultiTrajectoryPlotter, ModelResultPlotter
-from trajectory import ProteinTrajectory, SubProteinTrajectory, TrajectoryFile, DataTrajectory
+from trajectory import ProteinTrajectory, DataTrajectory, SubTrajectoryDecorator
 from utils import statistical_zero, get_algorithm_name
 from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
 from utils.errors import InvalidReconstructionException, InvalidProteinTrajectory
 from utils.matrix_tools import calculate_symmetrical_kernel_matrix, reconstruct_matrix
 from utils.param_keys import *
 from utils.param_keys.analyses import COLOR_MAP, KERNEL_COMPARE
+from utils.param_keys.model import KERNEL_TYPE, USE_ORIGINAL_DATA
 from utils.param_keys.model_result import MODEL, PROJECTION, INPUT_PARAMS, TITLE_PREFIX, FITTED_ON
+from utils.param_keys.traj_dims import TIME_FRAMES
 
 
 class SingleTrajectoryAnalyser:
@@ -33,7 +35,8 @@ class SingleTrajectoryAnalyser:
             PLOT_TICS: params.get(PLOT_TICS, True),
             INTERACTIVE: params.get(INTERACTIVE, True),
             N_COMPONENTS: params.get(N_COMPONENTS, 2),
-            PLOT_FOR_PAPER: params.get(PLOT_FOR_PAPER, False)
+            PLOT_FOR_PAPER: params.get(PLOT_FOR_PAPER, False),
+            ENABLE_SAVE: params.get(ENABLE_SAVE, False)
         }
 
     def compare(self, model_parameter_list: list[dict], plot_results: bool = True) -> list[dict]:
@@ -68,7 +71,10 @@ class SingleTrajectoryAnalyser:
         @param model_results_list: list[dict]
             Different model input parameters, saved in a list.
         """
-        ModelResultPlotter().plot_models(
+        ModelResultPlotter(
+            interactive=self.params[INTERACTIVE],
+            for_paper=self.params[PLOT_FOR_PAPER]
+        ).plot_models(
             model_results_list,
             plot_type=self.params[PLOT_TYPE],
             plot_tics=self.params[PLOT_TICS],
@@ -92,7 +98,7 @@ class SingleTrajectoryAnalyser:
             ).plot_2d(ndarray_data=model.explained_variance_)
 
     def compare_trajectory_subsets(self, model_params_list):
-        if isinstance(self.trajectory, SubProteinTrajectory):
+        if isinstance(self.trajectory, SubTrajectoryDecorator):
             results = []
             for model_params in model_params_list:
                 total_result = [self.trajectory.get_model_result(model_params)]
@@ -115,8 +121,11 @@ class SingleTrajectoryAnalyser:
         cv = [(slice(None), slice(None))]  # get rid of cross validation
         grid = GridSearchCV(model, param_grid, cv=cv, verbose=1)
         grid.fit(inp, n_components=self.trajectory.params[N_COMPONENTS])
-        AnalyseResultsSaver(trajectory_name=self.trajectory.params[TRAJECTORY_NAME],
-                            filename=f'grid_search_{self.trajectory.filename[:-4]}').save_to_csv(grid.cv_results_)
+        AnalyseResultsSaver(
+            trajectory_name=self.trajectory.params[TRAJECTORY_NAME],
+            filename=f'grid_search_{self.trajectory.filename[:-4]}',
+            enable_save=self.params[ENABLE_SAVE]
+        ).save_to_csv(grid.cv_results_)
 
 
 class SingleProteinTrajectoryAnalyser(SingleTrajectoryAnalyser):
@@ -156,7 +165,9 @@ class MultiTrajectoryAnalyser:
             PLOT_TYPE: params.get(PLOT_TYPE, COLOR_MAP),
             PLOT_TICS: params.get(PLOT_TICS, True),
             INTERACTIVE: params.get(INTERACTIVE, True),
-            PLOT_FOR_PAPER: params.get(PLOT_FOR_PAPER, False)
+            PLOT_FOR_PAPER: params.get(PLOT_FOR_PAPER, False),
+            TRANSFORM_ON_WHOLE: params.get(TRANSFORM_ON_WHOLE, False),
+            ENABLE_SAVE: params.get(ENABLE_SAVE, False)
         }
 
     def compare_pcs(self, model_params_list: list[dict]):
@@ -325,7 +336,7 @@ class MultiTrajectoryAnalyser:
                             for_paper=self.params[PLOT_FOR_PAPER]
                         ).matrix_plot(tria)
         if merged_plot:
-            AnalyseResultsSaver(self.params[TRAJECTORY_NAME]).save_to_npz(
+            AnalyseResultsSaver(self.params[TRAJECTORY_NAME], enable_save=self.params[ENABLE_SAVE]).save_to_npz(
                 model_similarities, 'eigenvector_similarities')
             ArrayPlotter(
                 interactive=self.params[INTERACTIVE],
@@ -370,21 +381,21 @@ class MultiTrajectoryAnalyser:
         grid.fit(inp, n_components=self.params[N_COMPONENTS])
         AnalyseResultsSaver(
             trajectory_name=self.params[TRAJECTORY_NAME],
-            filename='grid_search_all'
+            filename='grid_search_all',
+            enable_save=self.params[ENABLE_SAVE]
         ).save_to_csv(grid.cv_results_, header=['params', 'mean_test_score', 'std_test_score', 'rank_test_score'])
 
     def compare_reconstruction_scores(self, model_params_list: list, fit_transform_re: bool = True):
         """
-        Calculate the reconstruction error of the trajectories
-        if from_other_traj is True than reconstruct from the model fitted on specific trajectory
-        (0th-element in self trajectories)
-        :param fit_transform_re: Fit-transform reconstruction error or Fit-on-all-Transform-on-one
+        Calculate the reconstruction error over the trajectory span for different model_params.
+        If from_other_traj is True than reconstruct from the model fitted on specific trajectory set
         :param model_params_list: list[dict]
-            Different model input parameters, saved in a list.
+            Different model input parameters, saved in a list
+        :param fit_transform_re: bool
+            Fit-transform (Default: True) or Fit-on-all-Transform-on-one (False) reconstruction error
         """
-
         model_scores = {}
-        for model_index, model_params in enumerate(model_params_list):
+        for model_params in model_params_list:
             # model: [ParameterModel, StreamingEstimationTransformer] = model_dict[MODEL]
             print(f'Calculating reconstruction errors ({model_params})...')
             model_dict_list = self._get_model_result_list(model_params)
@@ -405,7 +416,6 @@ class MultiTrajectoryAnalyser:
             score_ndarray = np.asarray(score_list)
             model_scores[model_description] = score_ndarray
 
-        # model_scores = pretify_dict_model(model_scores)
         ArrayPlotter(
             interactive=self.params[INTERACTIVE],
             title_prefix='Reconstruction Error (RE) ' + (
@@ -487,7 +497,10 @@ class MultiTrajectoryAnalyser:
             to models fitted on a different trajectory.
         @return:
         """
-        saver = AnalyseResultsSaver(trajectory_name=self.params[TRAJECTORY_NAME])
+        saver = AnalyseResultsSaver(
+            trajectory_name=self.params[TRAJECTORY_NAME],
+            enable_save=self.params[ENABLE_SAVE]
+        )
 
         model_median_scores = {}
         model_mean_scores = {}
@@ -524,7 +537,7 @@ class MultiTrajectoryAnalyser:
         """
         model_dict_list = []
         for trajectory in self.trajectories:
-            if isinstance(trajectory, SubProteinTrajectory) and trajectory.part_count is None:
+            if isinstance(trajectory, SubTrajectoryDecorator) and trajectory.part_count is None:
                 model_dict_list = model_dict_list + trajectory.get_sub_results(model_params)
             model_dict_list.append(trajectory.get_model_result(model_params, log=False))
         return model_dict_list
@@ -536,41 +549,93 @@ class MultiTrajectoryAnalyser:
         Calculates the reconstruction errors of the trajectories over the component span.
         @param model_dict_list: list
             model results dict in a list
-        @param fit_transform_re: bool
-            model to use
+        @param fit_transform_re: bool (default = True)
+            Should be calculated the fit_transform on the same data
+            or the transformation steps of trajectories should be applied
+            to models fitted on a different trajectory.
         @return:
         """
         scores_on_component_span: list = []
         for component in tqdm(range(1, self.trajectories[DUMMY_ZERO].max_components + 1)):
-            trajectory_score_list: list = []
             try:
-                for traj_index, fitted_trajectory in enumerate(self.trajectories):
-                    model_dict = model_dict_list[traj_index]
-                    model = model_dict[MODEL]
-                    if fit_transform_re:
-                        input_data = fitted_trajectory.data_input(model_dict[INPUT_PARAMS])
-                        matrix_projection = model_dict[PROJECTION]
-                        reconstruction_score = self._get_reconstruction_score(model, input_data, matrix_projection,
-                                                                              component)
-                    else:  # fit on one transform on all
-                        transform_score = []
-                        for transform_trajectory in self.trajectories:
-                            input_data = transform_trajectory.data_input(model_dict[INPUT_PARAMS])
-                            matrix_projection = model.transform(input_data)
-
-                            transform_score.append(
-                                self._get_reconstruction_score(model, input_data, matrix_projection, component))
-                        reconstruction_score = np.median(transform_score)
-                    trajectory_score_list.append(reconstruction_score)
+                scores_on_component_span.append(
+                    self._models_re_for_component(component, fit_transform_re, model_dict_list))
             except InvalidReconstructionException as e:
                 warnings.warn(str(e))
                 break
-            scores_on_component_span.append(trajectory_score_list)
         return np.array(scores_on_component_span)
 
-    def compare_kernel_fitting_scores(self, kernel_names, model_params, load_filename: [str, None] = None):
+    def _models_re_for_component(self, component: int, fit_transform_re: bool, model_dict_list: list) -> list:
+        all_models_reconstruction_scores: list = []
+        for traj_index, fitted_trajectory in enumerate(self.trajectories):
+            model_dict = model_dict_list[traj_index]
+            model = model_dict[MODEL]
+            if fit_transform_re:
+                model_reconstruction_score = self._reconstruction_score_ftoa(component, fitted_trajectory, model,
+                                                                             model_dict)
+            else:  # fit on one transform on all
+                model_reconstruction_score = self._reconstruction_score_footoa(component, model,
+                                                                               model_dict[INPUT_PARAMS])
+            all_models_reconstruction_scores.append(model_reconstruction_score)
+        return all_models_reconstruction_scores
+
+    def _reconstruction_score_ftoa(self, component: int, fitted_trajectory: DataTrajectory, model,
+                                   model_result_dict: dict):
+        """
+        Calculate the reconstruction score of a model, while using the
+        reconstruction of the same dataset after fit transforming it.
+        :param component:
+        :param fitted_trajectory:
+        :param model:
+            Model with parent class TransformerMixin, BaseEstimator of sklearn
+        :param model_result_dict:
+        :return:
+        """
+        if (self.params[TRANSFORM_ON_WHOLE] and
+                isinstance(fitted_trajectory, SubTrajectoryDecorator)):
+            with fitted_trajectory.use_full_input():
+                input_data = fitted_trajectory.data_input(model_result_dict[INPUT_PARAMS])
+        else:
+            input_data = fitted_trajectory.data_input(model_result_dict[INPUT_PARAMS])
+        matrix_ndim_projection = model_result_dict[PROJECTION]
+        return self._get_reconstruction_score(model, input_data, matrix_ndim_projection, component)
+
+    def _reconstruction_score_footoa(self, component: int, model, model_params: dict):
+        """
+        Calculate the reconstruction score of a model, while using the
+        Fit on one Transform (FooToa) approach.
+        In this approach the model is already fitted,
+        and the trajectories of the dataset are transformed on this model.
+        The calculation is for a specific number of component
+        :param component: int
+            number of principal components used
+        :param model: model
+            with parent class TransformerMixin, BaseEstimator of sklearn
+        :param model_params: dict
+            used to determine the data_input of the trajectories
+        :return: float
+            median of the reconstruction errors of the trajectories of a model
+        """
+        transform_score = []
+        for transform_trajectory in self.trajectories:
+            if (self.params[TRANSFORM_ON_WHOLE] and
+                    isinstance(transform_trajectory, SubTrajectoryDecorator)):
+                with transform_trajectory.use_full_input():
+                    input_data = transform_trajectory.data_input(model_params)
+            else:
+                input_data = transform_trajectory.data_input(model_params)
+
+            matrix_projection = model.transform(input_data)
+
+            transform_score.append(
+                self._get_reconstruction_score(model, input_data, matrix_projection, component))
+
+        return np.median(transform_score)
+
+    def compare_kernel_fitting_scores_on_same_model(self, kernel_names, model_params,
+                                                    load_filename: [str, None] = None):
         if load_filename is None:
-            kernel_accuracies = self._calculate_kernel_accuracies(kernel_names, model_params)
+            kernel_accuracies = self._calculate_kernel_accuracies_same_model(kernel_names, model_params)
         else:
             kernel_accuracies = AnalyseResultLoader(self.params[TRAJECTORY_NAME]).load_npz(load_filename)
         ArrayPlotter(
@@ -582,7 +647,42 @@ class MultiTrajectoryAnalyser:
             for_paper=self.params[PLOT_FOR_PAPER]
         ).plot_merged_2ds(kernel_accuracies, statistical_func=np.median)
 
-    def _calculate_kernel_accuracies(self, kernel_names, model_params):
+    def compare_kernel_fitting_scores(self, model_params_list):
+        kernel_accuracies = self._calculate_kernel_accuracies(model_params_list)
+        ArrayPlotter(
+            interactive=self.params[INTERACTIVE],
+            title_prefix=f'Compare Kernels ',
+            x_label='Trajectory Number',
+            y_label='RMSE of the fitting kernel',
+            y_range=(0, 0.2),
+            for_paper=self.params[PLOT_FOR_PAPER]
+        ).plot_merged_2ds(kernel_accuracies, statistical_func=np.median)
+
+    def _calculate_kernel_accuracies(self, model_params_list: list[dict]):
+        kernel_accuracies = {}
+
+        for model_params in model_params_list:
+
+            kernel_description = f'{model_params[KERNEL_TYPE]}'
+            if USE_ORIGINAL_DATA in model_params.keys():
+                if model_params[USE_ORIGINAL_DATA]:
+                    kernel_description += "use original data"
+                else:
+                    kernel_description += "with rescaled data"
+
+            if kernel_description not in kernel_accuracies.keys():
+                kernel_accuracies[kernel_description] = []
+
+            for trajectory in self.trajectories:
+                model, _ = trajectory.get_model_and_projection(model_params)
+                matrix = model.get_combined_covariance_matrix()
+                variance = calculate_symmetrical_kernel_matrix(
+                    matrix, statistical_zero, model_params[KERNEL_TYPE],
+                    analyse_mode=KERNEL_COMPARE)
+                kernel_accuracies[kernel_description].append(variance)
+        return kernel_accuracies
+
+    def _calculate_kernel_accuracies_same_model(self, kernel_names, model_params):
         kernel_accuracies = {kernel_name: [] for kernel_name in kernel_names}
         for trajectory in self.trajectories:
             model, _ = trajectory.get_model_and_projection(model_params)
@@ -592,7 +692,11 @@ class MultiTrajectoryAnalyser:
                     matrix, statistical_zero, kernel_name,
                     analyse_mode=KERNEL_COMPARE)
                 kernel_accuracies[kernel_name].append(variance)
-        AnalyseResultsSaver(self.params[TRAJECTORY_NAME], filename='compare_rmse_kernel').save_to_npz(kernel_accuracies)
+        AnalyseResultsSaver(
+            self.params[TRAJECTORY_NAME],
+            filename='compare_rmse_kernel',
+            enable_save=self.params[ENABLE_SAVE]
+        ).save_to_npz(kernel_accuracies)
         return kernel_accuracies
 
     def compare_results_on_same_fitting(self, model_params, traj_index, plot=True):
@@ -616,7 +720,7 @@ class MultiTrajectoryAnalyser:
                 params=self.params
             ).compare_with_plot(model_results_list)
 
-        saver = AnalyseResultsSaver(self.params[TRAJECTORY_NAME])
+        saver = AnalyseResultsSaver(self.params[TRAJECTORY_NAME], enable_save=self.params[ENABLE_SAVE])
         for result_index, model_result in enumerate(model_results_list):
             saver.save_to_npz(
                 model_result,
@@ -645,17 +749,59 @@ class MultiTrajectoryAnalyser:
             )
 
 
+class MultiSubTrajectoryAnalyser(MultiTrajectoryAnalyser):
+    def __init__(self, kwargs_list: list, params: dict):
+        super().__init__(kwargs_list, params)
+        self.trajectories: list[SubTrajectoryDecorator] = [get_data_class(params, kwargs) for kwargs in kwargs_list]
+
+    def compare_re_on_small_parts(self, model_params_list):
+        max_time_steps = self.trajectories[DUMMY_ZERO].dim[TIME_FRAMES]  # e.g. 10000
+        time_steps = np.geomspace(self.trajectories[DUMMY_ZERO].max_components, max_time_steps, num=10, dtype=int)
+        component_list = np.asarray([2, 5, 50])
+
+        model_median_scores = {}  # {'PCA': {'1': }, 'DAANCCER', 'TICA'}
+        for model_params in model_params_list:
+            print(f'Calculating reconstruction errors ({model_params})...')
+
+            for time_window_size in time_steps:  # TODO Hardcoded numbers
+                self.change_time_window_sizes(time_window_size)
+                model_dict_list = self._get_model_result_list(model_params)
+                model_description = get_algorithm_name(model_dict_list[DUMMY_ZERO][MODEL])
+                if model_description not in model_median_scores.keys():
+                    model_median_scores[model_description] = []
+
+                for component in component_list:
+                    models_re_for_component: list = self._models_re_for_component(component, fit_transform_re=False,
+                                                                                  model_dict_list=model_dict_list)
+                    model_median_scores[model_description].append(np.median(models_re_for_component))
+
+    def change_time_window_sizes(self, new_time_window_size):
+        self.trajectories = [trajectory.change_time_window_size(new_time_window_size) for trajectory in
+                             self.trajectories]
+
+
+def execute_if_save_enabled(func: callable):
+    def wrapper(*args, **kwargs):
+        if args[DUMMY_ZERO].enable_save:
+            return func(*args, **kwargs)
+
+    return wrapper
+
+
 class AnalyseResultsSaver:
-    def __init__(self, trajectory_name, filename=''):
+    # TODO: Refactor Saver und Loader in other file
+    def __init__(self, trajectory_name, filename='', enable_save=True):
         self.current_result_path: Path = Path('analyse_results') / trajectory_name / datetime.now().strftime(
             "%Y-%m-%d_%H.%M.%S")
-        if not self.current_result_path.exists():
+        if enable_save and not self.current_result_path.exists():
             os.makedirs(self.current_result_path)
         self.filename = filename
+        self.enable_save = enable_save
 
     def goal_filename(self, extension):
         return self.current_result_path / (self.filename + extension)
 
+    @execute_if_save_enabled
     def save_to_csv(self, result, header=None):
         if header is None:
             result_df = pd.DataFrame(result)
@@ -665,11 +811,13 @@ class AnalyseResultsSaver:
         result_df.to_csv(goal_path)
         print(f'Results successfully saved into: {goal_path}')
 
+    @execute_if_save_enabled
     def save_to_npy(self, array: np.ndarray, new_filename=None):
         if new_filename is not None:
             self.filename = new_filename
         np.save(self.goal_filename('.npy'), array)
 
+    @execute_if_save_enabled
     def save_to_npz(self, dictionary: dict, new_filename=None):
         if new_filename is not None:
             self.filename = new_filename
@@ -705,7 +853,7 @@ class AnalyseResultLoader:
         return self.load_npz_list(directory_name, filename_list)
 
     def load_npz_list(self, root_dir, filename_list):
-        loaded_list = []
+        loaded_dict = {}
         for filename in filename_list:
-            loaded_list.append(self.load_npz(Path(root_dir) / filename))
-        return loaded_list
+            loaded_dict[filename] = self.load_npz(Path(root_dir) / filename)
+        return loaded_dict

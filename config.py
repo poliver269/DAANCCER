@@ -4,7 +4,7 @@ import os
 import warnings
 import weather_preprocessing as wp
 
-from trajectory import ProteinTrajectory, SubProteinTrajectory, TrajectoryFile, WeatherTrajectory, DataTrajectory
+from trajectory import ProteinTrajectory, SubTrajectoryDecorator, WeatherTrajectory, DataTrajectory
 from utils.param_keys import *
 from utils.param_keys.analyses import *
 from utils.param_keys.kernel_functions import *
@@ -189,7 +189,7 @@ def get_param_grid(param_grid_json_file: str = None) -> list:
         ]
 
 
-def get_data_class(params: dict, kwargs: dict) -> DataTrajectory:
+def get_data_class(params: dict, kwargs: dict) -> [DataTrajectory, SubTrajectoryDecorator]:
     if DATA_SET in params.keys():
         data_set_name: str = params[DATA_SET]
 
@@ -204,7 +204,7 @@ def get_data_class(params: dict, kwargs: dict) -> DataTrajectory:
         if data_set_name == "weather":
             return WeatherTrajectory(**kwargs)
         elif data_set_name == "sub_protein":
-            return SubProteinTrajectory(**kwargs)
+            return SubTrajectoryDecorator(data_trajectory=ProteinTrajectory(**kwargs), **kwargs)
         else:  # "protein"
             return ProteinTrajectory(**kwargs)
     else:

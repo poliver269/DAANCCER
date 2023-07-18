@@ -1,10 +1,9 @@
 {
-  "run_option": "compare",
+  "run_option": "multi_kernel_compare",
   "plot_type": "color_map",
   "plot_tics": true,
   "interactive": true,
   "n_components": 2,
   "trajectory_name": "2f4k",
-  "file_element": 0,
-  "data_set": "protein"
+  "file_element": 0
 }

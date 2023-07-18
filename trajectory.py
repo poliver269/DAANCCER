@@ -1,5 +1,6 @@
 import random
 import warnings
+from contextlib import contextmanager
 from pathlib import Path
 import itertools
 import mdtraj as md
@@ -8,7 +9,7 @@ import pandas as pd
 from mdtraj import Trajectory
 from sklearn.decomposition import FastICA, PCA
 
-from utils.algorithms.interfaces import DeeptimeTICAInterface, PyemmaTICAInterface, PyemmaPCAInterface
+from utils.algorithms.interfaces import DeeptimeTICAInterface, PyemmaTICAInterface, PyemmaPCAInterface, SklearnPCA
 from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
 from utils.algorithms.tsne import MyTSNE, MyTimeLaggedTSNE
 from utils.errors import InvalidSubsetTrajectory
@@ -36,7 +37,7 @@ class TrajectoryFile:
 
 
 class DataTrajectory(TrajectoryFile):
-    def __init__(self, filename, folder_path='data/2f4k', extra_filename="", params=None):
+    def __init__(self, filename, folder_path, extra_filename="", params=None, **kwargs):
         super().__init__(filename, folder_path, extra_filename)
         if params is None:
             params = {}
@@ -44,6 +45,7 @@ class DataTrajectory(TrajectoryFile):
             N_COMPONENTS: params.get(N_COMPONENTS, 2),
             TRAJECTORY_NAME: params.get(TRAJECTORY_NAME, 'Not Found')
         }
+        self.dim = {TIME_FRAMES: -1}
 
     def _check_init_params(self):
         """
@@ -124,7 +126,7 @@ class DataTrajectory(TrajectoryFile):
                 if model_parameters[ALGORITHM_NAME] == 'original_pca':
                     pca = PCA(n_components=self.params[N_COMPONENTS])
                     return pca, pca.fit_transform(inp)
-                if model_parameters[ALGORITHM_NAME] == 'original_pyemma_pca':
+                elif model_parameters[ALGORITHM_NAME] == 'original_pyemma_pca':
                     pca = PyemmaPCAInterface(dim=self.params[N_COMPONENTS])
                     return pca, pca.fit_transform(inp)
                 elif model_parameters[ALGORITHM_NAME] == 'original_tica':
@@ -147,6 +149,10 @@ class DataTrajectory(TrajectoryFile):
             except TypeError:
                 raise TypeError(f'Input data of the function is not correct. '
                                 f'Original algorithms take only 2-n-dimensional ndarray')
+        elif model_parameters[ALGORITHM_NAME] == 'interface_pca':
+            # TODO@Oli&Prio1: Correct Interface
+            pca = SklearnPCA(n_components=self.params[N_COMPONENTS], svd_solver="full")
+            return pca, pca.fit_transform(inp)
         else:
             model = DAANCCER(**model_parameters)
             return model, model.fit_transform(inp, n_components=self.params[N_COMPONENTS])
@@ -220,7 +226,7 @@ class WeatherTrajectory(DataTrajectory):
         return ft_traj
 
 class ProteinTrajectory(DataTrajectory):
-    def __init__(self, filename, topology_filename=None, folder_path='data/2f4k', params=None, atoms=None):
+    def __init__(self, filename, topology_filename=None, folder_path='data/2f4k', params=None, atoms=None, **kwargs):
         super().__init__(filename, folder_path, extra_filename=topology_filename, params=params)
         try:
             print(f"Loading trajectory {self.filename}...")
@@ -243,7 +249,8 @@ class ProteinTrajectory(DataTrajectory):
             CARBON_ATOMS_ONLY: params.get(CARBON_ATOMS_ONLY, True),
             BASIS_TRANSFORMATION: params.get(BASIS_TRANSFORMATION, False),
             RANDOM_SEED: params.get(RANDOM_SEED, 42),
-            USE_ANGLES: params.get(USE_ANGLES, False)
+            USE_ANGLES: params.get(USE_ANGLES, False),
+            SUPERPOSING_INDEX: params.get(SUPERPOSING_INDEX, -1)
         })
 
         self._check_init_params()
@@ -260,9 +267,17 @@ class ProteinTrajectory(DataTrajectory):
                                 Z: self.z_coordinates.max()}
 
     def _init_preprocessing(self):
-        self.traj: Trajectory = self.traj.superpose(
-            self.traj, frame=random.randint(0, self.dim[TIME_FRAMES])).center_coordinates(mass_weighted=True)
-        # self.traj: Trajectory = self.traj.superpose(self.reference_pdb).center_coordinates(mass_weighted=True)
+        if self.params[SUPERPOSING_INDEX] is not None:
+            if self.params[SUPERPOSING_INDEX] < 0:
+                # random.seed(self.params[RANDOM_SEED])
+                superposing_frame = random.randint(0, self.dim[TIME_FRAMES])
+                print(f'Random frame: {superposing_frame}')
+            else:
+                superposing_frame = self.params[SUPERPOSING_INDEX]
+            self.traj = self.traj.superpose(
+                self.traj, frame=superposing_frame).center_coordinates(mass_weighted=True)
+        else:
+            self.traj = self.traj.superpose(self.reference_pdb).center_coordinates(mass_weighted=True)
         self.traj.xyz = (self.traj.xyz - np.mean(self.traj.xyz, axis=0)[np.newaxis, :, :]) / np.std(self.traj.xyz,
                                                                                                     axis=0)
 
@@ -388,20 +403,42 @@ class ProteinTrajectory(DataTrajectory):
                                                  self.dim[COORDINATES]))
 
 
-class SubProteinTrajectory(ProteinTrajectory):
+class SubTrajectoryDecorator(DataTrajectory):
     def __init__(self,
+                 data_trajectory: DataTrajectory,
                  quantity: int = 1,
                  time_window_size: int = None,
                  part_count: int = None,
                  **kwargs):
+        self.data_trajectory: DataTrajectory = data_trajectory
+        super().__init__(**kwargs)
+        self._tmp_part_count = part_count
         self.quantity = quantity
         self.time_window_size = time_window_size
         self.rest = 0
         self.part_count: [None, int] = part_count
-        super().__init__(**kwargs)
+        self.__random_part_count = False
+        self._check_init_params()
+
+    def __setattr__(self, name, value):
+        # Update the parameter in the decorator class
+        if name in ["dim"]:
+            super().__setattr__(name, self.data_trajectory.__dict__[name])
+        else:
+            super().__setattr__(name, value)
+
+            # Update the parameter in the data_trajectory object
+            if hasattr(self, 'data_trajectory') and name in self.data_trajectory.__dict__ and name != "params":
+                setattr(self.data_trajectory, name, value)
+
+    @property
+    def max_components(self) -> int:
+        return self.data_trajectory.max_components
 
     def _check_init_params(self):
         super()._check_init_params()
+        # self.update_model_params(dim=self.data_trajectory.dim)
+        # self.dim = self.data_trajectory.dim
         if self.quantity > 1:
             if self.dim[TIME_FRAMES] < self.quantity:
                 raise InvalidSubsetTrajectory(f'The number of quantities `{self.quantity}` is invalid '
@@ -424,7 +461,18 @@ class SubProteinTrajectory(ProteinTrajectory):
             self.rest = self.dim[TIME_FRAMES] % self.time_window_size
             self.quantity = self.dim[TIME_FRAMES] // self.time_window_size
         if self.part_count is not None and self.part_count < 0:
-            self.part_count = random.randint(0, self.quantity-1)
+            self.__random_part_count = True
+            self.part_count = random.randint(0, self.quantity - 1)
+
+    def update_model_params(self, **params):
+        r"""Update given model parameter if they are set to specific values"""
+        for key, value in params.items():
+            if not hasattr(self, key):
+                setattr(self, key, value)  # set parameter for the first time.
+            elif getattr(self, key) is None:
+                setattr(self, key, value)  # update because this parameter is still None.
+            elif value is not None:
+                setattr(self, key, value)  # only overwrite if set to a specific value (None does not overwrite).
 
     def get_sub_results(self, model_parameters: dict) -> list:
         results = []
@@ -441,7 +489,7 @@ class SubProteinTrajectory(ProteinTrajectory):
         @param model_parameters:
         @return:  data input subset
         """
-        whole_input_data = super().data_input(model_parameters)
+        whole_input_data = self.data_trajectory.data_input(model_parameters)
         if self.part_count is None:
             return whole_input_data
         elif self.part_count == self.quantity - 1:
@@ -449,6 +497,26 @@ class SubProteinTrajectory(ProteinTrajectory):
         else:
             return whole_input_data[
                    (self.part_count * self.time_window_size):(self.part_count + 1) * self.time_window_size]
+
+    @contextmanager
+    def use_full_input(self):
+        original_value = self.part_count
+        self.part_count = None  # Set the new value
+        yield  # Execute code within the context (with)
+        self.part_count = original_value  # Restore the original value
+
+    def change_time_window_size(self, new_value):
+        if self.dim[TIME_FRAMES] < new_value:
+            raise InvalidSubsetTrajectory(f'The new time window size `{new_value}` is invalid '
+                                          f'for the trajectory with time steps `{self.dim[TIME_FRAMES]}`')
+
+        else:
+            self.time_window_size = new_value
+            self.rest = self.dim[TIME_FRAMES] % self.time_window_size
+            self.quantity = self.dim[TIME_FRAMES] // self.time_window_size
+
+            if self.__random_part_count:
+                self.part_count = random.randint(0, self.quantity - 1)
 
 
 class ProteinTopologyConverter(TrajectoryFile):

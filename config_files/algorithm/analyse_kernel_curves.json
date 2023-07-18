@@ -5,5 +5,20 @@
     "kernel_type": "my_gaussian",
     "kernel": "only",
     "analyse_plot_type": "fitted_kernel_curves"
+  },
+    {
+    "algorithm_name": "pca",
+    "ndim": 2,
+    "kernel_type": "my_gaussian",
+    "kernel": "only",
+    "analyse_plot_type": "fitted_kernel_curves"
+  },
+  {
+    "algorithm_name": "pca",
+    "ndim": 2,
+    "kernel_type": "my_sinc",
+    "kernel": "only",
+    "analyse_plot_type": "fitted_kernel_curves",
+    "use_original_data_for_kernel": true
   }
 ]
