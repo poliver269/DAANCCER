@@ -11,6 +11,7 @@ TRAJECTORY_SUBSET_ANALYSIS = 'trajectory_subset_analysis'
 # Load analyse
 LOAD_ANALYSE_RESULTS_DICT = 'load_analyse_result_dict'
 LOAD_LIST_OF_DICTS = 'load_list_of_dicts'
+LOAD_FOOTOA_TWS = 'load_footoa_tws'
 LOAD_RE_OVER_COMPONENT_SPAN = 'load_re_over_component_span'
 
 # Multi trajectory analyse

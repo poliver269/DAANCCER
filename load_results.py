@@ -82,3 +82,18 @@ def load_re_over_component_span(directory_root: str, kwargs: dict):
         # y_range=(0, 1),
         for_paper=kwargs[PARAMS][PLOT_FOR_PAPER]
     ).plot_merged_2ds(plot_dict, error_band=error_band)
+
+
+def load_foo_toa_tws(directory_root: str, kwargs: dict):
+    npzs = AnalyseResultLoader(kwargs[PARAMS][TRAJECTORY_NAME]).load_npz_files_in_directory(directory_root)
+    plot_dict = next(v for k, v in npzs.items() if 'median' in k)
+    error_band = next(v for k, v in npzs.items() if 'error_bands' in k)
+    time_steps = next(v for k, v in npzs.items() if 'time_steps' in k)
+    component_list = next(v for k, v in npzs.items() if 'component_list' in k)
+    ArrayPlotter(
+        interactive=kwargs[PARAMS][INTERACTIVE],
+        title_prefix=f'FooToa on varying time window size',
+        x_label='Time window size',
+        y_label='Median RE',
+        for_paper=kwargs[PARAMS][PLOT_FOR_PAPER]
+    ).plot_matrix_in_2d(plot_dict, time_steps['time_steps'], component_list['component_list'], error_band)

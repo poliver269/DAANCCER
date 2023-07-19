@@ -166,6 +166,8 @@ def load_directory(directory_root: str, kwargs: dict):
         load_results.load_re_over_component_span(directory_root, kwargs)
     elif run_option == LOAD_LIST_OF_DICTS:
         load_results.load_list_of_dicts(sub_dir=directory_root, params=kwargs[PARAMS])
+    elif run_option == LOAD_FOOTOA_TWS:
+        load_results.load_foo_toa_tws(directory_root, kwargs)
     else:
         raise InvalidRunningOptionError(f'The loading directory is set to: {directory_root},\n'
                                         f'but the run_option: `{run_option}` in the (json) configuration '

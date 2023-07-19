@@ -756,9 +756,16 @@ class MultiSubTrajectoryAnalyser(MultiTrajectoryAnalyser):
         self.trajectories: list[SubTrajectoryDecorator] = [get_data_class(params, kwargs) for kwargs in kwargs_list]
 
     def compare_re_on_small_parts(self, model_params_list):
+        saver = AnalyseResultsSaver(
+            trajectory_name=self.params[TRAJECTORY_NAME],
+            enable_save=self.params[ENABLE_SAVE],
+            folder_suffix='_FooToaTws'
+        )
         max_time_steps = self.trajectories[DUMMY_ZERO].dim[TIME_FRAMES]  # e.g. 10000
         time_steps = np.geomspace(self.trajectories[DUMMY_ZERO].max_components, max_time_steps, num=10, dtype=int)
         component_list = np.asarray([2, 5, 10, 25, 50])
+        saver.save_to_npz({'time_steps': time_steps}, 'time_steps_FooToaTws')
+        saver.save_to_npz({'component_list': component_list}, 'component_list_FooToaTws')
 
         re_error_bands = {}
         model_median_scores = {}  # {'PCA': {'1': }, 'DAANCCER', 'TICA'}
@@ -782,6 +789,8 @@ class MultiSubTrajectoryAnalyser(MultiTrajectoryAnalyser):
                         np.min(models_re_for_component),
                         np.max(models_re_for_component)
                     )
+                    saver.save_to_npz(model_median_scores, 'median_RE_FooToaTws')
+                    saver.save_to_npz(re_error_bands, 'error_bands_FooToaTws')
 
         ArrayPlotter(
             interactive=self.params[INTERACTIVE],
@@ -806,9 +815,9 @@ def execute_if_save_enabled(func: callable):
 
 class AnalyseResultsSaver:
     # TODO: Refactor Saver und Loader in other file
-    def __init__(self, trajectory_name, filename='', enable_save=True):
-        self.current_result_path: Path = Path('analyse_results') / trajectory_name / datetime.now().strftime(
-            "%Y-%m-%d_%H.%M.%S")
+    def __init__(self, trajectory_name, filename='', folder_suffix='', enable_save=True):
+        self.current_result_path: Path = Path('analyse_results') / trajectory_name / (datetime.now().strftime(
+            "%Y-%m-%d_%H.%M.%S") + folder_suffix)
         if enable_save and not self.current_result_path.exists():
             os.makedirs(self.current_result_path)
         self.filename = filename
