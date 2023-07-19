@@ -758,8 +758,9 @@ class MultiSubTrajectoryAnalyser(MultiTrajectoryAnalyser):
     def compare_re_on_small_parts(self, model_params_list):
         max_time_steps = self.trajectories[DUMMY_ZERO].dim[TIME_FRAMES]  # e.g. 10000
         time_steps = np.geomspace(self.trajectories[DUMMY_ZERO].max_components, max_time_steps, num=10, dtype=int)
-        component_list = np.asarray([2, 5, 10, 50])
+        component_list = np.asarray([2, 5, 10, 25, 50])
 
+        re_error_bands = {}
         model_median_scores = {}  # {'PCA': {'1': }, 'DAANCCER', 'TICA'}
         for model_params in model_params_list:
             print(f'Calculating reconstruction errors ({model_params})...')
@@ -770,12 +771,17 @@ class MultiSubTrajectoryAnalyser(MultiTrajectoryAnalyser):
                 model_description = get_algorithm_name(model_dict_list[DUMMY_ZERO][MODEL])
                 if model_description not in model_median_scores.keys():
                     model_median_scores[model_description] = np.zeros((time_steps.size, component_list.size))
+                    re_error_bands[model_description] = np.zeros((time_steps.size, component_list.size, 2))
 
                 for component_index, component in enumerate(component_list):
                     models_re_for_component: list = self._models_re_for_component(component, fit_transform_re=False,
                                                                                   model_dict_list=model_dict_list)
                     model_median_scores[model_description][time_index, component_index] = np.median(
                         models_re_for_component)
+                    re_error_bands[model_description][time_index, component_index] = (
+                        np.min(models_re_for_component),
+                        np.max(models_re_for_component)
+                    )
 
         ArrayPlotter(
             interactive=self.params[INTERACTIVE],
@@ -783,7 +789,7 @@ class MultiSubTrajectoryAnalyser(MultiTrajectoryAnalyser):
             x_label='Time window size',
             y_label='Median RE',
             for_paper=self.params[PLOT_FOR_PAPER]
-        ).plot_matrix_in_2d(model_median_scores, time_steps, component_list)  # TODO: error band
+        ).plot_matrix_in_2d(model_median_scores, time_steps, component_list, re_error_bands)
 
     def change_time_window_sizes(self, new_time_window_size):
         self.trajectories = [trajectory.change_time_window_size(new_time_window_size) for trajectory in

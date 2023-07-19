@@ -1,12 +1,13 @@
 {
   "run_option": "multi_compare_re_on_small_parts",
   "plot_type": "color_map",
-  "interactive": true,
+  "interactive": false,
   "n_components": null,
   "trajectory_name": "2f4k",
   "file_element": 0,
   "enable_save": true,
   "data_set": "sub_protein",
+  "subset_list": [0, 1],
   "time_window_size": null,
   "part_count": 0
 }

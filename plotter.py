@@ -599,12 +599,13 @@ class ArrayPlotter(MyPlotter):
                                color=color, linestyle=line_style, linewidth=line_width)
 
                 if error_band is not None:  # TODO test, make function
-                    if not (error_band[model_name].shape[DUMMY_ONE] == model_scores.shape[DUMMY_ZERO]):
+                    error_component_band = error_band[model_name][:, j, :].T
+                    if not (error_component_band.shape[DUMMY_ONE] == model_scores[:, j].shape[DUMMY_ZERO]):
                         warnings.warn('Could not plot the error band, because the error band has the incorrect shape.')
                     else:
-                        self.axes.fill_between(range(error_band[model_name].shape[DUMMY_ONE]),
-                                               error_band[model_name][DUMMY_ZERO], error_band[model_name][DUMMY_ONE],
-                                               alpha=0.2)
+                        self.axes.fill_between(x_axis_values,
+                                               error_component_band[DUMMY_ZERO], error_component_band[DUMMY_ONE],
+                                               color=color, alpha=0.2*line_width)
 
         self._post_processing()
 
