@@ -220,22 +220,15 @@ def _get_curve_fitted_y(matrix, kernel_name, xdata, rescaled_ydata):
                                               rescaled_ydata)
             else:
                 p0 = (len(xdata) // 2) - non_zero_i if kernel_name in [MY_COS] else 1
-                try:
-                    fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata[non_zero_i:-non_zero_i],
-                                                  rescaled_ydata[non_zero_i:-non_zero_i], p0=p0)
-                except RuntimeError:
-                    fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata[non_zero_i:-non_zero_i],
-                                                  rescaled_ydata[non_zero_i:-non_zero_i], p0=p0, maxfev=5000)
+                fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata[non_zero_i:-non_zero_i],
+                                              rescaled_ydata[non_zero_i:-non_zero_i], p0=p0, maxfev=5000)
             center_fit_y = kernel_funcs[kernel_name](xdata[non_zero_i:-non_zero_i], *fit_parameters)
             center_fit_y = np.where(center_fit_y < 0, 0, center_fit_y)
             fit_y = rescaled_ydata.copy()
             fit_y[non_zero_i:-non_zero_i] = center_fit_y
             return fit_y
         else:
-            try:
-                fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata, rescaled_ydata)
-            except RuntimeError:
-                fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata, rescaled_ydata, maxfev=5000)
+            fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata, rescaled_ydata, maxfev=5000)
             return kernel_funcs[kernel_name](xdata, *fit_parameters)
     elif kernel_name.startswith('my_linear'):
         if kernel_name == MY_LINEAR_NORM:

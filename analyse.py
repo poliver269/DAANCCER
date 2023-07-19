@@ -156,8 +156,9 @@ class SingleProteinTrajectoryAnalyser(SingleTrajectoryAnalyser):
 
 
 class MultiTrajectoryAnalyser:
-    def __init__(self, kwargs_list: list, params: dict):
-        self.trajectories: list[DataTrajectory] = [get_data_class(params, kwargs) for kwargs in kwargs_list]
+    def __init__(self, kwargs_list: list, params: dict, set_trajectories=True):
+        if set_trajectories:
+            self.trajectories: list[DataTrajectory] = [get_data_class(params, kwargs) for kwargs in kwargs_list]
         print(f'Trajectories loaded time: {datetime.now()}')
         self.params: dict = {
             N_COMPONENTS: params.get(N_COMPONENTS, 2),
@@ -751,29 +752,38 @@ class MultiTrajectoryAnalyser:
 
 class MultiSubTrajectoryAnalyser(MultiTrajectoryAnalyser):
     def __init__(self, kwargs_list: list, params: dict):
-        super().__init__(kwargs_list, params)
+        super().__init__(kwargs_list, params, set_trajectories=False)
         self.trajectories: list[SubTrajectoryDecorator] = [get_data_class(params, kwargs) for kwargs in kwargs_list]
 
     def compare_re_on_small_parts(self, model_params_list):
         max_time_steps = self.trajectories[DUMMY_ZERO].dim[TIME_FRAMES]  # e.g. 10000
         time_steps = np.geomspace(self.trajectories[DUMMY_ZERO].max_components, max_time_steps, num=10, dtype=int)
-        component_list = np.asarray([2, 5, 50])
+        component_list = np.asarray([2, 5, 10, 50])
 
         model_median_scores = {}  # {'PCA': {'1': }, 'DAANCCER', 'TICA'}
         for model_params in model_params_list:
             print(f'Calculating reconstruction errors ({model_params})...')
 
-            for time_window_size in time_steps:
+            for time_index, time_window_size in enumerate(tqdm(time_steps)):
                 self.change_time_window_sizes(time_window_size)
                 model_dict_list = self._get_model_result_list(model_params)
                 model_description = get_algorithm_name(model_dict_list[DUMMY_ZERO][MODEL])
                 if model_description not in model_median_scores.keys():
-                    model_median_scores[model_description] = []
+                    model_median_scores[model_description] = np.zeros((time_steps.size, component_list.size))
 
-                for component in component_list:
+                for component_index, component in enumerate(component_list):
                     models_re_for_component: list = self._models_re_for_component(component, fit_transform_re=False,
                                                                                   model_dict_list=model_dict_list)
-                    model_median_scores[model_description].append(np.median(models_re_for_component))
+                    model_median_scores[model_description][time_index, component_index] = np.median(
+                        models_re_for_component)
+
+        ArrayPlotter(
+            interactive=self.params[INTERACTIVE],
+            title_prefix=f'FooToa on varying time window size',
+            x_label='Time window size',
+            y_label='Median RE',
+            for_paper=self.params[PLOT_FOR_PAPER]
+        ).plot_matrix_in_2d(model_median_scores, time_steps, component_list)  # TODO: error band
 
     def change_time_window_sizes(self, new_time_window_size):
         self.trajectories = [trajectory.change_time_window_size(new_time_window_size) for trajectory in

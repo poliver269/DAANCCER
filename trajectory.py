@@ -429,7 +429,9 @@ class SubTrajectoryDecorator(DataTrajectory):
             super().__setattr__(name, value)
 
             # Update the parameter in the data_trajectory object
-            if hasattr(self, 'data_trajectory') and name in self.data_trajectory.__dict__ and name != "params":
+            if (hasattr(self, 'data_trajectory') and
+                    name in self.data_trajectory.__dict__ and
+                    name != "params"):
                 setattr(self.data_trajectory, name, value)
 
     @property
@@ -518,6 +520,8 @@ class SubTrajectoryDecorator(DataTrajectory):
 
             if self.__random_part_count:
                 self.part_count = random.randint(0, self.quantity - 1)
+
+        return self
 
 
 class ProteinTopologyConverter(TrajectoryFile):

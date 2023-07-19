@@ -79,6 +79,6 @@ def load_re_over_component_span(directory_root: str, kwargs: dict):
                      f'on {kwargs[PARAMS][N_COMPONENTS]} Principal Components ',
         x_label='number of principal components',
         y_label='median REs of the trajectories',
-        y_range=(0, 1),
+        # y_range=(0, 1),
         for_paper=kwargs[PARAMS][PLOT_FOR_PAPER]
     ).plot_merged_2ds(plot_dict, error_band=error_band)

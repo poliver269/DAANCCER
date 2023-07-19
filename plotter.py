@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+from matplotlib.lines import Line2D
 from matplotlib.widgets import Slider
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.metrics.pairwise import cosine_similarity
@@ -24,6 +25,7 @@ class MyPlotter:
         self.interactive: bool = interactive
         self.title_prefix: str = title_prefix
         self.colors: dict = mcolors.TABLEAU_COLORS
+        self.line_styles = iter(Line2D.lineStyles)
         self.for_paper: bool = for_paper
 
         if self.interactive:
@@ -409,8 +411,8 @@ class ArrayPlotter(MyPlotter):
         # self.axes.set_title(self.title_prefix)
         self.axes.set_xlabel(self.x_label, fontsize=self.fontsize)
         self.axes.set_ylabel(self.y_label, fontsize=self.fontsize)
-        # plt.xticks(fontsize=self.fontsize)
-        # plt.yticks(fontsize=self.fontsize)
+        plt.xticks(fontsize=self.fontsize)
+        plt.yticks(fontsize=self.fontsize)
 
         if self.bottom_text is not None:
             self.fig.text(0.01, 0.01, self.bottom_text, fontsize=self.fontsize)
@@ -523,33 +525,32 @@ class ArrayPlotter(MyPlotter):
         self._post_processing()
 
     def plot_merged_2ds(self, ndarray_dict: dict, statistical_func=None, error_band: dict = None):
-        self.fig, self.axes = plt.subplots(1, 1, dpi=80)
+        self.fig, self.axes = plt.subplots(1, 1, figsize=(2160 / 200, 1080 / 200), dpi=200)
         self.title_prefix += f'with {function_name(statistical_func)}' if statistical_func is not None else ''
         for i, (key, ndarray_data) in enumerate(ndarray_dict.items()):
             # noinspection PyProtectedMember
             color = next(self.axes._get_lines.prop_cycler)['color']
+            line_style = next(self.line_styles)
             if statistical_func is not None:
                 if isinstance(ndarray_data, list):
                     ndarray_data = np.asarray(ndarray_data)
-                self.axes.plot(ndarray_data, '-', color=color)
+                self.axes.plot(ndarray_data, line_style, color=color)
                 statistical_value = statistical_func(ndarray_data)
                 statistical_value_line = np.full(ndarray_data.shape, statistical_value)
                 self.axes.plot(statistical_value_line, '--',
-                               label=f'{key.strip()}: {statistical_value:.4f}', color=color)
+                               label=f'{get_algorithm_name(key)}: {statistical_value:.4f}', color=color)
             else:
-                self.axes.plot(ndarray_data, '-', color=color, label=f'{key.strip()[:35]}')
+                self.axes.plot(ndarray_data, line_style, color=color, label=get_algorithm_name(key))
 
             if self.for_paper:
                 self._activate_legend = False
-                if key.startswith('PCA'):  # TODO: Hardcoded for Eigenvector Similarity and 2f4k dataset
-                    xy = (22, 0.7)
-                elif key.startswith('TICA'):
-                    xy = (3, 0.56)
-                elif key.startswith('DAANCCER'):
-                    xy = (60, 0.96)
+                if key.startswith('DAANCCER'):
+                    xy = (55, 0.23)
+                    self.axes.annotate('DROPP', xy=xy, color=color, fontsize=self.fontsize)
                 else:
-                    xy = (0, ndarray_data[2])
-                self.axes.annotate(get_algorithm_name(key), xy=xy, color=color, fontsize=self.fontsize)
+                    xy = self._find_optional_annotating_coordinates(ndarray_data, ndarray_dict)
+                    self.axes.annotate(get_algorithm_name(key), xy=xy, color=color, fontsize=self.fontsize)
+
             else:
                 self._activate_legend = True
 
@@ -559,6 +560,52 @@ class ArrayPlotter(MyPlotter):
                 else:
                     self.axes.fill_between(range(error_band[key].shape[DUMMY_ONE]),
                                            error_band[key][DUMMY_ZERO], error_band[key][DUMMY_ONE], alpha=0.2)
+        self._post_processing()
+
+    @staticmethod
+    def _find_optional_annotating_coordinates(current_line_data: np.ndarray, other_line_datas: dict[np.ndarray]):
+        def euclidean_distance(point1, point2):
+            return np.sqrt((point1 - point2)**2)
+
+        max_distance = float('-inf')  # Initialize maximum distance to a small value
+        max_index = 0
+        for j, data_point in enumerate(current_line_data):
+            min_distance_to_others = float('inf')  # Initialize minimum distance to other lines to a large value
+            for other_key, other_ndarray_data in other_line_datas.items():
+                if not np.array_equal(current_line_data, other_ndarray_data):
+                    other_distances = euclidean_distance(data_point, other_ndarray_data)
+                    min_distance_to_others = min(min_distance_to_others, np.min(other_distances))
+            if min_distance_to_others > max_distance:
+                max_distance = min_distance_to_others
+                max_index = j
+
+        y_coord = current_line_data[max_index] + .01
+        x_coord = max_index + .01
+        return x_coord, y_coord
+
+    def plot_matrix_in_2d(self, model_median_scores: dict,
+                          x_axis_values: np.ndarray,
+                          line_values: np.ndarray,
+                          error_band: dict = None):
+        self.fig, self.axes = plt.subplots(1, 1, figsize=(1080 / 100, 1080 / 100), dpi=100)
+
+        for model_name, model_scores in model_median_scores.items():
+            # noinspection PyProtectedMember
+            color = next(self.axes._get_lines.prop_cycler)['color']
+            line_style = next(self.line_styles)
+
+            for j, line_width in enumerate(np.log(line_values)):
+                self.axes.plot(x_axis_values, model_scores[:, j],
+                               color=color, linestyle=line_style, linewidth=line_width)
+
+                if error_band is not None:  # TODO test, make function
+                    if not (error_band[model_name].shape[DUMMY_ONE] == model_scores.shape[DUMMY_ZERO]):
+                        warnings.warn('Could not plot the error band, because the error band has the incorrect shape.')
+                    else:
+                        self.axes.fill_between(range(error_band[model_name].shape[DUMMY_ONE]),
+                                               error_band[model_name][DUMMY_ZERO], error_band[model_name][DUMMY_ONE],
+                                               alpha=0.2)
+
         self._post_processing()
 
 
