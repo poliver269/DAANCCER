@@ -254,7 +254,7 @@ class ModelResultPlotter(MyPlotter):
                 if get_algorithm_name(result_dict[MODEL]) == 'PCA':
                     ax.set_xlim((-15, 15))
                     ax.set_ylim((-15, 15))
-                elif get_algorithm_name(result_dict[MODEL]) == 'DAANCCER':
+                elif get_algorithm_name(result_dict[MODEL]) == 'DROPP':
                     ax.set_xlim(-5, 5)
                     ax.set_ylim(-5, 5)
                 ax.set_xticks([])
@@ -291,28 +291,28 @@ class ModelResultPlotter(MyPlotter):
             # TODO: dont use hardcoded flipping
             if superposing == 'PDB':
                 flip_x_axis_pca = {(2, 4), (4, 0), (4, 1), (4, 2), (4, 3), (4, 4)}
-                flip_x_axis_daanccer = {(2, 0), (3, 0), (4, 0), (3, 4), (1, 1),
+                flip_x_axis_dropp = {(2, 0), (3, 0), (4, 0), (3, 4), (1, 1),
                                         (1, 2), (1, 3), (2, 4), (4, 4)}
                 flip_y_axis_pca = {(4, 0), (4, 1), (4, 2), (4, 3), (4, 4)}
-                flip_y_axis_daanccer = {(1, 2), (4, 2), (2, 4), (3, 4)}
+                flip_y_axis_dropp = {(1, 2), (4, 2), (2, 4), (3, 4)}
             else:  # Random-Superposing
                 flip_x_axis_pca = {(0, 2), (0, 3), (2, 3), (2, 0), (3, 0), (4, 0), (1, 4), (2, 4)}
-                flip_x_axis_daanccer = {(0, 1), (0, 3), (0, 4), (1, 0), (2, 0),
+                flip_x_axis_dropp = {(0, 1), (0, 3), (0, 4), (1, 0), (2, 0),
                                         (2, 1), (2, 3), (3, 2), (3, 4), (4, 2), (4, 4)}
                 flip_y_axis_pca = {(1, 4), (3, 4)}
-                flip_y_axis_daanccer = {(0, 4), (1, 1), (1, 2), (2, 0), (3, 0), (4, 0)}
+                flip_y_axis_dropp = {(0, 4), (1, 1), (1, 2), (2, 0), (3, 0), (4, 0)}
 
             flip_components_pca = {}
-            flip_components_daanccer = {}
+            flip_components_dropp = {}
 
             flip_x_axis = [(x[0], x[1], 'PCA') for x in flip_x_axis_pca]
-            flip_x_axis += [(x[0], x[1], 'DAANCCER') for x in flip_x_axis_daanccer]
+            flip_x_axis += [(x[0], x[1], 'DROPP') for x in flip_x_axis_dropp]
 
             flip_y_axis = [(x[0], x[1], 'PCA') for x in flip_y_axis_pca]
-            flip_y_axis += [(x[0], x[1], 'DAANCCER') for x in flip_y_axis_daanccer]
+            flip_y_axis += [(x[0], x[1], 'DROPP') for x in flip_y_axis_dropp]
 
             flip_components = [(x[0], x[1], 'PCA') for x in flip_components_pca]
-            flip_components += [(x[0], x[1], 'DAANCCER') for x in flip_components_daanccer]
+            flip_components += [(x[0], x[1], 'DROPP') for x in flip_components_dropp]
 
             if (row_index, col_index, model_description) in flip_x_axis:
                 projection[:, 0] = -projection[:, 0]

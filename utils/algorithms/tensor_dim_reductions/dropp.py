@@ -18,7 +18,7 @@ from utils.param_keys.model import ALGORITHM_NAME, LAG_TIME, NTH_EIGENVECTOR, EX
 from utils.param_keys.traj_dims import TIME_DIM, CORRELATION_DIM, COMBINED_DIM
 
 
-class DAANCCER(TensorDR):
+class DROPP(TensorDR):
     def __init__(self,
                  cov_stat_func=np.mean,
                  kernel_stat_func=statistical_zero,
@@ -78,7 +78,7 @@ class DAANCCER(TensorDR):
             self.kernel_stat_func = eval(self.kernel_stat_func)
 
     def __str__(self):
-        sb = 'DAANCCER('
+        sb = 'DROPP('
         # sb = self.describe()
         sb += f'PCs={self.n_components}'
         sb += f'lag-time={self.lag_time}, ' if self.lag_time > 0 else ''
@@ -195,7 +195,7 @@ class DAANCCER(TensorDR):
             Else the covariance matrix is calculated over the combined dimension span separately
             and forced the not correlated values not to correlate by block expanding it
             setting the values to zeros.
-        The DAANCCER algorithm maps a gaussian curve onto the covariance matrix in default
+        The DROPP algorithm maps a gaussian curve onto the covariance matrix in default
         :return: np.ndarray
             Covariance matrix shape: _correlation_dim*_combined_dim x _correlation_dim*_combined_dim
             (or _correlation_dim x _correlation_dim, if _is_matrix_model)

@@ -10,7 +10,7 @@ from mdtraj import Trajectory
 from sklearn.decomposition import FastICA, PCA
 
 from utils.algorithms.interfaces import DeeptimeTICAInterface, PyemmaTICAInterface, PyemmaPCAInterface, SklearnPCA
-from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
+from utils.algorithms.tensor_dim_reductions.dropp import DROPP
 from utils.algorithms.tsne import MyTSNE, MyTimeLaggedTSNE
 from utils.errors import InvalidSubsetTrajectory
 from utils.math import basis_transform, explained_variance
@@ -154,7 +154,7 @@ class DataTrajectory(TrajectoryFile):
             pca = SklearnPCA(n_components=self.params[N_COMPONENTS], svd_solver="full")
             return pca, pca.fit_transform(inp)
         else:
-            model = DAANCCER(**model_parameters)
+            model = DROPP(**model_parameters)
             return model, model.fit_transform(inp, n_components=self.params[N_COMPONENTS])
 
 
@@ -392,7 +392,7 @@ class ProteinTrajectory(DataTrajectory):
             reconstructed trajectory coordinates
         """
         model, projection = self.get_model_and_projection(model_parameters)
-        if isinstance(model, DAANCCER):
+        if isinstance(model, DROPP):
             return model.reconstruct(projection[0])
         else:
             eigenvectors = model.components_

@@ -1,4 +1,4 @@
-name: daanccer
+name: dropp-algorithm
 channels:
   - conda-forge
   - bioconda

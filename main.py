@@ -18,7 +18,7 @@ import load_results
 def main():
     print(f'Starting time: {datetime.now()}')
 
-    args = ArgParser().parse('DAANCCER main')
+    args = ArgParser().parse('DROPP main')
 
     run_params = config.get_run_params(args.run_params_json)
     filename_list, kwargs = config.get_files_and_kwargs(run_params)

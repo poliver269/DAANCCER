@@ -17,7 +17,7 @@ from config import get_data_class
 from plotter import ArrayPlotter, MultiTrajectoryPlotter, ModelResultPlotter
 from trajectory import ProteinTrajectory, DataTrajectory, SubTrajectoryDecorator
 from utils import statistical_zero, get_algorithm_name
-from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
+from utils.algorithms.tensor_dim_reductions.dropp import DROPP
 from utils.errors import InvalidReconstructionException, InvalidProteinTrajectory
 from utils.matrix_tools import calculate_symmetrical_kernel_matrix, reconstruct_matrix
 from utils.param_keys import *
@@ -116,7 +116,7 @@ class SingleTrajectoryAnalyser:
             List of different parameters, which sets the search space.
         """
         print('Searching for best model...')
-        model = DAANCCER()
+        model = DROPP()
         inp = self.trajectory.data_input()  # Cannot train for different ndim at once
         cv = [(slice(None), slice(None))]  # get rid of cross validation
         grid = GridSearchCV(model, param_grid, cv=cv, verbose=1)
@@ -379,7 +379,7 @@ class MultiTrajectoryAnalyser:
         inp = train_trajectories[0].data_input()  # Works only for TENSOR_DIM_INPUT
         for trajectory in train_trajectories[1:]:
             np.concatenate((inp, trajectory.data_input()), axis=0)
-        model = DAANCCER()
+        model = DROPP()
         cv = len(train_trajectories)
         grid = GridSearchCV(model, param_grid, cv=cv, verbose=1)
         grid.fit(inp, n_components=self.params[N_COMPONENTS])
@@ -446,7 +446,7 @@ class MultiTrajectoryAnalyser:
             to reconstruct the original data. If it's None, all the components of the model are used.
         @return: Root Mean Squared Error of the reconstruction data and the original one
         """
-        if isinstance(model, DAANCCER):
+        if isinstance(model, DROPP):
             if component is None:
                 return model.score(input_data, data_projection)
             else:
@@ -771,7 +771,7 @@ class MultiSubTrajectoryAnalyser(MultiTrajectoryAnalyser):
         saver.save_to_npz({'component_list': component_list}, 'component_list_FooToaTws')
 
         re_error_bands = {}
-        model_median_scores = {}  # {'PCA': {'1': }, 'DAANCCER', 'TICA'}
+        model_median_scores = {}  # {'PCA': {'1': }, 'DROPP', 'TICA'}
         for model_params in model_params_list:
             print(f'Calculating reconstruction errors ({model_params})...')
 
