@@ -9,7 +9,7 @@ import pandas as pd
 from mdtraj import Trajectory
 from sklearn.decomposition import FastICA, PCA
 
-from utils.algorithms.interfaces import DeeptimeTICAInterface, PyemmaTICAInterface, PyemmaPCAInterface, SklearnPCA
+from utils.algorithms.interfaces import DeeptimeTICAInterface, PyemmaTICAInterface, PyemmaPCAInterface
 from utils.algorithms.tensor_dim_reductions.dropp import DROPP
 from utils.algorithms.tsne import MyTSNE, MyTimeLaggedTSNE
 from utils.errors import InvalidSubsetTrajectory
@@ -149,10 +149,6 @@ class DataTrajectory(TrajectoryFile):
             except TypeError:
                 raise TypeError(f'Input data of the function is not correct. '
                                 f'Original algorithms take only 2-n-dimensional ndarray')
-        elif model_parameters[ALGORITHM_NAME] == 'interface_pca':
-            # TODO@Oli&Prio1: Correct Interface
-            pca = SklearnPCA(n_components=self.params[N_COMPONENTS], svd_solver="full")
-            return pca, pca.fit_transform(inp)
         else:
             model = DROPP(**model_parameters)
             return model, model.fit_transform(inp, n_components=self.params[N_COMPONENTS])
