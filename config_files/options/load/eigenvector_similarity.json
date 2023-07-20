@@ -1,10 +1,9 @@
 {
-  "run_option": "multi_compare_all_pcs",
+  "run_option": "load_eigenvector_similarities",
   "plot_for_paper": true,
   "interactive": false,
   "n_components": null,
   "data_set": "protein",
   "trajectory_name": "2f4k",
-  "file_element": 0,
-  "enable_save": true
+  "file_element": 0
 }

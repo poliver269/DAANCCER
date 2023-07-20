@@ -307,9 +307,9 @@ class MultiTrajectoryAnalyser:
             all_sim_matrix = self._get_all_similarities_from_trajectory_ev_pairs(result_pairs)
 
             if merged_plot:
-                model_similarities[str(result_pairs[0][0][MODEL])] = np.mean(all_sim_matrix, axis=0)
-                similarity_error_bands[str(result_pairs[0][0][MODEL])] = np.vstack((np.min(all_sim_matrix, axis=0),
-                                                                                    np.max(all_sim_matrix, axis=0)))
+                model_similarities[str(result_pairs[0][0][MODEL])] = np.mean(all_sim_matrix, axis=0)[1:]
+                similarity_error_bands[str(result_pairs[0][0][MODEL])] = np.vstack(
+                    (np.min(all_sim_matrix, axis=0), np.max(all_sim_matrix, axis=0)))[:, 1:]
             else:
                 if pc_nr_list is None:
                     ArrayPlotter(
@@ -337,8 +337,11 @@ class MultiTrajectoryAnalyser:
                             for_paper=self.params[PLOT_FOR_PAPER]
                         ).matrix_plot(tria)
         if merged_plot:
-            AnalyseResultsSaver(self.params[TRAJECTORY_NAME], enable_save=self.params[ENABLE_SAVE]).save_to_npz(
-                model_similarities, 'eigenvector_similarities')
+            saver = AnalyseResultsSaver(self.params[TRAJECTORY_NAME],
+                                        enable_save=self.params[ENABLE_SAVE],
+                                        folder_suffix='_EV-similarities')
+            saver.save_to_npz(model_similarities, 'eigenvector_similarities')
+            saver.save_to_npz(similarity_error_bands, 'error_bands_similarity')
             ArrayPlotter(
                 interactive=self.params[INTERACTIVE],
                 title_prefix=f'Eigenvector Similarities',
@@ -762,7 +765,7 @@ class MultiSubTrajectoryAnalyser(MultiTrajectoryAnalyser):
             folder_suffix='_FooToaTws'
         )
         max_time_steps = self.trajectories[DUMMY_ZERO].dim[TIME_FRAMES]  # e.g. 10000
-        time_steps = np.geomspace(self.trajectories[DUMMY_ZERO].max_components, max_time_steps, num=10, dtype=int)
+        time_steps = np.geomspace(self.trajectories[DUMMY_ZERO].max_components, max_time_steps, num=15, dtype=int)
         component_list = np.asarray([2, 5, 10, 25, 50])
         saver.save_to_npz({'time_steps': time_steps}, 'time_steps_FooToaTws')
         saver.save_to_npz({'component_list': component_list}, 'component_list_FooToaTws')

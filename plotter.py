@@ -363,7 +363,7 @@ class ModelResultPlotter(MyPlotter):
     def plot_multi_projections(self, model_result_list_in_list, plot_type, center_plot=True, sub_parts=False,
                                show_model_properties=True):
         self.fig, self.axes = plt.subplots(len(model_result_list_in_list), len(model_result_list_in_list[DUMMY_ZERO]),
-                                           figsize=(1080 / 100, 1080 / 100), dpi=100, sharex='all', sharey='all')
+                                           figsize=(1080 / 200, 1080 / 200), dpi=200, sharex='all', sharey='all')
         for row_index, model_results in enumerate(model_result_list_in_list):
             if len(model_results) == 1:
                 self._plot_transformed_trajectory(self.axes[row_index], model_results[DUMMY_ZERO], color_map=plot_type,
@@ -492,7 +492,7 @@ class ArrayPlotter(MyPlotter):
             Some statistical numpy function
         :return:
         """
-        self.fig, self.axes = plt.subplots(1, 1, figsize=(1080 / 100, 1080 / 100), dpi=100)
+        self.fig, self.axes = plt.subplots(1, 1, figsize=(1080 / 200, 1080 / 200), dpi=200)
         self.axes.plot(x_index, gauss_fitted, '-', label=f'fit {fit_method}', linewidth=3.0)
         # self.axes.plot(x_index, gauss_fitted, ' ')
         self.axes.plot(x_index, ydata, '.', label='original data')
@@ -544,11 +544,20 @@ class ArrayPlotter(MyPlotter):
 
             if self.for_paper:
                 self._activate_legend = False
-                if key.startswith('DAANCCER'):
-                    xy = (55, 0.23)
-                    self.axes.annotate('DROPP', xy=xy, color=color, fontsize=self.fontsize)
+                hard_coded_function = 'FooToa-2f4k'
+                if key.startswith('DAANCCER') and hard_coded_function in ['FooToa-2f4k']:
+                    if hard_coded_function == 'FooToa-2f4k':
+                        xy = (55, 0.23)
+                    elif hard_coded_function == 'EV-sim-2f4k':
+                        xy = (60, 0.96)
+                    else:
+                        xy = (0, 0)
                 else:
                     xy = self._find_optional_annotating_coordinates(ndarray_data, ndarray_dict)
+
+                if key.startswith('DAANCCER'):
+                    self.axes.annotate('DROPP', xy=xy, color=color, fontsize=self.fontsize)
+                else:
                     self.axes.annotate(get_algorithm_name(key), xy=xy, color=color, fontsize=self.fontsize)
 
             else:
@@ -587,7 +596,7 @@ class ArrayPlotter(MyPlotter):
                           x_axis_values: np.ndarray,
                           line_values: np.ndarray,
                           error_band: dict = None):
-        self.fig, self.axes = plt.subplots(1, 1, figsize=(1080 / 100, 1080 / 100), dpi=100)
+        self.fig, self.axes = plt.subplots(1, 1, figsize=(2160 / 200, 1080 / 200), dpi=200)
 
         for model_name, model_scores in model_median_scores.items():
             # noinspection PyProtectedMember
@@ -595,18 +604,34 @@ class ArrayPlotter(MyPlotter):
             line_style = next(self.line_styles)
 
             for j, line_width in enumerate(np.log(line_values)):
-                self.axes.plot(x_axis_values, model_scores[:, j],
-                               color=color, linestyle=line_style, linewidth=line_width)
+                if line_values[j] != 25:
+                    self.axes.plot(x_axis_values, model_scores[:, j],
+                                   color=color, linestyle=line_style, linewidth=line_width)
+                    if j == 0:
+                        self.axes.plot([], [], color=color, linewidth=10, label=model_name)
 
-                if error_band is not None:  # TODO test, make function
-                    error_component_band = error_band[model_name][:, j, :].T
-                    if not (error_component_band.shape[DUMMY_ONE] == model_scores[:, j].shape[DUMMY_ZERO]):
-                        warnings.warn('Could not plot the error band, because the error band has the incorrect shape.')
-                    else:
-                        self.axes.fill_between(x_axis_values,
-                                               error_component_band[DUMMY_ZERO], error_component_band[DUMMY_ONE],
-                                               color=color, alpha=0.2*line_width)
+                    self.axes.annotate(line_values[j], xy=(x_axis_values[-1], model_scores[-1, j]-0.01),
+                                       color=color, fontsize=self.fontsize)
 
+                    if error_band is not None:  # TODO test, make function
+                        error_component_band = error_band[model_name][:, j, :].T
+                        if not (error_component_band.shape[DUMMY_ONE] == model_scores[:, j].shape[DUMMY_ZERO]):
+                            warnings.warn('Could not plot the error band, because the error band has the incorrect shape.')
+                        else:
+                            self.axes.fill_between(x_axis_values,
+                                                   error_component_band[DUMMY_ZERO], error_component_band[DUMMY_ONE],
+                                                   color=color, alpha=0.2*line_width)
+
+        if self.for_paper:
+            self.axes.set_xlim(0, x_axis_values[-1])
+            default_xticks = self.axes.get_xticks()
+            # Add 105 to the x-ticks
+            specific_xticks = [105] + list(default_xticks[1:])
+
+            # Set the x-ticks with both default and specific values
+            self.axes.set_xticks(specific_xticks)
+
+        self._activate_legend = True
         self._post_processing()
 
 
