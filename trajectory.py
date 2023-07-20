@@ -225,6 +225,7 @@ class WeatherTrajectory(DataTrajectory):
             print("INFO: Feature trajectory has shape", ft_traj.shape)
         return ft_traj
 
+
 class ProteinTrajectory(DataTrajectory):
     def __init__(self, filename, topology_filename=None, folder_path='data/2f4k', params=None, atoms=None, **kwargs):
         super().__init__(filename, folder_path, extra_filename=topology_filename, params=params)
@@ -428,7 +429,9 @@ class SubTrajectoryDecorator(DataTrajectory):
             super().__setattr__(name, value)
 
             # Update the parameter in the data_trajectory object
-            if hasattr(self, 'data_trajectory') and name in self.data_trajectory.__dict__ and name != "params":
+            if (hasattr(self, 'data_trajectory') and
+                    name in self.data_trajectory.__dict__ and
+                    name != "params"):
                 setattr(self.data_trajectory, name, value)
 
     @property
@@ -517,6 +520,8 @@ class SubTrajectoryDecorator(DataTrajectory):
 
             if self.__random_part_count:
                 self.part_count = random.randint(0, self.quantity - 1)
+
+        return self
 
 
 class ProteinTopologyConverter(TrajectoryFile):

@@ -82,14 +82,13 @@ def get_files_and_kwargs(params: dict):
         filename_list = [f'trajectory-{i}.xtc' for i in range(1, 28 + 1)]
         kwargs = {FILENAME: filename_list[file_element], TOPOLOGY_FILENAME: 'fs-peptide.pdb',
                   FOLDER_PATH: 'data/fs-peptide'}
-    #TODO: Adjust case startswith weather to multi
+    # TODO: Adjust case startswith weather to multi
     elif data_set == 'weather':
-        reducee_feature: str = params[REDUCEE_FEATURE]
         country = trajectory_name
         folder_path = f'data/weather_data/{country}/'
-        filename_list = [f'weather_{country}_{i}.csv' for i in range(1980, 1982)]#2019 + 1)]
+        filename_list = [f'weather_{country}_{i}.csv' for i in range(1980, 2019 + 1)]
 
-        if not os.path.isfile(folder_path+filename_list[file_element]):
+        if not os.path.isfile(folder_path + filename_list[file_element]):
             raw_data = pd.read_csv('data/weather_data.csv')
             os.makedirs(folder_path, exist_ok=True)
             print('INFO: Created directory ', folder_path)
@@ -97,7 +96,7 @@ def get_files_and_kwargs(params: dict):
             wp.get_trajectories_per_year(raw_data, 'utc_timestamp', country)
 
         kwargs = {FILENAME: filename_list[file_element],
-                FOLDER_PATH: folder_path}
+                  FOLDER_PATH: folder_path}
     else:
         raise ValueError(f'No data trajectory was found with the name `{trajectory_name}`.')
 

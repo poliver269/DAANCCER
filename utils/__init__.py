@@ -1,5 +1,6 @@
 from sklearn.utils import deprecated
 
+from math import log10, floor
 from utils.param_keys import DUMMY_ZERO
 
 
@@ -75,3 +76,9 @@ def get_algorithm_name(model) -> str:
         Model algorithm name
     """
     return str(model).split('(')[DUMMY_ZERO]
+
+
+def nr_in_human_format(num: int):
+    ends = ["", "k", "m", "b", "t", "q"]
+    index = min(int(floor(log10(num) / 3)), len(ends) - 1)
+    return str(num // 1000 ** index) + ends[index]

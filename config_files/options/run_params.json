@@ -2,9 +2,11 @@
   "run_option": "compare",
   "plot_type": "color_map",
   "plot_tics": true,
-  "interactive": true,
+  "interactive": false,
   "n_components": 2,
+  "for_paper": true,
+  "data_set": "protein",
   "trajectory_name": "2f4k",
   "file_element": 0,
-  "data_set": "protein"
+  "superposing_index": 100
 }

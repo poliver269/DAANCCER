@@ -1,4 +1,5 @@
 import os
+from collections import OrderedDict
 from pathlib import Path
 
 import numpy as np
@@ -70,6 +71,8 @@ def load_analyse_results_dict(result_load_files: list, kwargs: dict):
 def load_re_over_component_span(directory_root: str, kwargs: dict):
     npzs = AnalyseResultLoader(kwargs[PARAMS][TRAJECTORY_NAME]).load_npz_files_in_directory(directory_root)
     plot_dict = next(v for k, v in npzs.items() if 'median' in k)
+    a = ['PCA', 'DAANCCER', 'TICA', 'FastICA']
+    plot_dict = OrderedDict((key, plot_dict[key]) for key in a)
     error_band = next(v for k, v in npzs.items() if 'error_bands' in k)
     from_other_traj = True
     ArrayPlotter(
@@ -79,6 +82,35 @@ def load_re_over_component_span(directory_root: str, kwargs: dict):
                      f'on {kwargs[PARAMS][N_COMPONENTS]} Principal Components ',
         x_label='number of principal components',
         y_label='median REs of the trajectories',
-        y_range=(0, 1),
+        # y_range=(0, 1),
+        for_paper=kwargs[PARAMS][PLOT_FOR_PAPER]
+    ).plot_merged_2ds(plot_dict, error_band=error_band)
+
+
+def load_foo_toa_tws(directory_root: str, kwargs: dict):
+    npzs = AnalyseResultLoader(kwargs[PARAMS][TRAJECTORY_NAME]).load_npz_files_in_directory(directory_root)
+    plot_dict = next(v for k, v in npzs.items() if 'median' in k)
+    error_band = next(v for k, v in npzs.items() if 'error_bands' in k)
+    time_steps = next(v for k, v in npzs.items() if 'time_steps' in k)
+    component_list = next(v for k, v in npzs.items() if 'component_list' in k)
+    ArrayPlotter(
+        interactive=kwargs[PARAMS][INTERACTIVE],
+        title_prefix=f'FooToa on varying time window size',
+        x_label='Time window size',
+        y_label='Median RE',
+        for_paper=kwargs[PARAMS][PLOT_FOR_PAPER]
+    ).plot_matrix_in_2d(plot_dict, time_steps['time_steps'], component_list['component_list'], error_band)
+
+
+def load_eigenvector_similarities(directory_root: str, kwargs: dict):
+    npzs = AnalyseResultLoader(kwargs[PARAMS][TRAJECTORY_NAME]).load_npz_files_in_directory(directory_root)
+    plot_dict = next(v for k, v in npzs.items() if 'eigenvector' in k)
+    error_band = next(v for k, v in npzs.items() if 'error_bands' in k)
+    ArrayPlotter(
+        interactive=kwargs[PARAMS][INTERACTIVE],
+        title_prefix=f'Eigenvector Similarities',
+        x_label='number of principal components',
+        y_label='median cosine similarity value',
+        # y_range=(0, 1),
         for_paper=kwargs[PARAMS][PLOT_FOR_PAPER]
     ).plot_merged_2ds(plot_dict, error_band=error_band)

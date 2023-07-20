@@ -107,3 +107,7 @@ def my_sinc(x, sigma):
 
 def my_sinc_sum(x, mu, sigma):
     return mu + np.sinc(x * sigma)
+
+
+def my_cos(x, sigma):
+    return np.cos((np.pi * x) / (2 * sigma))

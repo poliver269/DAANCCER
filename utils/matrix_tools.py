@@ -10,11 +10,11 @@ from plotter import ArrayPlotter
 from utils import function_name
 from utils.array_tools import rescale_array, rescale_center
 from utils.math import is_matrix_symmetric, exponential_2d, epanechnikov_2d, gaussian_2d, is_matrix_orthogonal, my_sinc, \
-    my_sinc_sum
+    my_sinc_sum, my_cos
 from utils.param_keys.analyses import PLOT_3D_MAP, WEIGHTED_DIAGONAL, FITTED_KERNEL_CURVES, KERNEL_COMPARE, \
     PLOT_KERNEL_MATRIX_3D
 from utils.param_keys.kernel_functions import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL, MY_LINEAR, \
-    MY_LINEAR_INVERSE_P1, MY_LINEAR_NORM, MY_LINEAR_INVERSE_NORM, MY_SINC, MY_SINC_SUM
+    MY_LINEAR_INVERSE_P1, MY_LINEAR_NORM, MY_LINEAR_INVERSE_NORM, MY_SINC, MY_SINC_SUM, MY_COS
 
 
 def diagonal_indices(matrix: np.ndarray):
@@ -185,7 +185,7 @@ def calculate_symmetrical_kernel_matrix(
                 title_prefix=f'Kernel Curves: {kernel_name}, use_original_data={use_original_data}',
                 x_label='Off-Diagonal Index',
                 y_label='Correlation Value',
-                for_paper=False
+                for_paper=True
             ).plot_gauss2d(xdata, original_ydata, rescaled_ydata, fit_y, kernel_name, stat_func)
     return kernel_matrix
 
@@ -210,27 +210,25 @@ def _get_rescaled_array(original_ydata, stat_func, flattened):
 # noinspection PyTupleAssignmentBalance
 def _get_curve_fitted_y(matrix, kernel_name, xdata, rescaled_ydata):
     kernel_funcs = {MY_EXPONENTIAL: exponential_2d, MY_EPANECHNIKOV: epanechnikov_2d, MY_GAUSSIAN: gaussian_2d,
-                    MY_SINC: my_sinc, MY_SINC_SUM: my_sinc_sum}
+                    MY_SINC: my_sinc, MY_SINC+'_center': my_sinc, MY_SINC_SUM: my_sinc_sum, MY_COS: my_cos}
 
     if kernel_name in kernel_funcs.keys():
-        if kernel_name == MY_EPANECHNIKOV:
+        if kernel_name in [MY_EPANECHNIKOV, MY_COS, MY_SINC+'_center']:
             non_zero_i = np.argmax(rescaled_ydata > 0)
-            if non_zero_i == 0:  # TODO: Correcting for flattened data
-                fit_parameters, _ = curve_fit(epanechnikov_2d, xdata,
+            if non_zero_i == 0:  # TODO: Correcting for flattened data # what does this part mean?
+                fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata,
                                               rescaled_ydata)
             else:
-                fit_parameters, _ = curve_fit(epanechnikov_2d, xdata[non_zero_i:-non_zero_i],
-                                              rescaled_ydata[non_zero_i:-non_zero_i])
-            center_fit_y = epanechnikov_2d(xdata[non_zero_i:-non_zero_i], *fit_parameters)
+                p0 = (len(xdata) // 2) - non_zero_i if kernel_name in [MY_COS] else 1
+                fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata[non_zero_i:-non_zero_i],
+                                              rescaled_ydata[non_zero_i:-non_zero_i], p0=p0, maxfev=5000)
+            center_fit_y = kernel_funcs[kernel_name](xdata[non_zero_i:-non_zero_i], *fit_parameters)
             center_fit_y = np.where(center_fit_y < 0, 0, center_fit_y)
             fit_y = rescaled_ydata.copy()
             fit_y[non_zero_i:-non_zero_i] = center_fit_y
             return fit_y
         else:
-            try:
-                fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata, rescaled_ydata)
-            except RuntimeError:
-                fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata, rescaled_ydata, maxfev=5000)
+            fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata, rescaled_ydata, maxfev=5000)
             return kernel_funcs[kernel_name](xdata, *fit_parameters)
     elif kernel_name.startswith('my_linear'):
         if kernel_name == MY_LINEAR_NORM:

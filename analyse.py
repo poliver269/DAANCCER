@@ -156,8 +156,9 @@ class SingleProteinTrajectoryAnalyser(SingleTrajectoryAnalyser):
 
 
 class MultiTrajectoryAnalyser:
-    def __init__(self, kwargs_list: list, params: dict):
-        self.trajectories: list[DataTrajectory] = [get_data_class(params, kwargs) for kwargs in kwargs_list]
+    def __init__(self, kwargs_list: list, params: dict, set_trajectories=True):
+        if set_trajectories:
+            self.trajectories: list[DataTrajectory] = [get_data_class(params, kwargs) for kwargs in kwargs_list]
         print(f'Trajectories loaded time: {datetime.now()}')
         self.params: dict = {
             N_COMPONENTS: params.get(N_COMPONENTS, 2),
@@ -306,9 +307,9 @@ class MultiTrajectoryAnalyser:
             all_sim_matrix = self._get_all_similarities_from_trajectory_ev_pairs(result_pairs)
 
             if merged_plot:
-                model_similarities[str(result_pairs[0][0][MODEL])] = np.mean(all_sim_matrix, axis=0)
-                similarity_error_bands[str(result_pairs[0][0][MODEL])] = np.vstack((np.min(all_sim_matrix, axis=0),
-                                                                                    np.max(all_sim_matrix, axis=0)))
+                model_similarities[str(result_pairs[0][0][MODEL])] = np.mean(all_sim_matrix, axis=0)[1:]
+                similarity_error_bands[str(result_pairs[0][0][MODEL])] = np.vstack(
+                    (np.min(all_sim_matrix, axis=0), np.max(all_sim_matrix, axis=0)))[:, 1:]
             else:
                 if pc_nr_list is None:
                     ArrayPlotter(
@@ -336,8 +337,11 @@ class MultiTrajectoryAnalyser:
                             for_paper=self.params[PLOT_FOR_PAPER]
                         ).matrix_plot(tria)
         if merged_plot:
-            AnalyseResultsSaver(self.params[TRAJECTORY_NAME], enable_save=self.params[ENABLE_SAVE]).save_to_npz(
-                model_similarities, 'eigenvector_similarities')
+            saver = AnalyseResultsSaver(self.params[TRAJECTORY_NAME],
+                                        enable_save=self.params[ENABLE_SAVE],
+                                        folder_suffix='_EV-similarities')
+            saver.save_to_npz(model_similarities, 'eigenvector_similarities')
+            saver.save_to_npz(similarity_error_bands, 'error_bands_similarity')
             ArrayPlotter(
                 interactive=self.params[INTERACTIVE],
                 title_prefix=f'Eigenvector Similarities',
@@ -751,29 +755,53 @@ class MultiTrajectoryAnalyser:
 
 class MultiSubTrajectoryAnalyser(MultiTrajectoryAnalyser):
     def __init__(self, kwargs_list: list, params: dict):
-        super().__init__(kwargs_list, params)
+        super().__init__(kwargs_list, params, set_trajectories=False)
         self.trajectories: list[SubTrajectoryDecorator] = [get_data_class(params, kwargs) for kwargs in kwargs_list]
 
     def compare_re_on_small_parts(self, model_params_list):
+        saver = AnalyseResultsSaver(
+            trajectory_name=self.params[TRAJECTORY_NAME],
+            enable_save=self.params[ENABLE_SAVE],
+            folder_suffix='_FooToaTws'
+        )
         max_time_steps = self.trajectories[DUMMY_ZERO].dim[TIME_FRAMES]  # e.g. 10000
-        time_steps = np.geomspace(self.trajectories[DUMMY_ZERO].max_components, max_time_steps, num=10, dtype=int)
-        component_list = np.asarray([2, 5, 50])
+        time_steps = np.geomspace(self.trajectories[DUMMY_ZERO].max_components, max_time_steps, num=15, dtype=int)
+        component_list = np.asarray([2, 5, 10, 25, 50])
+        saver.save_to_npz({'time_steps': time_steps}, 'time_steps_FooToaTws')
+        saver.save_to_npz({'component_list': component_list}, 'component_list_FooToaTws')
 
+        re_error_bands = {}
         model_median_scores = {}  # {'PCA': {'1': }, 'DAANCCER', 'TICA'}
         for model_params in model_params_list:
             print(f'Calculating reconstruction errors ({model_params})...')
 
-            for time_window_size in time_steps:  # TODO Hardcoded numbers
+            for time_index, time_window_size in enumerate(tqdm(time_steps)):
                 self.change_time_window_sizes(time_window_size)
                 model_dict_list = self._get_model_result_list(model_params)
                 model_description = get_algorithm_name(model_dict_list[DUMMY_ZERO][MODEL])
                 if model_description not in model_median_scores.keys():
-                    model_median_scores[model_description] = []
+                    model_median_scores[model_description] = np.zeros((time_steps.size, component_list.size))
+                    re_error_bands[model_description] = np.zeros((time_steps.size, component_list.size, 2))
 
-                for component in component_list:
+                for component_index, component in enumerate(component_list):
                     models_re_for_component: list = self._models_re_for_component(component, fit_transform_re=False,
                                                                                   model_dict_list=model_dict_list)
-                    model_median_scores[model_description].append(np.median(models_re_for_component))
+                    model_median_scores[model_description][time_index, component_index] = np.median(
+                        models_re_for_component)
+                    re_error_bands[model_description][time_index, component_index] = (
+                        np.min(models_re_for_component),
+                        np.max(models_re_for_component)
+                    )
+                    saver.save_to_npz(model_median_scores, 'median_RE_FooToaTws')
+                    saver.save_to_npz(re_error_bands, 'error_bands_FooToaTws')
+
+        ArrayPlotter(
+            interactive=self.params[INTERACTIVE],
+            title_prefix=f'FooToa on varying time window size',
+            x_label='Time window size',
+            y_label='Median RE',
+            for_paper=self.params[PLOT_FOR_PAPER]
+        ).plot_matrix_in_2d(model_median_scores, time_steps, component_list, re_error_bands)
 
     def change_time_window_sizes(self, new_time_window_size):
         self.trajectories = [trajectory.change_time_window_size(new_time_window_size) for trajectory in
@@ -790,9 +818,9 @@ def execute_if_save_enabled(func: callable):
 
 class AnalyseResultsSaver:
     # TODO: Refactor Saver und Loader in other file
-    def __init__(self, trajectory_name, filename='', enable_save=True):
-        self.current_result_path: Path = Path('analyse_results') / trajectory_name / datetime.now().strftime(
-            "%Y-%m-%d_%H.%M.%S")
+    def __init__(self, trajectory_name, filename='', folder_suffix='', enable_save=True):
+        self.current_result_path: Path = Path('analyse_results') / trajectory_name / (datetime.now().strftime(
+            "%Y-%m-%d_%H.%M.%S") + folder_suffix)
         if enable_save and not self.current_result_path.exists():
             os.makedirs(self.current_result_path)
         self.filename = filename

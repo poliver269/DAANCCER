@@ -4,8 +4,9 @@
   "interactive": false,
   "plot_for_paper": true,
   "n_components": 2,
-  "trajectory_name": "2wav",
+  "data_set": "protein",
+  "trajectory_name": "2f4k",
   "file_element": 0,
   "subset_list": [0, 3, 8, 11, 24],
-  "superposing_index": 2500
+  "superposing_index": null
 }
