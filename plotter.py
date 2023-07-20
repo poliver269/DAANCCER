@@ -4,14 +4,16 @@ import matplotlib as mpl
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import ticker
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 from matplotlib.widgets import Slider
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.metrics.pairwise import cosine_similarity
 
-from utils import function_name, get_algorithm_name, ordinal
+from utils import function_name, get_algorithm_name, ordinal, nr_in_human_format
 from utils.param_keys import TRAJECTORY_NAME, CARBON_ATOMS_ONLY, X, Y, Z, DUMMY_ZERO, DUMMY_ONE
 from utils.param_keys.analyses import HEAT_MAP, COLOR_MAP, PLOT_3D_MAP
 from utils.param_keys.model_result import MODEL, PROJECTION, TITLE_PREFIX, EXPLAINED_VAR, FITTED_ON
@@ -221,9 +223,11 @@ class ModelResultPlotter(MyPlotter):
             # self._print_model_properties(result_dict)
         elif sub_part is None:
             if ax.get_subplotspec().is_first_col():
-                ax.set_ylabel(result_dict.get(FITTED_ON, 'Not Found'))
+                ax.set_ylabel(result_dict.get(FITTED_ON, 'Not Found').replace('-0-protein', ''),
+                              fontsize=self.fontsize)
             if ax.get_subplotspec().is_last_row():
-                ax.set_xlabel(result_dict.get(TITLE_PREFIX, 'Not Found'))
+                ax.set_xlabel(result_dict.get(TITLE_PREFIX, 'Not Found').replace('-0-protein', ''),
+                              fontsize=self.fontsize)
 
         if color_map == COLOR_MAP:
             if sub_part == 0 or sub_part is None:
@@ -238,43 +242,7 @@ class ModelResultPlotter(MyPlotter):
                 if ax.get_subplotspec().is_first_row():
                     ax.set_title(f'Steps {color_array[0]}-{color_array[-1]}')
 
-            row_index = ax.get_subplotspec().rowspan.start
-            col_index = ax.get_subplotspec().colspan.start
-            model_description = get_algorithm_name(result_dict[MODEL])
-
-            # TODO: dont use hardcoded flipping
-            # flip_x_axis_pca = {(2, 4), (4, 0), (4, 1), (4, 2), (4, 3), (4, 4)}  # PDB-Superposing PCA
-            flip_x_axis_pca = {(0, 2), (0, 3), (2, 3), (2, 0), (3, 0), (4, 0), (1, 4), (2, 4)}  # Random-Superposing PCA
-            flip_x_axis = [(x[0], x[1], 'PCA') for x in flip_x_axis_pca]
-            # flip_x_axis_daanccer = {(2, 0), (3, 0), (4, 0), (3, 4), (1, 1),
-            #                         (1, 2), (1, 3), (2, 4), (4, 4)}  # PDB_Superposing DAANCCER
-            flip_x_axis_daanccer = {(0, 1), (0, 3), (0, 4), (1, 0), (2, 0),
-                                    (2, 1), (2, 3), (3, 2), (3, 4), (4, 2), (4, 4)}  # PDB_Superposing DAANCCER
-            # flip_x_axis_daanccer = {}
-            flip_x_axis += [(x[0], x[1], 'DAANCCER') for x in flip_x_axis_daanccer]
-
-            # flip_y_axis_pca = {(4, 0), (4, 1), (4, 2), (4, 3), (4, 4)}  # PDB-Superposing PCA
-            flip_y_axis_pca = {(1, 4), (3, 4)}  # Random-Superposing PCA
-            flip_y_axis = [(x[0], x[1], 'PCA') for x in flip_y_axis_pca]
-            # flip_y_axis_daanccer = {(1, 2), (4, 2), (2, 4), (3, 4)}  # PDB-Superposing DAANCCER
-            flip_y_axis_daanccer = {(0, 4), (1, 1), (1, 2), (2, 0), (3, 0), (4, 0)}  # Random-Superposing DAANCCER
-            flip_y_axis += [(x[0], x[1], 'DAANCCER') for x in flip_y_axis_daanccer]
-
-            flip_components_pca = {}
-            flip_components = [(x[0], x[1], 'PCA') for x in flip_components_pca]
-            flip_components_daanccer = {}
-            flip_components += [(x[0], x[1], 'DAANCCER') for x in flip_components_daanccer]
-
-            if (row_index, col_index, model_description) in flip_x_axis:
-                result_dict[PROJECTION][:, 0] = -result_dict[PROJECTION][:, 0]
-                print(f'flipped x-axis {(row_index, col_index, model_description)}')
-
-            if (row_index, col_index, model_description) in flip_y_axis:
-                result_dict[PROJECTION][:, 1] = -result_dict[PROJECTION][:, 1]
-                print(f'flipped y-axis {(row_index, col_index, model_description)}')
-
-            if (row_index, col_index, model_description) in flip_components:
-                result_dict[PROJECTION] = result_dict[PROJECTION][:, ::-1]
+            result_dict[PROJECTION] = self.hard_corded_projection_flip(ax, result_dict, superposing="random")
             c_map = plt.cm.viridis
             im = ax.scatter(result_dict[PROJECTION][:, 0], result_dict[PROJECTION][:, 1], c=color_array,
                             cmap=c_map, marker='.', alpha=0.1)
@@ -288,6 +256,10 @@ class ModelResultPlotter(MyPlotter):
                 elif get_algorithm_name(result_dict[MODEL]) == 'DAANCCER':
                     ax.set_xlim(-5, 5)
                     ax.set_ylim(-5, 5)
+                ax.set_xticks([])
+                ax.set_yticks([])
+
+            return im
         else:
             ax.scatter(result_dict[PROJECTION][:, 0], result_dict[PROJECTION][:, 1], marker='.')
 
@@ -306,6 +278,51 @@ class ModelResultPlotter(MyPlotter):
             ax.yaxis.set_ticks_position('left')
         else:
             pass  # ax.tick_params(left=False, right=False, labelleft=False, labelbottom=False, bottom=False)
+
+    @staticmethod
+    def hard_corded_projection_flip(ax, result_dict, superposing=None):
+        row_index = ax.get_subplotspec().rowspan.start
+        col_index = ax.get_subplotspec().colspan.start
+        model_description = get_algorithm_name(result_dict[MODEL])
+
+        projection = result_dict[PROJECTION].copy()
+        if superposing is not None:
+            # TODO: dont use hardcoded flipping
+            if superposing == 'PDB-Superposing':
+                flip_x_axis_pca = {(2, 4), (4, 0), (4, 1), (4, 2), (4, 3), (4, 4)}
+                flip_x_axis_daanccer = {(2, 0), (3, 0), (4, 0), (3, 4), (1, 1),
+                                        (1, 2), (1, 3), (2, 4), (4, 4)}
+                flip_y_axis_pca = {(4, 0), (4, 1), (4, 2), (4, 3), (4, 4)}
+                flip_y_axis_daanccer = {(1, 2), (4, 2), (2, 4), (3, 4)}
+            else:  # Random-Superposing
+                flip_x_axis_pca = {(0, 2), (0, 3), (2, 3), (2, 0), (3, 0), (4, 0), (1, 4), (2, 4)}
+                flip_x_axis_daanccer = {(0, 1), (0, 3), (0, 4), (1, 0), (2, 0),
+                                        (2, 1), (2, 3), (3, 2), (3, 4), (4, 2), (4, 4)}
+                flip_y_axis_pca = {(1, 4), (3, 4)}
+                flip_y_axis_daanccer = {(0, 4), (1, 1), (1, 2), (2, 0), (3, 0), (4, 0)}
+
+            flip_components_pca = {}
+            flip_components_daanccer = {}
+
+            flip_x_axis = [(x[0], x[1], 'PCA') for x in flip_x_axis_pca]
+            flip_x_axis += [(x[0], x[1], 'DAANCCER') for x in flip_x_axis_daanccer]
+
+            flip_y_axis = [(x[0], x[1], 'PCA') for x in flip_y_axis_pca]
+            flip_y_axis += [(x[0], x[1], 'DAANCCER') for x in flip_y_axis_daanccer]
+
+            flip_components = [(x[0], x[1], 'PCA') for x in flip_components_pca]
+            flip_components += [(x[0], x[1], 'DAANCCER') for x in flip_components_daanccer]
+
+            if (row_index, col_index, model_description) in flip_x_axis:
+                projection[:, 0] = -projection[:, 0]
+
+            if (row_index, col_index, model_description) in flip_y_axis:
+                projection[:, 1] = -projection[:, 1]
+
+            if (row_index, col_index, model_description) in flip_components:
+                projection = projection[:, ::-1]
+
+        return projection
 
     @staticmethod
     def _plot_time_tics(ax, projection, component):
@@ -343,7 +360,7 @@ class ModelResultPlotter(MyPlotter):
         free_energies = -np.log(z, dtype='float')
         np.seterr(divide='warn')
         ax.contourf(free_energies.T, bins, cmap=plt.cm.hot, extent=[x[0], x[-1], y[0], y[-1]])
-        # self._print_model_properties(result_dict)
+        self._print_model_properties(result_dict)
 
     @staticmethod
     def _print_model_properties(projection_dict):
@@ -363,21 +380,35 @@ class ModelResultPlotter(MyPlotter):
     def plot_multi_projections(self, model_result_list_in_list, plot_type, center_plot=True, sub_parts=False,
                                show_model_properties=True):
         self.fig, self.axes = plt.subplots(len(model_result_list_in_list), len(model_result_list_in_list[DUMMY_ZERO]),
-                                           figsize=(1080 / 200, 1080 / 200), dpi=200, sharex='all', sharey='all')
+                                           figsize=(1080 / 100, 1080 / 100), dpi=100, sharex='all', sharey='all')
         for row_index, model_results in enumerate(model_result_list_in_list):
             if len(model_results) == 1:
-                self._plot_transformed_trajectory(self.axes[row_index], model_results[DUMMY_ZERO], color_map=plot_type,
+                self._plot_transformed_trajectory(self.axes[row_index], model_results[DUMMY_ZERO],
+                                                  color_map=plot_type,
                                                   center_plot=center_plot)
             else:
                 for column_index, result in enumerate(model_results):
                     sub_part = column_index if sub_parts else None
-                    self._plot_transformed_trajectory(self.axes[row_index][column_index], result, color_map=plot_type,
-                                                      center_plot=center_plot, sub_part=sub_part,
+                    self._plot_transformed_trajectory(self.axes[row_index][column_index], result,
+                                                      color_map=plot_type, center_plot=center_plot,
+                                                      sub_part=sub_part,
                                                       show_model_properties=show_model_properties)
         if not show_model_properties and not sub_parts:
             model_name = get_algorithm_name(model_result_list_in_list[DUMMY_ZERO][DUMMY_ZERO][MODEL])
-            self.fig.supylabel(f'{model_name} fitted on')
-            self.fig.supxlabel(f'{model_name} transformed on')
+            model_name = 'DROPP' if model_name == 'DAANCCER' else model_name
+            self.fig.supylabel(f'{model_name} fitted on', fontsize=self.fontsize)
+            self.fig.supxlabel(f'{model_name} transformed on', fontsize=self.fontsize)
+
+            color_max = len(np.arange(model_result_list_in_list[DUMMY_ZERO][DUMMY_ZERO][PROJECTION].shape[0]))
+            sm = plt.cm.ScalarMappable(cmap=plt.cm.viridis, norm=plt.Normalize(vmin=0, vmax=color_max))
+            sm.set_array([])  # Required for the ScalarMappable to work
+
+            color_bar = self.fig.colorbar(sm, cax=self.fig.add_axes([0.74, 0.015, 0.2, 0.02]),
+                                          ticks=[], orientation='horizontal')
+            color_bar.ax.text(-100, 0.375, 0, ha='right', va='center', fontsize=self.fontsize)
+            color_bar.ax.text(color_max + 100, 0.375, nr_in_human_format(color_max),
+                              ha='left', va='center', fontsize=self.fontsize)
+
         self._post_processing()
 
 
@@ -574,7 +605,7 @@ class ArrayPlotter(MyPlotter):
     @staticmethod
     def _find_optional_annotating_coordinates(current_line_data: np.ndarray, other_line_datas: dict[np.ndarray]):
         def euclidean_distance(point1, point2):
-            return np.sqrt((point1 - point2)**2)
+            return np.sqrt((point1 - point2) ** 2)
 
         max_distance = float('-inf')  # Initialize maximum distance to a small value
         max_index = 0
@@ -610,17 +641,18 @@ class ArrayPlotter(MyPlotter):
                     if j == 0:
                         self.axes.plot([], [], color=color, linewidth=10, label=model_name)
 
-                    self.axes.annotate(line_values[j], xy=(x_axis_values[-1], model_scores[-1, j]-0.01),
+                    self.axes.annotate(line_values[j], xy=(x_axis_values[-1], model_scores[-1, j] - 0.01),
                                        color=color, fontsize=self.fontsize)
 
-                    if error_band is not None:  # TODO test, make function
+                    if error_band is not None:
                         error_component_band = error_band[model_name][:, j, :].T
                         if not (error_component_band.shape[DUMMY_ONE] == model_scores[:, j].shape[DUMMY_ZERO]):
-                            warnings.warn('Could not plot the error band, because the error band has the incorrect shape.')
+                            warnings.warn(
+                                'Could not plot the error band, because the error band has the incorrect shape.')
                         else:
                             self.axes.fill_between(x_axis_values,
                                                    error_component_band[DUMMY_ZERO], error_component_band[DUMMY_ONE],
-                                                   color=color, alpha=0.2*line_width)
+                                                   color=color, alpha=0.2 * line_width)
 
         if self.for_paper:
             self.axes.set_xlim(0, x_axis_values[-1])
