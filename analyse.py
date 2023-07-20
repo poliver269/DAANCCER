@@ -248,6 +248,7 @@ class MultiTrajectoryAnalyser:
             #     pc_0_matrix = pc_0_matrix.T[:self.params[N_COMPONENTS]]
             #     pc_1_matrix = pc_1_matrix.T[:self.params[N_COMPONENTS]]
             cos_matrix = cosine_similarity(np.real(pc_0_matrix), np.real(pc_1_matrix))
+            # noinspection PyUnresolvedReferences
             sorted_similarity_indexes = scipy.optimize.linear_sum_assignment(-np.abs(cos_matrix))[DUMMY_ONE]
             assert len(sorted_similarity_indexes) == len(
                 set(sorted_similarity_indexes)), "Not all eigenvectors have a unique most similar eigenvector pair."

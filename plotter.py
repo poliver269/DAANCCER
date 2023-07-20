@@ -4,12 +4,10 @@ import matplotlib as mpl
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib import ticker
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 from matplotlib.widgets import Slider
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -292,13 +290,13 @@ class ModelResultPlotter(MyPlotter):
             if superposing == 'PDB':
                 flip_x_axis_pca = {(2, 4), (4, 0), (4, 1), (4, 2), (4, 3), (4, 4)}
                 flip_x_axis_dropp = {(2, 0), (3, 0), (4, 0), (3, 4), (1, 1),
-                                        (1, 2), (1, 3), (2, 4), (4, 4)}
+                                     (1, 2), (1, 3), (2, 4), (4, 4)}
                 flip_y_axis_pca = {(4, 0), (4, 1), (4, 2), (4, 3), (4, 4)}
                 flip_y_axis_dropp = {(1, 2), (4, 2), (2, 4), (3, 4)}
             else:  # Random-Superposing
                 flip_x_axis_pca = {(0, 2), (0, 3), (2, 3), (2, 0), (3, 0), (4, 0), (1, 4), (2, 4)}
                 flip_x_axis_dropp = {(0, 1), (0, 3), (0, 4), (1, 0), (2, 0),
-                                        (2, 1), (2, 3), (3, 2), (3, 4), (4, 2), (4, 4)}
+                                     (2, 1), (2, 3), (3, 2), (3, 4), (4, 2), (4, 4)}
                 flip_y_axis_pca = {(1, 4), (3, 4)}
                 flip_y_axis_dropp = {(0, 4), (1, 1), (1, 2), (2, 0), (3, 0), (4, 0)}
 

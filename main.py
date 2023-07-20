@@ -67,7 +67,9 @@ def run(kwargs: dict, model_params_list: list, filename_list: list):
         elif run_option == 'plot_kernels':
             SingleTrajectoryAnalyser(data_class, params).compare(model_params_list, plot_results=False)
         elif run_option == COMPARE_WITH_CA_ATOMS:
-            SingleProteinTrajectoryAnalyser(data_class, params).compare_with_carbon_alpha_and_all_atoms(model_params_list)
+            SingleProteinTrajectoryAnalyser(
+                data_class, params
+            ).compare_with_carbon_alpha_and_all_atoms(model_params_list)
         elif run_option == BASE_TRANSFORMATION:
             SingleProteinTrajectoryAnalyser(data_class, params).compare_with_basis_transformation(model_params_list)
         elif run_option == PARAMETER_GRID_SEARCH:

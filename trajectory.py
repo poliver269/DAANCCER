@@ -2,7 +2,7 @@ import random
 import warnings
 from contextlib import contextmanager
 from pathlib import Path
-import itertools
+
 import mdtraj as md
 import numpy as np
 import pandas as pd
@@ -16,7 +16,7 @@ from utils.errors import InvalidSubsetTrajectory
 from utils.math import basis_transform, explained_variance
 from utils.matrix_tools import reconstruct_matrix
 from utils.param_keys import *
-from utils.param_keys.model import ALGORITHM_NAME, NDIM, LAG_TIME, KERNEL_STAT_FUNC
+from utils.param_keys.model import ALGORITHM_NAME, NDIM, LAG_TIME
 from utils.param_keys.model_result import MODEL, PROJECTION, TITLE_PREFIX, EXPLAINED_VAR, INPUT_PARAMS
 from utils.param_keys.traj_dims import TIME_FRAMES, TIME_DIM, ATOMS, ATOM_DIM, COORDINATES, COORDINATE_DIM
 
@@ -170,14 +170,15 @@ class WeatherTrajectory(DataTrajectory):
                 feature_name = self.params[REDUCEE_FEATURE]
                 print("INFO: For WeatherTrajectory selected feature:", feature_name)
                 features_encoding = {
-                        'temperature':0,
-                        'radiation_direct_horizontal':1,
-                        'radiation_diffuse_horizontal':2
-                        }
+                    'temperature': 0,
+                    'radiation_direct_horizontal': 1,
+                    'radiation_diffuse_horizontal': 2
+                }
                 if feature_name in features_encoding:
-                    self.params[REDUCEE_FEATURE]=features_encoding[feature_name]
+                    self.params[REDUCEE_FEATURE] = features_encoding[feature_name]
                 else:
-                    raise KeyError(f'WeatherTrajectory needs a specific reducee_feature:{feature_name}. Set to one of {features_encoding.keys()}')
+                    raise KeyError(f'WeatherTrajectory needs a specific reducee_feature:{feature_name}. '
+                                   f'Set to one of {features_encoding.keys()}')
 
         except IOError:
             raise FileNotFoundError(f"Cannot load {self.filepath}.")
@@ -186,25 +187,23 @@ class WeatherTrajectory(DataTrajectory):
         self._init_preprocessing(self.params[REDUCEE_FEATURE])
 
     def _init_preprocessing(self, feature=2):
-        def get_feature( list_as_text):
+        def get_feature(list_as_text):
             result = eval(list_as_text)
             return result[feature]
 
         self.weather_df = self.weather_df.applymap(get_feature)
+        # noinspection PyUnresolvedReferences
         self.weather_df = self.weather_df.loc[:, (round(self.weather_df) != 0).any()]
 
         self.feat_traj = np.array(list(map(np.stack, self.weather_df.to_numpy())))
-        self.feat_traj = (self.feat_traj - np.mean(self.feat_traj, axis=1)[:, np.newaxis]) / np.std(self.feat_traj, axis=0)
+        self.feat_traj = (self.feat_traj - np.mean(self.feat_traj, axis=1)[:, np.newaxis]) / np.std(self.feat_traj,
+                                                                                                    axis=0)
 
     @property
     def max_components(self) -> int:
         return len(self.weather_df.columns)
 
     def data_input(self, model_parameters: dict = None) -> np.ndarray:
-        def flattened_coordinates(day):
-            return list(itertools.chain.from_iterable(day))
-
-        df = self.weather_df
         ft_traj = self.feat_traj
 
         try:
@@ -215,9 +214,6 @@ class WeatherTrajectory(DataTrajectory):
         except KeyError as e:
             raise KeyError(f'Model-parameter-dict needs the key: {e}. Set to ´2´ or ´3´.')
 
-        # TODO@Andrea: these steps belong to preprocessing,
-        #  since we want to use the same input data over and over again
-        #  (in the MultipleTrajectory) --> faster if its done once at init step
         if n_dim == MATRIX_NDIM:
             print("INFO: Flat feature trajectory has shape", ft_traj.shape)
         else:
@@ -228,7 +224,7 @@ class WeatherTrajectory(DataTrajectory):
 
 class ProteinTrajectory(DataTrajectory):
     def __init__(self, filename, topology_filename=None, folder_path='data/2f4k', params=None, atoms=None, **kwargs):
-        super().__init__(filename, folder_path, extra_filename=topology_filename, params=params)
+        super().__init__(filename, folder_path, extra_filename=topology_filename, params=params, **kwargs)
         try:
             print(f"Loading trajectory {self.filename}...")
             if str(self.filename).endswith('dcd'):
