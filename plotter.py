@@ -16,6 +16,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from utils import function_name, get_algorithm_name, ordinal, nr_in_human_format
 from utils.param_keys import TRAJECTORY_NAME, CARBON_ATOMS_ONLY, X, Y, Z, DUMMY_ZERO, DUMMY_ONE
 from utils.param_keys.analyses import HEAT_MAP, COLOR_MAP, PLOT_3D_MAP
+from utils.param_keys.kernel_functions import MY_SINC
 from utils.param_keys.model_result import MODEL, PROJECTION, TITLE_PREFIX, EXPLAINED_VAR, FITTED_ON
 from utils.param_keys.traj_dims import TIME_FRAMES
 
@@ -523,18 +524,27 @@ class ArrayPlotter(MyPlotter):
             Some statistical numpy function
         :return:
         """
-        self.fig, self.axes = plt.subplots(1, 1, figsize=(1080 / 200, 1080 / 200), dpi=200)
+        self.fig, self.axes = plt.subplots(1, 1, figsize=(1080 / 180, 1080 / 180), dpi=180)
         self.axes.plot(x_index, gauss_fitted, '-', label=f'fit {fit_method}', linewidth=3.0)
         # self.axes.plot(x_index, gauss_fitted, ' ')
         self.axes.plot(x_index, ydata, '.', label='original data')
         # self.axes.plot(x_index, ydata, ' ')
         statistical_value = np.full(x_index.shape, statistical_function(ydata))
         if self.for_paper:
-            self.fontsize += 6
             function_label = 'threshold'
+            # TODO: xy is hardcoded for 2f4k
+            if fit_method == MY_SINC + '_center':
+                fit_method = MY_SINC
             self.axes.annotate('threshold', xy=(-32, 0.03), color='tab:green', fontsize=self.fontsize)
-            self.axes.annotate('mean of\ndiagonals', xy=(5, -0.4), color='tab:orange', fontsize=self.fontsize)
-            self.axes.annotate('gaussian curve', xy=(4, 0.6), color='tab:blue', fontsize=self.fontsize)
+            self.axes.annotate('mean of\ndiagonals', xy=(5, -0.5), color='tab:orange', fontsize=self.fontsize)
+            self.axes.annotate('rescaled\ndiagonal\nvalues', xy=(10, 0.03), color='tab:red', fontsize=self.fontsize)
+            self.axes.annotate(f'{fit_method.replace("my_", "")}\ncurve', xy=(4, 0.6), color='tab:blue',
+                               fontsize=self.fontsize)
+            # for flattened data
+            # self.axes.annotate('threshold', xy=(-100, 0.03), color='tab:green', fontsize=self.fontsize)
+            # self.axes.annotate('mean of\ndiagonals', xy=(1, -0.5), color='tab:orange', fontsize=self.fontsize)
+            # self.axes.annotate(f'{fit_method.replace("my_", "")} curve', xy=(15, 0.6), color='tab:blue',
+            #                      fontsize=self.fontsize)
         else:
             function_label = function_name(statistical_function)
             self._activate_legend = True
@@ -635,7 +645,7 @@ class ArrayPlotter(MyPlotter):
             line_style = next(self.line_styles)
 
             for j, line_width in enumerate(np.log(line_values)):
-                if line_values[j] != 25:
+                if line_values[j] not in []:
                     self.axes.plot(x_axis_values, model_scores[:, j],
                                    color=color, linestyle=line_style, linewidth=line_width)
                     if j == 0:
@@ -652,7 +662,7 @@ class ArrayPlotter(MyPlotter):
                         else:
                             self.axes.fill_between(x_axis_values,
                                                    error_component_band[DUMMY_ZERO], error_component_band[DUMMY_ONE],
-                                                   color=color, alpha=0.2 * line_width)
+                                                   color=color, alpha=0.1 * line_width)
 
         if self.for_paper:
             self.axes.set_xlim(0, x_axis_values[-1])

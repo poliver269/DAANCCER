@@ -185,7 +185,7 @@ def calculate_symmetrical_kernel_matrix(
                 title_prefix=f'Kernel Curves: {kernel_name}, use_original_data={use_original_data}',
                 x_label='Off-Diagonal Index',
                 y_label='Correlation Value',
-                for_paper=False
+                for_paper=True
             ).plot_gauss2d(xdata, original_ydata, rescaled_ydata, fit_y, kernel_name, stat_func)
     return kernel_matrix
 
