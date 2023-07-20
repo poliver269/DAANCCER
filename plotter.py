@@ -242,7 +242,7 @@ class ModelResultPlotter(MyPlotter):
                 if ax.get_subplotspec().is_first_row():
                     ax.set_title(f'Steps {color_array[0]}-{color_array[-1]}')
 
-            result_dict[PROJECTION] = self.hard_corded_projection_flip(ax, result_dict, superposing="random")
+            result_dict[PROJECTION] = self.hard_corded_projection_flip(ax, result_dict, superposing='PDB')
             c_map = plt.cm.viridis
             im = ax.scatter(result_dict[PROJECTION][:, 0], result_dict[PROJECTION][:, 1], c=color_array,
                             cmap=c_map, marker='.', alpha=0.1)
@@ -288,7 +288,7 @@ class ModelResultPlotter(MyPlotter):
         projection = result_dict[PROJECTION].copy()
         if superposing is not None:
             # TODO: dont use hardcoded flipping
-            if superposing == 'PDB-Superposing':
+            if superposing == 'PDB':
                 flip_x_axis_pca = {(2, 4), (4, 0), (4, 1), (4, 2), (4, 3), (4, 4)}
                 flip_x_axis_daanccer = {(2, 0), (3, 0), (4, 0), (3, 4), (1, 1),
                                         (1, 2), (1, 3), (2, 4), (4, 4)}
