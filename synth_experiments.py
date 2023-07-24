@@ -99,6 +99,9 @@ def two_opt_tsp(cities, improvement_threshold): # 2-opt Algorithm adapted from h
 #     for trajectory in range(n_copies):
 #         traj_landmarks = global_landmarks + np.random.normal(0, 0.05, (n_landmarks, dim))
 #         traj_landmarks /= np.linalg.norm(traj_landmarks)
+#         # FOR ANNA -- notice that here I'm adding a cubic spline to interpolate between the random walk points.
+#         # The other settings do not have a cubic spline and just use the traj_landmarks to get the points that we will
+#         # treat as similar or not similar
 #         spline = CubicSpline(landmark_time_stamps, traj_landmarks)
 #         locations = spline(np.arange(length))
 #         X[trajectory] = locations.T
