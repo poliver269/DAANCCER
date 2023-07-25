@@ -81,56 +81,9 @@ def two_opt_tsp(cities, improvement_threshold): # 2-opt Algorithm adapted from h
         improvement_factor = 1 - best_distance/distance_to_beat # Calculate how much the route has improved.
     return route # When the route is no longer improving substantially, stop searching and return the route.
 
-# Below gives less separation for RMSE plot but PCA and DROPP have different curve shapes
-# def generate_trajectories(n_copies=10, dim=10, length=500, n_landmarks=50, noise=0.25):
-#     X = np.zeros((n_copies, dim, length))
-#     landmark_time_stamps = np.arange(0, length + 1, length / (n_landmarks - 1))
-# 
-#     global_landmarks = np.zeros((n_landmarks, dim))
-#     global_landmarks[0] = np.random.multivariate_normal(np.zeros(dim), np.eye(dim))
-#     global_landmarks[0] /= np.linalg.norm(global_landmarks[0])
-#     for i in range(1, n_landmarks):
-#         step_dir = get_ortho_unit(global_landmarks[i-1])
-#         next_landmark = global_landmarks[i-1] + step_dir * 0.005
-#         next_landmark /= np.linalg.norm(next_landmark)
-#         global_landmarks[i] = next_landmark
-#     global_landmarks = np.array(global_landmarks)
-# 
-#     for trajectory in range(n_copies):
-#         traj_landmarks = global_landmarks + np.random.normal(0, 0.05, (n_landmarks, dim))
-#         traj_landmarks /= np.linalg.norm(traj_landmarks)
-#         # FOR ANNA -- notice that here I'm adding a cubic spline to interpolate between the random walk points.
-#         # The other settings do not have a cubic spline and just use the traj_landmarks to get the points that we will
-#         # treat as similar or not similar
-#         spline = CubicSpline(landmark_time_stamps, traj_landmarks)
-#         locations = spline(np.arange(length))
-#         X[trajectory] = locations.T
-# 
-#     return X
 
 # Below gives really good separation for RMSE plot but PCA and DROPP look super similar in shape
-def generate_trajectories(n_copies=10, dim=10, n_landmarks=50, noise=0.25):
-    X = np.zeros((n_copies, dim, n_landmarks))
-
-    global_landmarks = np.zeros((n_landmarks, dim))
-    global_landmarks[0] = np.random.multivariate_normal(np.zeros(dim), np.eye(dim))
-    global_landmarks[0] /= np.linalg.norm(global_landmarks[0])
-    for i in range(1, n_landmarks):
-        step_dir = get_ortho_unit(global_landmarks[i-1])
-        next_landmark = global_landmarks[i-1] + step_dir * 0.1
-        next_landmark /= np.linalg.norm(next_landmark)
-        global_landmarks[i] = next_landmark
-    global_landmarks = np.array(global_landmarks)
-
-    for trajectory in range(n_copies):
-        traj_landmarks = global_landmarks + np.random.normal(0, 0.01, (n_landmarks, dim))
-        traj_landmarks /= np.linalg.norm(traj_landmarks)
-        X[trajectory] = traj_landmarks.T
-
-    return X
-
-# Below gives really good separation for RMSE plot but PCA and DROPP look super similar in shape
-# def generate_trajectories(n_copies=10, dim=10, n_landmarks=1000, noise=0.25):
+# def generate_trajectories(n_copies=10, dim=10, n_landmarks=50, noise=0.25):
 #     X = np.zeros((n_copies, dim, n_landmarks))
 # 
 #     global_landmarks = np.zeros((n_landmarks, dim))
@@ -138,13 +91,13 @@ def generate_trajectories(n_copies=10, dim=10, n_landmarks=50, noise=0.25):
 #     global_landmarks[0] /= np.linalg.norm(global_landmarks[0])
 #     for i in range(1, n_landmarks):
 #         step_dir = get_ortho_unit(global_landmarks[i-1])
-#         next_landmark = global_landmarks[i-1] + step_dir * 0.005
+#         next_landmark = global_landmarks[i-1] + step_dir * 0.1
 #         next_landmark /= np.linalg.norm(next_landmark)
 #         global_landmarks[i] = next_landmark
 #     global_landmarks = np.array(global_landmarks)
 # 
 #     for trajectory in range(n_copies):
-#         traj_landmarks = global_landmarks + np.random.normal(0, 0.05, (n_landmarks, dim))
+#         traj_landmarks = global_landmarks + np.random.normal(0, 0.1, (n_landmarks, dim))
 #         traj_landmarks /= np.linalg.norm(traj_landmarks)
 #         X[trajectory] = traj_landmarks.T
 # 
@@ -156,7 +109,7 @@ def reconstruction_score(x, eigvecs, eps=1e-5):
     for i, v in enumerate(x):
         for u in eigvecs:
             norm = u @ u.T
-            if norm < 1e-5:
+            if norm < eps:
                 continue
             proj[i] += (v @ u.T / norm) * u
 
@@ -176,35 +129,111 @@ def median_similarity(train_components, test_components):
     return np.diag(dot_prods)
 
 
+def get_next_landmark(locations, dim, step_size, normalize, prev_step_likelihood):
+    prev_location = locations[-1]
+    # Get the next step of the random walk
+    if np.random.rand() < prev_step_likelihood and len(locations) > 1:
+        prev_step_index = np.random.choice(len(locations) - 1)
+        step_dir = locations[prev_step_index] - prev_location
+        step_dir /= np.linalg.norm(step_dir)
+    else:
+        # new_step = True
+        if normalize:
+            # If walking on sphere, need orthogonal vector to guarantee consistent step size
+            step_dir = get_ortho_unit(prev_location)
+        else:
+            # Otherwise, just pick a random direction
+            step_dir = np.random.multivariate_normal(np.zeros(dim), np.eye(dim))
+            step_dir /= np.linalg.norm(step_dir)
+
+    # Take the step
+    next_landmark = prev_location + step_dir * step_size
+    if normalize:
+        next_landmark /= np.linalg.norm(next_landmark)
+
+    # return next_landmark, step_dir, new_step
+    return next_landmark, step_dir
+
+def get_landmarks(n_landmarks, dim, step_size, normalize, prev_step_likelihood):
+    landmarks = []
+    landmarks.append(np.random.multivariate_normal(np.zeros(dim), np.eye(dim)))
+    if normalize:
+        landmarks[0] /= np.linalg.norm(landmarks[0])
+    for i in range(1, n_landmarks):
+        next_landmark, step_dir = get_next_landmark(
+            landmarks,
+            dim,
+            step_size=step_size,
+            normalize=normalize,
+            prev_step_likelihood=prev_step_likelihood,
+        )
+        landmarks.append(next_landmark)
+    landmarks = np.array(landmarks)
+    return landmarks
+
+def generate_trajectories(
+    n_copies=10,
+    dim=10,
+    n_landmarks=1000,
+    step_size=0.1,
+    noise=0.,
+    normalize=True,
+    prev_step_likelihood=0.,
+    related_walks=False
+):
+    X = np.zeros((n_copies, dim, n_landmarks))
+
+    landmarks = get_landmarks(n_landmarks, dim, step_size, normalize, prev_step_likelihood)
+    for i_trajectory in range(n_copies):
+        if not related_walks:
+            landmarks = get_landmarks(n_landmarks, dim, step_size, normalize, prev_step_likelihood)
+
+        traj_landmarks = landmarks + np.random.normal(0, noise, (n_landmarks, dim))
+        if normalize:
+            traj_landmarks /= np.linalg.norm(traj_landmarks)
+        X[i_trajectory] = traj_landmarks.T
+
+    return X
+
 def compare_reconstructions():
-    # data = fake_protein_folds()
-    data = generate_trajectories(normalize=True)
+    data = generate_trajectories()
+    # data = np.transpose(data, [0, 2, 1])
     train_traj = data[0]
+
+    plt.scatter(train_traj[0, :], train_traj[1, :], c=np.arange(len(train_traj[0])))    
+    plt.scatter(data[1][0, :], data[1][1, :], c=np.arange(len(train_traj[0])))    
+    plt.show()
+
+    # Center the dataset
     d = train_traj.shape[0]
-    C = np.eye(d) - np.ones((d, d)) / float(d)
+    centering = np.eye(d) - np.ones((d, d)) / float(d)
+    for i in range(len(data)):
+        data[i] = centering @ data[i]
 
     rank = np.min(train_traj.shape)
     reconstructions = np.zeros((2, rank, len(data) - 1))
     use_std = True
-    for n_components in tqdm(range(1, rank), total=rank - 1):
-        pca_train = PCA(n_components).fit(train_traj)
-        dancer_train = DAANCCER(ndim=2).fit(train_traj, n_components=n_components, use_std=use_std)
-
-        for j, trajectory in enumerate(data[1:]):
-            trajectory = C @ trajectory
-            reconstructions[0, n_components, j] = reconstruction_score(trajectory, pca_train.components_)
-            reconstructions[1, n_components, j] = reconstruction_score(trajectory, dancer_train.components_)
-
-    pca_similarities = []
-    dancer_similarities = []
     pca_models, dancer_models = [], []
     for traj in data:
         pca_models.append(PCA(rank).fit(traj))
-        dancer_models.append(DAANCCER(ndim=2).fit(traj, n_components=rank, use_std=use_std))
-    for i, i_traj in enumerate(data):
+        dancer_models.append(DAANCCER(ndim=2, kernel='only').fit(traj, n_components=rank, use_std=use_std))
+    for n_components in tqdm(range(1, rank), total=rank - 1):
+        for j, trajectory in enumerate(data[1:]):
+            reconstructions[0, n_components, j] = reconstruction_score(
+                trajectory,
+                pca_models[0].components_[:n_components]
+            )
+            reconstructions[1, n_components, j] = reconstruction_score(
+                trajectory,
+                dancer_models[0].components_[:n_components]
+            )
+
+    pca_similarities = []
+    dancer_similarities = []
+    for i in range(len(data)):
         pca_train = pca_models[i]
         dancer_train = dancer_models[i]
-        for j, j_traj in enumerate(data[i:]):
+        for j in range(len(data[i:])):
             pca_test = pca_models[j]
             dancer_test = dancer_models[j]
             pca_similarities.append(median_similarity(pca_train.components_, pca_test.components_))
@@ -216,9 +245,7 @@ def compare_reconstructions():
     C_0 = train_traj.T @ train_traj
     # Center the dataset
     cov_size = C_0.shape[0]
-    centering = np.eye(cov_size) - np.ones([cov_size, cov_size]) / cov_size
-    C_0 = centering @ C_0 @ centering
-    C_0 /= np.expand_dims(np.diag(C_0), [-1])
+    # C_0 /= np.expand_dims(np.diag(C_0), [-1])
     plt.imshow(C_0, cmap='hot', interpolation='nearest')
     cbar = plt.colorbar()
     plt.show()
