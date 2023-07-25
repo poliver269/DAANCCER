@@ -201,7 +201,6 @@ def compare_reconstructions():
     train_traj = data[0]
 
     plt.scatter(train_traj[0, :], train_traj[1, :], c=np.arange(len(train_traj[0])))    
-    plt.scatter(data[1][0, :], data[1][1, :], c=np.arange(len(train_traj[0])))    
     plt.show()
 
     # Center the dataset
