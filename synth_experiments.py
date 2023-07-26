@@ -173,8 +173,8 @@ def get_landmarks(n_landmarks, dim, step_size, normalize, prev_step_likelihood):
 
 def generate_trajectories(
     n_copies=10,
-    dim=10,
-    n_landmarks=1000,
+    dim=22,
+    n_landmarks=300,
     step_size=0.1,
     noise=0.,
     normalize=True,
@@ -196,82 +196,185 @@ def generate_trajectories(
     return X
 
 def compare_reconstructions():
-    data = generate_trajectories()
-    # data = np.transpose(data, [0, 2, 1])
-    train_traj = data[0]
+    noise_levels = [0.0, 0.005, 0.01, 0.02]
+    all_pca_reconstructions = []
+    all_dropp_reconstructions = []
+    all_pca_similarities = []
+    all_dropp_similarities = []
+    for noise_level in noise_levels:
+        data = generate_trajectories(noise=noise_level)
+        data *= 1000
+        train_traj = data[0]
 
-    plt.scatter(train_traj[0, :], train_traj[1, :], c=np.arange(len(train_traj[0])))    
-    plt.show()
+        # Center the dataset
+        d = train_traj.shape[0]
+        centering = np.eye(d) - np.ones((d, d)) / float(d)
+        for i in range(len(data)):
+            data[i] = centering @ data[i]
 
-    # Center the dataset
-    d = train_traj.shape[0]
-    centering = np.eye(d) - np.ones((d, d)) / float(d)
-    for i in range(len(data)):
-        data[i] = centering @ data[i]
+        rank = np.min(train_traj.shape)
+        pca_reconstructions = np.zeros((rank, len(data) - 1))
+        dropp_reconstructions = np.zeros((rank, len(data) - 1))
+        use_std = True
+        pca_models, dropp_models, ica_models, tica_models = [], [], [], []
+        for traj in data:
+            pca_models.append(PCA(rank).fit(traj))
+            dropp_models.append(DAANCCER(ndim=2, kernel='only').fit(traj, n_components=rank, use_std=use_std))
+        for n_components in tqdm(range(1, rank), total=rank - 1):
+            for j, trajectory in enumerate(data[1:]):
+                pca_reconstructions[n_components, j] = reconstruction_score(
+                    trajectory,
+                    pca_models[0].components_[:n_components]
+                )
+                dropp_reconstructions[n_components, j] = reconstruction_score(
+                    trajectory,
+                    dropp_models[0].components_[:n_components]
+                )
 
-    rank = np.min(train_traj.shape)
-    reconstructions = np.zeros((2, rank, len(data) - 1))
-    use_std = True
-    pca_models, dancer_models = [], []
-    for traj in data:
-        pca_models.append(PCA(rank).fit(traj))
-        dancer_models.append(DAANCCER(ndim=2, kernel='only').fit(traj, n_components=rank, use_std=use_std))
-    for n_components in tqdm(range(1, rank), total=rank - 1):
-        for j, trajectory in enumerate(data[1:]):
-            reconstructions[0, n_components, j] = reconstruction_score(
-                trajectory,
-                pca_models[0].components_[:n_components]
-            )
-            reconstructions[1, n_components, j] = reconstruction_score(
-                trajectory,
-                dancer_models[0].components_[:n_components]
-            )
+        pca_similarities = []
+        dropp_similarities = []
+        for i in range(len(data)):
+            pca_train = pca_models[i]
+            dropp_train = dropp_models[i]
+            for j in range(len(data[i:])):
+                pca_test = pca_models[j]
+                dropp_test = dropp_models[j]
+                pca_similarities.append(median_similarity(pca_train.components_, pca_test.components_))
+                dropp_similarities.append(median_similarity(dropp_train.components_, dropp_test.components_))
 
-    pca_similarities = []
-    dancer_similarities = []
-    for i in range(len(data)):
-        pca_train = pca_models[i]
-        dancer_train = dancer_models[i]
-        for j in range(len(data[i:])):
-            pca_test = pca_models[j]
-            dancer_test = dancer_models[j]
-            pca_similarities.append(median_similarity(pca_train.components_, pca_test.components_))
-            dancer_similarities.append(median_similarity(dancer_train.components_, dancer_test.components_))
+        all_pca_similarities.append(pca_similarities)
+        all_dropp_similarities.append(dropp_similarities)
+        all_pca_reconstructions.append(pca_reconstructions)
+        all_dropp_reconstructions.append(dropp_reconstructions)
 
-    med_pca_similarities = np.median(np.array(pca_similarities), axis=0)
-    med_dancer_similarities = np.median(np.array(dancer_similarities), axis=0)
+    all_pca_similarities = np.array(all_pca_similarities)
+    all_dropp_similarities = np.array(all_dropp_similarities)
+    all_pca_reconstructions = np.array(all_pca_reconstructions)
+    all_dropp_reconstructions = np.array(all_dropp_reconstructions)
 
-    C_0 = train_traj.T @ train_traj
-    # Center the dataset
-    cov_size = C_0.shape[0]
-    # C_0 /= np.expand_dims(np.diag(C_0), [-1])
-    plt.imshow(C_0, cmap='hot', interpolation='nearest')
-    cbar = plt.colorbar()
+    linestyles = ['solid', 'dotted', 'dashed', 'dashdot', (0, (1, 1))]
+    fig, ax = plt.subplots()
+    ax.set_yscale('log')
+    recs, labels = [], []
+    for i in range(len(noise_levels)):
+        ax.fill_between(
+            np.arange(rank-2) + 2,
+            np.min(all_pca_reconstructions[i, 2:], axis=-1),
+            np.max(all_pca_reconstructions[i, 2:], axis=-1),
+            alpha=0.25,
+            color='skyblue'
+        )
+        ax.fill_between(
+            np.arange(rank-2) + 2,
+            np.min(all_dropp_reconstructions[i, 2:], axis=-1),
+            np.max(all_dropp_reconstructions[i, 2:], axis=-1),
+            alpha=0.25,
+            color='orange'
+        )
+        pca_rec, = ax.plot(
+            np.arange(rank-2) + 2,
+            np.median(all_pca_reconstructions[i, 2:], axis=-1),
+            color='royalblue',
+            linestyle=linestyles[i],
+            linewidth=2
+        )
+        dropp_rec, = ax.plot(
+            np.arange(rank-2) + 2,
+            np.median(all_dropp_reconstructions[i, 2:], axis=-1),
+            color='darkorange',
+            linestyle=linestyles[i],
+            linewidth=2
+        )
+        recs.append(pca_rec)
+        recs.append(dropp_rec)
+        labels.append('pca; noise level {}'.format(i))
+        labels.append('dropp; noise level {}'.format(i))
+
+    reorder = [0, 2, 4, 6, 1, 3, 5, 7]
+    ax.legend(np.array(recs)[reorder], np.array(labels)[reorder])
     plt.show()
     plt.close()
 
-    plt.fill_between(
-        np.arange(rank-1),
-        np.min(reconstructions[0, 1:], axis=-1),
-        np.max(reconstructions[0, 1:], axis=-1),
-        alpha=0.4,
-        color='b'
-    )
-    plt.fill_between(
-        np.arange(rank-1),
-        np.min(reconstructions[1, 1:], axis=-1),
-        np.max(reconstructions[1, 1:], axis=-1),
-        alpha=0.4,
-        color='r'
-    )
-    plt.plot(np.arange(rank-1), np.median(reconstructions[0, 1:], axis=-1), color='b')
-    plt.plot(np.arange(rank-1), np.median(reconstructions[1, 1:], axis=-1), color='r')
+    # med_pca_similarities = np.median(np.array(pca_similarities), axis=0)
+    # med_dropp_similarities = np.median(np.array(dropp_similarities), axis=0)
+
+    for i in range(len(noise_levels)):
+        # plt.fill_between(
+        #     np.arange(rank-2) + 2,
+        #     np.min(all_pca_similarities[i], axis=0)[2:],
+        #     np.max(all_pca_similarities[i], axis=0)[2:],
+        #     alpha=0.25,
+        #     color='skyblue'
+        # )
+        # plt.fill_between(
+        #     np.arange(rank-2) + 2,
+        #     np.min(all_dropp_similarities[i], axis=0)[2:],
+        #     np.max(all_dropp_similarities[i], axis=0)[2:],
+        #     alpha=0.25,
+        #     color='orange'
+        # )
+        plt.plot(
+            np.arange(rank-2) + 2,
+            np.median(all_pca_similarities[i], axis=0)[2:],
+            color='royalblue',
+            linestyle=linestyles[i],
+            linewidth=2
+        )
+        plt.plot(
+            np.arange(rank-2) + 2,
+            np.median(all_dropp_similarities[i], axis=0)[2:],
+            color='darkorange',
+            linestyle=linestyles[i],
+            linewidth=2
+        )
     plt.show()
     plt.close()
 
-    plt.plot(np.arange(rank-1), med_pca_similarities[:-1], color='b')
-    plt.plot(np.arange(rank-1), med_dancer_similarities[:-1], color='r')
-    plt.show()
+    # C_0 = train_traj.T @ train_traj
+    # # Center the dataset
+    # cov_size = C_0.shape[0]
+    # # C_0 /= np.expand_dims(np.diag(C_0), [-1])
+    # plt.imshow(C_0, cmap='hot', interpolation='nearest')
+    # cbar = plt.colorbar()
+    # plt.show()
+    # plt.close()
+
+    # plt.fill_between(
+    #     np.arange(rank-1) + 1,
+    #     np.min(reconstructions[0, 1:], axis=-1),
+    #     np.max(reconstructions[0, 1:], axis=-1),
+    #     alpha=0.4,
+    #     color='b'
+    # )
+    # plt.fill_between(
+    #     np.arange(rank-1) + 1,
+    #     np.min(reconstructions[1, 1:], axis=-1),
+    #     np.max(reconstructions[1, 1:], axis=-1),
+    #     alpha=0.4,
+    #     color='r'
+    # )
+    # plt.plot(np.arange(rank-1) + 1, np.median(reconstructions[0, 1:], axis=-1), color='b')
+    # plt.plot(np.arange(rank-1) + 1, np.median(reconstructions[1, 1:], axis=-1), color='r')
+    # plt.show()
+    # plt.close()
+
+    # plt.fill_between(
+    #     np.arange(rank-1) + 1,
+    #     np.min(pca_similarities, axis=0)[:-1],
+    #     np.max(pca_similarities, axis=0)[:-1],
+    #     alpha=0.4,
+    #     color='b'
+    # )
+    # plt.fill_between(
+    #     np.arange(rank-1) + 1,
+    #     np.min(dropp_similarities, axis=0)[:-1],
+    #     np.max(dropp_similarities, axis=0)[:-1],
+    #     alpha=0.4,
+    #     color='r'
+    # )
+    # plt.plot(np.arange(rank-1) + 1, med_pca_similarities[:-1], color='b')
+    # plt.plot(np.arange(rank-1) + 1, med_dropp_similarities[:-1], color='r')
+    # plt.show()
 
 if __name__ == '__main__':
     compare_reconstructions()
