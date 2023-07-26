@@ -1,0 +1,11 @@
+{
+  "run_option": "multi_compare_some_pcs",
+  "plot_for_paper": false,
+  "interactive": false,
+  "n_components": null,
+  "data_set":"weather",
+  "trajectory_name": "all",
+  "file_element": 0,
+  "enable_save": true
+
+}

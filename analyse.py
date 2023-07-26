@@ -244,6 +244,9 @@ class MultiTrajectoryAnalyser:
         for trajectory_pair in trajectory_result_pairs:
             pc_0_matrix = trajectory_pair[0][MODEL].components_
             pc_1_matrix = trajectory_pair[1][MODEL].components_
+            # params =
+            if pc_0_matrix.shape != pc_1_matrix.shape:
+                continue  # TODO weather data PL and FI causes TICA errors
             # if isinstance(trajectory_pair[0][MODEL], DAANCCER):
             #     pc_0_matrix = pc_0_matrix.T[:self.params[N_COMPONENTS]]
             #     pc_1_matrix = pc_1_matrix.T[:self.params[N_COMPONENTS]]

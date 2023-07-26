@@ -5,7 +5,7 @@
   },
   {
     "algorithm_name": "pca",
-    "ndim": 3,
+    "ndim": 2,
     "kernel": "only"
   }
 ]

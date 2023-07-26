@@ -84,15 +84,23 @@ def get_files_and_kwargs(params: dict):
                   FOLDER_PATH: 'data/fs-peptide'}
     elif data_set == 'weather':
         country = trajectory_name
-        folder_path = f'data/weather_data/{country}/'
-        filename_list = [f'weather_{country}_{i}.csv' for i in range(1980, 2019 + 1)]
+        filename_list = []
+        country_list = ['BE', 'BG', 'CH', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI',
+                        'FR', 'GB', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU',
+                        'LV', 'NL', 'NO', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK']
+        # country_list = ['BE', 'DE', 'DK', 'GB', 'IE', 'LT', 'LU', 'LV', 'NL']  # radiation_direct 17
+        country_list = ['BE', 'CH', 'DE', 'FR', 'HU', 'IE', 'LU', 'NL', 'PL', 'RO', 'SK']  # radiation_diffuse 17
+        for country in country_list:
+            folder_path = f'data/weather_data/all_weather/'
+            # filename_list = filename_list + [f'weather_{country}_{i}.csv' for i in range(1980, 2019 + 1)]
+            filename_list.append(f'weather_{country}_2019.csv')
 
-        if not os.path.isfile(folder_path + filename_list[file_element]):
-            raw_data = pd.read_csv('data/weather_data.csv')
-            os.makedirs(folder_path, exist_ok=True)
-            print('INFO: Created directory ', folder_path)
+            if not os.path.isfile(folder_path + filename_list[-1]):
+                raw_data = pd.read_csv('data/weather_data.csv')
+                os.makedirs(folder_path, exist_ok=True)
+                print('INFO: Created directory ', folder_path)
 
-            wp.get_trajectories_per_year(raw_data, 'utc_timestamp', country)
+                wp.get_trajectories_per_year(raw_data, 'utc_timestamp', country, folder_path)
 
         kwargs = {FILENAME: filename_list[file_element],
                   FOLDER_PATH: folder_path}

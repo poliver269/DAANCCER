@@ -1,15 +1,9 @@
-import numbers
-from math import sqrt
-
 import numpy as np
 from deeptime.decomposition import TICA as DTICA
-from numpy.linalg import linalg
-from pyemma.coordinates.transform.tica import TICA
 from pyemma.coordinates.transform.pca import PCA as pPCA
-from sklearn.decomposition import PCA
+from pyemma.coordinates.transform.tica import TICA
 from sklearn.decomposition import FastICA
-from sklearn.decomposition._pca import _infer_dimension
-from sklearn.utils.extmath import stable_cumsum
+from sklearn.decomposition import PCA
 
 
 class DeeptimeTICAInterface(DTICA):

@@ -84,7 +84,8 @@ class DataTrajectory(TrajectoryFile):
             # TODO@Oli&Prio4: Explained Variance not correctly calculated
             ex_var = explained_variance(model.explained_variance_, self.params[N_COMPONENTS])
         except AttributeError as e:
-            warnings.warn(str(e))
+            if not isinstance(model, FastICA):
+                warnings.warn(str(e))
             ex_var = 0
         return {MODEL: model, PROJECTION: projection, EXPLAINED_VAR: ex_var, INPUT_PARAMS: model_parameters}
 
@@ -142,7 +143,7 @@ class DataTrajectory(TrajectoryFile):
                     tsne = MyTimeLaggedTSNE(lag_time=model_parameters[LAG_TIME], n_components=self.params[N_COMPONENTS])
                     return tsne, tsne.fit_transform(inp)
                 elif model_parameters[ALGORITHM_NAME] == 'original_ica':
-                    ica = FastICA(n_components=self.params[N_COMPONENTS])
+                    ica = FastICA(n_components=self.params[N_COMPONENTS], whiten='unit-variance')
                     return ica, ica.fit_transform(inp)
                 else:
                     warnings.warn(f'No original algorithm was found with name: {model_parameters[ALGORITHM_NAME]}')
@@ -194,11 +195,12 @@ class WeatherTrajectory(DataTrajectory):
         self.feat_traj = np.array(list(map(np.stack, self.weather_df.to_numpy())))
         self.feat_traj = (self.feat_traj - np.mean(self.feat_traj, axis=0)[np.newaxis, :]) / np.std(self.feat_traj,
                                                                                                     axis=0)
+        # print(self.feat_traj.shape)
         self.dim[TIME_FRAMES] = self.feat_traj.shape[DUMMY_ZERO]
 
     @property
     def max_components(self) -> int:
-        return len(self.weather_df.columns)
+        return self.feat_traj.shape[1]
 
     def data_input(self, model_parameters: dict = None) -> np.ndarray:
         ft_traj = self.feat_traj

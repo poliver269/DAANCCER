@@ -71,8 +71,8 @@ def load_analyse_results_dict(result_load_files: list, kwargs: dict):
 def load_re_over_component_span(directory_root: str, kwargs: dict):
     npzs = AnalyseResultLoader(kwargs[PARAMS][TRAJECTORY_NAME]).load_npz_files_in_directory(directory_root)
     plot_dict = next(v for k, v in npzs.items() if 'median' in k)
-    a = ['PCA', 'DAANCCER', 'TICA', 'FastICA']
-    plot_dict = OrderedDict((key, plot_dict[key]) for key in a)
+    # a = ['PCA', 'DROO', 'TICA', 'FastICA']
+    # plot_dict = OrderedDict((key, plot_dict[key]) for key in a)
     error_band = next(v for k, v in npzs.items() if 'error_bands' in k)
     from_other_traj = True
     ArrayPlotter(

@@ -583,12 +583,16 @@ class ArrayPlotter(MyPlotter):
 
             if self.for_paper:
                 self._activate_legend = False
-                hard_coded_function = 'FooToa-2f4k'
-                if key.startswith('DAANCCER') and hard_coded_function in ['FooToa-2f4k']:
+                hard_coded_function = ''
+                if (key.startswith('DROPP') and
+                        hard_coded_function in ['FooToa-2f4k', 'EV-sim-2f4k', 'FooToa-weather-2019']):
                     if hard_coded_function == 'FooToa-2f4k':
                         xy = (55, 0.23)
                     elif hard_coded_function == 'EV-sim-2f4k':
                         xy = (60, 0.96)
+                    elif hard_coded_function == 'FooToa-weather-2019':
+                        xy = (5, 0.05)
+                        print(xy)
                     else:
                         xy = (0, 0)
                 else:

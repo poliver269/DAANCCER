@@ -1,3 +1,4 @@
+import warnings
 from datetime import datetime
 
 from trajectory import ProteinTopologyConverter
@@ -104,7 +105,7 @@ def run_multi_analyse(filename_list, model_params_list, kwargs):
     elif run_option == MULTI_COMPARE_SOME_PCS:
         mtr = MultiTrajectoryAnalyser(kwargs_list, kwargs[PARAMS])
         mtr.compare_all_trajectory_eigenvectors(traj_nrs=None, model_params_list=model_params_list,
-                                                pc_nr_list=[2, 30, 104])
+                                                pc_nr_list=[2, 10, 18])
     elif run_option == MULTI_GRID_SEARCH:
         param_grid = config.get_param_grid()
         mtr = MultiTrajectoryAnalyser(kwargs_list, kwargs[PARAMS])
@@ -181,4 +182,5 @@ def load_directory(directory_root: str, kwargs: dict):
 
 
 if __name__ == '__main__':
+    warnings.filterwarnings("ignore")
     main()

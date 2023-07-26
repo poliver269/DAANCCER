@@ -4,9 +4,7 @@
   "plot_for_paper": true,
   "interactive": false,
   "n_components": null,
-  "trajectory_name": "2f4k",
-  "file_element": 0,
-  "data_set": "sub_protein",
-  "time_window_size": 2000,
-  "part_count": 0
+  "data_set": "weather",
+  "trajectory_name": "all_weather",
+  "file_element": 0
 }

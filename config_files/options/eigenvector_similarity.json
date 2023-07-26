@@ -2,9 +2,10 @@
   "run_option": "multi_compare_all_pcs",
   "plot_for_paper": true,
   "interactive": false,
-  "n_components": null,
+  "n_components": 17,
   "data_set":"weather",
-  "trajectory_name": "DK",
+  "trajectory_name": "all_weather",
   "file_element": 0,
-  "enable_save": true
+  "enable_save": false,
+  "reducee_feature": "radiation_diffuse_horizontal"
 }

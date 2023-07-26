@@ -160,6 +160,9 @@ def calculate_symmetrical_kernel_matrix(
         else:
             rescaled_ydata = rescale_center(original_ydata, stat_func)
     fit_y = _get_curve_fitted_y(matrix, kernel_name, xdata, rescaled_ydata)
+    if flattened:  # bzw. reinterpolate
+        fit_y = rescale_array(fit_y, lower_bound=stat_func(fit_y),
+                              interp_range=[stat_func(original_ydata), 1])
     kernel_matrix = expand_diagonals_to_matrix(matrix, fit_y)
 
     if analyse_mode is not None:
@@ -218,10 +221,10 @@ def _get_rescaled_array(original_ydata, stat_func, flattened):
 # noinspection PyTupleAssignmentBalance
 def _get_curve_fitted_y(matrix, kernel_name, xdata, rescaled_ydata):
     kernel_funcs = {MY_EXPONENTIAL: exponential_2d, MY_EPANECHNIKOV: epanechnikov_2d, MY_GAUSSIAN: gaussian_2d,
-                    MY_SINC: my_sinc, MY_SINC+'_center': my_sinc, MY_SINC_SUM: my_sinc_sum, MY_COS: my_cos}
+                    MY_SINC: my_sinc, MY_SINC + '_center': my_sinc, MY_SINC_SUM: my_sinc_sum, MY_COS: my_cos}
 
     if kernel_name in kernel_funcs.keys():
-        if kernel_name in [MY_EPANECHNIKOV, MY_COS, MY_SINC+'_center']:
+        if kernel_name in [MY_EPANECHNIKOV, MY_COS, MY_SINC + '_center']:
             non_zero_i = np.argmax(rescaled_ydata > 0)
             fit_y = rescaled_ydata.copy()
             if non_zero_i == 0 and kernel_name not in [MY_COS]:
@@ -307,7 +310,13 @@ def reconstruct_matrix(projection, eigenvectors, dim, mean, std=1):
     if is_matrix_orthogonal(eigenvectors.T):
         reconstructed_matrix = np.dot(projection[:, :dim], eigenvectors[:dim])
     else:
-        reconstructed_matrix = np.dot(projection[:, :dim], np.linalg.inv(eigenvectors.T)[:dim])
+        try:
+            reconstructed_matrix = np.dot(projection[:, :dim], np.linalg.inv(eigenvectors.T)[:dim])
+        except LinAlgError:
+            reconstructed_matrix = np.dot(projection[:, :dim], np.linalg.pinv(eigenvectors.T)[:dim])
+            # raise LinAlgError(f'Eigenvector shape: {eigenvectors.shape}\n'
+            #                   f'Projection shape: {projection.shape}\n'
+            #                   f'N-components: {dim}')
     reconstructed_matrix *= std
     reconstructed_matrix += mean
     return reconstructed_matrix
@@ -318,5 +327,5 @@ def expand_and_roll(matrix, expand_dim=3):
     rotation_matrix = np.asarray(
         [Rotation.from_euler('x', 0, degrees=True).as_matrix(),  # [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
          Rotation.from_euler('xz', [90, 90], degrees=True).as_matrix(),  # [[0, 1, 0], [0, 0, 1], [1, 0, 0]]
-         Rotation.from_euler('xy', [-90, -90], degrees=True).as_matrix()])   # [[0, 0, 1], [1, 0, 0], [0, 1, 0]]
+         Rotation.from_euler('xy', [-90, -90], degrees=True).as_matrix()])  # [[0, 0, 1], [1, 0, 0], [0, 1, 0]]
     return np.tensordot(new_matrix, rotation_matrix, [1, 0]).swapaxes(1, 2).reshape((-1, expand_dim * matrix.shape[1]))

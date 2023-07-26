@@ -1,10 +1,12 @@
 {
   "run_option": "multi_median_reconstruction_error_fit_on_one_transform_on_all",
   "plot_type": "color_map",
+  "plot_for_paper": true,
   "interactive": false,
-  "n_components": null,
-  "data_set": "protein",
-  "trajectory_name": "2wav",
+  "n_components": 17,
+  "data_set": "weather",
+  "trajectory_name": "all_weather",
   "file_element": 0,
-  "enable_save": true
+  "enable_save": true,
+  "reducee_feature": "radiation_diffuse_horizontal"
 }
