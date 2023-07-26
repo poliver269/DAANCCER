@@ -287,8 +287,8 @@ def compare_reconstructions():
         )
         recs.append(pca_rec)
         recs.append(dropp_rec)
-        labels.append('pca; noise level {}'.format(i))
-        labels.append('dropp; noise level {}'.format(i))
+        labels.append('pca; noise level {}'.format(i+1))
+        labels.append('dropp; noise level {}'.format(i+1))
 
     reorder = [0, 2, 4, 6, 1, 3, 5, 7]
     ax.legend(np.array(recs)[reorder], np.array(labels)[reorder])
@@ -299,20 +299,6 @@ def compare_reconstructions():
     # med_dropp_similarities = np.median(np.array(dropp_similarities), axis=0)
 
     for i in range(len(noise_levels)):
-        # plt.fill_between(
-        #     np.arange(rank-2) + 2,
-        #     np.min(all_pca_similarities[i], axis=0)[2:],
-        #     np.max(all_pca_similarities[i], axis=0)[2:],
-        #     alpha=0.25,
-        #     color='skyblue'
-        # )
-        # plt.fill_between(
-        #     np.arange(rank-2) + 2,
-        #     np.min(all_dropp_similarities[i], axis=0)[2:],
-        #     np.max(all_dropp_similarities[i], axis=0)[2:],
-        #     alpha=0.25,
-        #     color='orange'
-        # )
         plt.plot(
             np.arange(rank-2) + 2,
             np.median(all_pca_similarities[i], axis=0)[2:],
