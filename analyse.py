@@ -504,7 +504,8 @@ class MultiTrajectoryAnalyser:
         """
         saver = AnalyseResultsSaver(
             trajectory_name=self.params[TRAJECTORY_NAME],
-            enable_save=self.params[ENABLE_SAVE]
+            enable_save=self.params[ENABLE_SAVE],
+            folder_suffix='_median-RE-' + ("Ftoa" if fit_transform_re else "FooToa")
         )
 
         model_median_scores = {}

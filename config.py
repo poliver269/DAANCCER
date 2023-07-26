@@ -71,7 +71,7 @@ def get_files_and_kwargs(params: dict):
         kwargs = {FILENAME: filename_list[file_element], TOPOLOGY_FILENAME: 'savinase.pdb',
                   FOLDER_PATH: 'data/Savinase'}
     elif trajectory_name == '2wav':
-        filename_list = [f'2WAV-0-protein-{i:03d}.dcd' for i in range(0, 136)]
+        filename_list = [f'2WAV-0-protein-{i:03d}.dcd' for i in range(0, 69)]
         kwargs = {FILENAME: filename_list[file_element], TOPOLOGY_FILENAME: '2wav.pdb',
                   FOLDER_PATH: 'data/2WAV-0-protein', ATOMS: list(range(710))}
     elif trajectory_name == '5i6x':
@@ -82,7 +82,6 @@ def get_files_and_kwargs(params: dict):
         filename_list = [f'trajectory-{i}.xtc' for i in range(1, 28 + 1)]
         kwargs = {FILENAME: filename_list[file_element], TOPOLOGY_FILENAME: 'fs-peptide.pdb',
                   FOLDER_PATH: 'data/fs-peptide'}
-    # TODO: Adjust case startswith weather to multi
     elif data_set == 'weather':
         country = trajectory_name
         folder_path = f'data/weather_data/{country}/'

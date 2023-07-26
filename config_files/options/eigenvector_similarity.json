@@ -3,8 +3,8 @@
   "plot_for_paper": true,
   "interactive": false,
   "n_components": null,
-  "data_set": "protein",
-  "trajectory_name": "2f4k",
+  "data_set":"weather",
+  "trajectory_name": "DK",
   "file_element": 0,
   "enable_save": true
 }

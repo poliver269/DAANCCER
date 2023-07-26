@@ -150,7 +150,15 @@ def calculate_symmetrical_kernel_matrix(
     if use_original_data:
         rescaled_ydata = original_ydata
     else:
-        rescaled_ydata = _get_rescaled_array(original_ydata, stat_func, flattened)
+        if flattened:
+            stat_func = np.min
+            if kernel_name in [MY_COS]:
+                interp_range = [-1, 1]
+            else:
+                interp_range = None
+            rescaled_ydata = rescale_array(original_ydata, stat_func, interp_range)
+        else:
+            rescaled_ydata = rescale_center(original_ydata, stat_func)
     fit_y = _get_curve_fitted_y(matrix, kernel_name, xdata, rescaled_ydata)
     kernel_matrix = expand_diagonals_to_matrix(matrix, fit_y)
 
@@ -215,17 +223,28 @@ def _get_curve_fitted_y(matrix, kernel_name, xdata, rescaled_ydata):
     if kernel_name in kernel_funcs.keys():
         if kernel_name in [MY_EPANECHNIKOV, MY_COS, MY_SINC+'_center']:
             non_zero_i = np.argmax(rescaled_ydata > 0)
-            if non_zero_i == 0:  # TODO: Correcting for flattened data # what does this part mean?
+            fit_y = rescaled_ydata.copy()
+            if non_zero_i == 0 and kernel_name not in [MY_COS]:
+                # If the rescaled_ydata does not reach bellow threshold, a different approach is needed
                 fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata,
                                               rescaled_ydata)
+                print(*fit_parameters)
+                center_fit_y = kernel_funcs[kernel_name](xdata, *fit_parameters)
+                fit_y = center_fit_y
             else:
+                if kernel_name in [MY_COS]:
+                    non_zero_i = (len(xdata) // 6)
                 p0 = (len(xdata) // 2) - non_zero_i if kernel_name in [MY_COS] else 1
                 fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata[non_zero_i:-non_zero_i],
                                               rescaled_ydata[non_zero_i:-non_zero_i], p0=p0, maxfev=5000)
-            center_fit_y = kernel_funcs[kernel_name](xdata[non_zero_i:-non_zero_i], *fit_parameters)
-            center_fit_y = np.where(center_fit_y < 0, 0, center_fit_y)
-            fit_y = rescaled_ydata.copy()
-            fit_y[non_zero_i:-non_zero_i] = center_fit_y
+                center_fit_y = kernel_funcs[kernel_name](xdata[non_zero_i:-non_zero_i], *fit_parameters)
+                if kernel_name not in [MY_COS]:
+                    center_fit_y = np.where(center_fit_y < 0, 0, center_fit_y)
+                else:
+                    fit_y = rescaled_ydata
+                    fit_y = np.where(fit_y < 0, 0, fit_y)
+                fit_y[non_zero_i:-non_zero_i] = center_fit_y
+
             return fit_y
         else:
             fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata, rescaled_ydata, maxfev=5000)
