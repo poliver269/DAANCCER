@@ -23,7 +23,7 @@ from utils.errors import InvalidReconstructionException, InvalidProteinTrajector
 from utils.matrix_tools import calculate_symmetrical_kernel_matrix, reconstruct_matrix
 from utils.param_keys import *
 from utils.param_keys.analyses import COLOR_MAP, KERNEL_COMPARE
-from utils.param_keys.model import KERNEL_TYPE, USE_ORIGINAL_DATA
+from utils.param_keys.model import KERNEL_TYPE, USE_ORIGINAL_DATA, ALGORITHM_NAME
 from utils.param_keys.model_result import MODEL, PROJECTION, INPUT_PARAMS, TITLE_PREFIX, FITTED_ON
 from utils.param_keys.traj_dims import TIME_FRAMES
 
@@ -509,7 +509,7 @@ class MultiTrajectoryAnalyser:
         saver = AnalyseResultsSaver(
             trajectory_name=self.params[TRAJECTORY_NAME],
             enable_save=self.params[ENABLE_SAVE],
-            folder_suffix='_median-RE-' + ("Ftoa" if fit_transform_re else "FooToa")
+            folder_suffix='_' + ("Ftoa" if fit_transform_re else "FooToa")
         )
 
         model_median_scores = {}
@@ -718,6 +718,10 @@ class MultiTrajectoryAnalyser:
             if trajectory_nr == traj_index:
                 fitting_results[TITLE_PREFIX] = trajectory.filename[:-4]
                 model_results_list.append(fitting_results)
+            elif model_params[ALGORITHM_NAME] == "original_tsne":
+                fitting_results[TITLE_PREFIX] = fitting_trajectory.filename[:-4]
+                fitting_results[FITTED_ON] = trajectory.filename[:-4]
+                model_results_list.append(fitting_results)
             else:
                 transform_results = fitting_results.copy()
                 transform_results[PROJECTION] = fitting_results[MODEL].transform(trajectory.data_input(model_params))
@@ -746,6 +750,9 @@ class MultiTrajectoryAnalyser:
             for traj_index in range(len(self.trajectories)):
                 fitted_traj_row = self.compare_results_on_same_fitting(model_params, traj_index, plot=False)
                 list_of_list.append(fitted_traj_row)
+
+            if model_params[ALGORITHM_NAME] == 'original_tsne':
+                list_of_list = list(zip(*list_of_list))  # flip rows and columns
 
             ModelResultPlotter(
                 interactive=self.params[INTERACTIVE],

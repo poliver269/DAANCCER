@@ -87,6 +87,11 @@ class DataTrajectory(TrajectoryFile):
             if not isinstance(model, FastICA):
                 warnings.warn(str(e))
             ex_var = 0
+        except TypeError:
+            if model_parameters[ALGORITHM_NAME] == 'original_tsne':
+                ex_var = 0
+            else:
+                raise
         return {MODEL: model, PROJECTION: projection, EXPLAINED_VAR: ex_var, INPUT_PARAMS: model_parameters}
 
     def data_input(self, model_parameters: dict = None) -> np.ndarray:

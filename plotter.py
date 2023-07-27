@@ -549,7 +549,7 @@ class ArrayPlotter(MyPlotter):
             self._activate_legend = True
         self.axes.plot(x_index, statistical_value, '-', label=function_label)
         # self.axes.plot(x_index, statistical_value, ' ')
-        # self.axes.plot(x_index, new_ydata, '+', label='re-scaled data')
+        self.axes.plot(x_index, new_ydata, '+', label='re-scaled data')
         # self.axes.plot(x_index, new_ydata, ' ')
         self._post_processing()
 
@@ -584,10 +584,11 @@ class ArrayPlotter(MyPlotter):
 
             if self.for_paper:
                 self._activate_legend = False
-                hard_coded_function = 'EV-2019-rad-diff'
+                hard_coded_function = 'weather-2019'
                 if (key.startswith('DROPP') and
                         hard_coded_function in ['FooToa-2f4k', 'EV-sim-2f4k', 'FooToa-weather-2019',
-                                                'FooToa-FSP', 'EV-2019-rad-dir', 'EV-2019-rad-diff']):
+                                                'FooToa-FSP', 'EV-2019-rad-dir', 'EV-2019-rad-diff',
+                                                'FooToa-weather-2019-rad-dir']):
                     if hard_coded_function == 'FooToa-2f4k':
                         xy = (55, 0.23)
                     elif hard_coded_function == 'EV-sim-2f4k':
@@ -600,6 +601,8 @@ class ArrayPlotter(MyPlotter):
                         xy = (13, 0.96)
                     elif hard_coded_function == 'EV-2019-rad-diff':
                         xy = (13, 0.95)
+                    elif hard_coded_function == 'FooToa-weather-2019-rad-dir':
+                        xy = (1.6, 0.3)
                     else:
                         xy = (0, 0)
                 elif (key.startswith('TICA') and
