@@ -61,8 +61,8 @@ def load_analyse_results_dict(result_load_files: list, kwargs: dict):
             title_prefix=f'Reconstruction Error (RE) ' +
                          (f'from {kwargs[FILENAME]}\n' if from_other_traj else '') +
                          f'on {kwargs[PARAMS][N_COMPONENTS]} Principal Components ',
-            x_label='number of principal components',
-            y_label='median REs of the trajectories',
+            x_label='Num. Components',
+            y_label='Mean Squared Error',
             y_range=(0, 1),
             for_paper=kwargs[PARAMS][PLOT_FOR_PAPER]
         ).plot_merged_2ds(plot_dict)
@@ -80,8 +80,8 @@ def load_re_over_component_span(directory_root: str, kwargs: dict):
         title_prefix=f'Reconstruction Error (RE) ' +
                      (f'from {kwargs[FILENAME]}\n' if from_other_traj else '') +
                      f'on {kwargs[PARAMS][N_COMPONENTS]} Principal Components ',
-        x_label='number of principal components',
-        y_label='median REs of the trajectories',
+        x_label='Num. Components',
+        y_label='Mean Squared Error',
         # y_range=(0, 1),
         for_paper=kwargs[PARAMS][PLOT_FOR_PAPER]
     ).plot_merged_2ds(plot_dict, error_band=error_band)

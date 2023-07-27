@@ -488,8 +488,8 @@ class MultiTrajectoryAnalyser:
                          ('' if fit_transform_re
                           else f'fit-on-one-transform-on-all\n') +
                          f'on {self.trajectories[DUMMY_ZERO].max_components} Principal Components ',
-            x_label='number of principal components',
-            y_label='median REs of the trajectories',
+            x_label='Num. Components',
+            y_label='Mean Squared Error',
             # y_range=(0, 1),
             xtick_start=1
         ).plot_merged_2ds(model_median_scores, error_band=re_error_bands)
@@ -532,7 +532,7 @@ class MultiTrajectoryAnalyser:
             saver.save_to_npz(model_mean_scores, 'mean_RE_' +
                               ('fit-transform' if fit_transform_re else 'FooToa'))
             saver.save_to_npz(component_wise_scores, 'component_wise_RE_on_' +
-                              ('fit-transform' if fit_transform_re else 'FooToa') + '_traj')
+                              ('fit-transform' if fit_transform_re else 'FooToa'))
             saver.save_to_npz(re_error_bands, 'error_bands_' +
                               ('fit-transform' if fit_transform_re else 'FooToa'))
         return model_median_scores, re_error_bands
@@ -823,9 +823,12 @@ def execute_if_save_enabled(func: callable):
 
 class AnalyseResultsSaver:
     # TODO: Refactor Saver und Loader in other file
-    def __init__(self, trajectory_name, filename='', folder_suffix='', enable_save=True):
-        self.current_result_path: Path = Path('analyse_results') / trajectory_name / (datetime.now().strftime(
-            "%Y-%m-%d_%H.%M.%S") + folder_suffix)
+    def __init__(self, trajectory_name, filename='', folder_suffix='', enable_save=True, use_time_stamp=True):
+        if not use_time_stamp and folder_suffix != '':
+            self.current_result_path: Path = Path('analyse_results') / trajectory_name / folder_suffix
+        else:
+            self.current_result_path: Path = Path('analyse_results') / trajectory_name / (datetime.now().strftime(
+                "%Y-%m-%d_%H.%M.%S") + folder_suffix)
         if enable_save and not self.current_result_path.exists():
             os.makedirs(self.current_result_path)
         self.filename = filename
@@ -855,6 +858,23 @@ class AnalyseResultsSaver:
         if new_filename is not None:
             self.filename = new_filename
         np.savez(self.goal_filename('.npz'), **dictionary)
+
+    @execute_if_save_enabled
+    def merge_save_to_npz(self, dictionary: dict, new_filename: str = None):
+        # TODO: Merge is not working this way. I average the average of the average
+        #  the newer ndarray have a higher weight in the average
+        if new_filename is not None:
+            self.filename = new_filename
+
+        file_path = self.goal_filename('.npz')
+
+        if os.path.exists(file_path):
+            existing_data: dict = np.load(file_path)
+            for key, value in dictionary.items():
+                dictionary[key] = (existing_data[key] + value) / 2 if key in existing_data else value
+
+        # Save the updated dictionary to the file
+        np.savez(file_path, **dictionary)
 
 
 class AnalyseResultLoader:
