@@ -357,7 +357,6 @@ def compare_reconstructions():
         Line2D([0], [0], color='darkorange', lw=2),
         Line2D([0], [0], color='royalblue', lw=2)
     ]
-    linestyles = ['solid', 'dotted', 'dashed', 'dashdot', (0, (1, 1))]
     linetypes = [
         Line2D([0], [0], color='black', lw=2, linestyle=linestyles[0]),
         Line2D([0], [0], color='black', lw=2, linestyle=linestyles[1]),
