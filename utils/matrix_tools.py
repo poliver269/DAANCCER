@@ -162,7 +162,7 @@ def calculate_symmetrical_kernel_matrix(
     fit_y = _get_curve_fitted_y(matrix, kernel_name, xdata, rescaled_ydata)
     if flattened:  # bzw. reinterpolate
         fit_y = rescale_array(fit_y, lower_bound=stat_func(fit_y),
-                              interp_range=[stat_func(original_ydata), 1])
+                              interp_range=[stat_func(original_ydata), np.max(original_ydata)])
     kernel_matrix = expand_diagonals_to_matrix(matrix, fit_y)
 
     if analyse_mode is not None:
@@ -170,12 +170,12 @@ def calculate_symmetrical_kernel_matrix(
             return mean_squared_error(rescaled_ydata, fit_y, squared=False)
         elif analyse_mode == PLOT_3D_MAP:
             ArrayPlotter(
-                interactive=True,
+                interactive=False,
                 title_prefix='Combined Covariance Matrix',
-                x_label='\nCarbon-Alpha Atom\nIndex',
-                y_label='\nCarbon-Alpha Atom\nIndex',
+                x_label='Hours',
+                y_label='Hours',
                 for_paper=True
-            ).matrix_plot(matrix, as_surface=PLOT_3D_MAP)
+            ).matrix_plot(matrix, as_surface='2d')
         elif analyse_mode == PLOT_KERNEL_MATRIX_3D:
             ArrayPlotter(
                 interactive=True,

@@ -477,6 +477,7 @@ class ArrayPlotter(MyPlotter):
         """
         c_map = plt.cm.viridis
         # c_map = plt.cm.seismic
+        # c_map = plt.cm.hot
         if as_surface == PLOT_3D_MAP:
             x_coordinates = np.arange(matrix.shape[0])
             y_coordinates = np.arange(matrix.shape[1])
@@ -486,7 +487,7 @@ class ArrayPlotter(MyPlotter):
             self.axes.set_zlabel('Covariance Values', fontsize=self.fontsize)
             im = self.axes.plot_surface(x_coordinates, y_coordinates, matrix, cmap=c_map)
         else:
-            self.fig, self.axes = plt.subplots(1, 1, dpi=80)
+            self.fig, self.axes = plt.subplots(1, 1, figsize=(1080 / 180, 1080 / 180), dpi=180)
             im = self.axes.matshow(matrix, cmap=c_map)
             if show_values:
                 for (i, j), value in np.ndenumerate(matrix):
@@ -522,7 +523,7 @@ class ArrayPlotter(MyPlotter):
             Some statistical numpy function
         :return:
         """
-        self.fig, self.axes = plt.subplots(1, 1, figsize=(1080 / 180, 1080 / 180), dpi=180)
+        self.fig, self.axes = plt.subplots(1, 1, figsize=(1350 / 180, 1080 / 180), dpi=180)
         self.axes.plot(x_index, gauss_fitted, '-', label=f'fit {fit_method}', linewidth=3.0)
         # self.axes.plot(x_index, gauss_fitted, ' ')
         self.axes.plot(x_index, ydata, '.', label='original data')
@@ -533,10 +534,10 @@ class ArrayPlotter(MyPlotter):
             # TODO: xy is hardcoded for 2f4k
             if fit_method == MY_SINC + '_center':
                 fit_method = MY_SINC
-            self.axes.annotate('threshold', xy=(-32, 0.03), color='tab:green', fontsize=self.fontsize)
-            self.axes.annotate('mean of\ndiagonals', xy=(5, -0.5), color='tab:orange', fontsize=self.fontsize)
-            self.axes.annotate('rescaled\ndiagonal\nvalues', xy=(10, 0.03), color='tab:red', fontsize=self.fontsize)
-            self.axes.annotate(f'{fit_method.replace("my_", "")}\ncurve', xy=(4, 0.6), color='tab:blue',
+            self.axes.annotate('threshold', xy=(-5, 0.675), color='tab:green', fontsize=self.fontsize)
+            self.axes.annotate('mean of\ndiagonals', xy=(-14, 0.8), color='tab:orange', fontsize=self.fontsize)
+            # self.axes.annotate('rescaled\ndiagonal\nvalues', xy=(10, 0.03), color='tab:red', fontsize=self.fontsize)
+            self.axes.annotate(f'{fit_method.replace("my_", "")}\ncurve', xy=(4, 0.88), color='tab:blue',
                                fontsize=self.fontsize)
             # for flattened data
             # self.axes.annotate('threshold', xy=(-100, 0.03), color='tab:green', fontsize=self.fontsize)
@@ -548,7 +549,7 @@ class ArrayPlotter(MyPlotter):
             self._activate_legend = True
         self.axes.plot(x_index, statistical_value, '-', label=function_label)
         # self.axes.plot(x_index, statistical_value, ' ')
-        self.axes.plot(x_index, new_ydata, '+', label='re-scaled data')
+        # self.axes.plot(x_index, new_ydata, '+', label='re-scaled data')
         # self.axes.plot(x_index, new_ydata, ' ')
         self._post_processing()
 
@@ -583,16 +584,30 @@ class ArrayPlotter(MyPlotter):
 
             if self.for_paper:
                 self._activate_legend = False
-                hard_coded_function = ''
+                hard_coded_function = 'EV-2019-rad-diff'
                 if (key.startswith('DROPP') and
-                        hard_coded_function in ['FooToa-2f4k', 'EV-sim-2f4k', 'FooToa-weather-2019']):
+                        hard_coded_function in ['FooToa-2f4k', 'EV-sim-2f4k', 'FooToa-weather-2019',
+                                                'FooToa-FSP', 'EV-2019-rad-dir', 'EV-2019-rad-diff']):
                     if hard_coded_function == 'FooToa-2f4k':
                         xy = (55, 0.23)
                     elif hard_coded_function == 'EV-sim-2f4k':
                         xy = (60, 0.96)
                     elif hard_coded_function == 'FooToa-weather-2019':
                         xy = (5, 0.05)
-                        print(xy)
+                    elif hard_coded_function == 'FooToa-FSP':
+                        xy = (10, 0.4)
+                    elif hard_coded_function == 'EV-2019-rad-dir':
+                        xy = (13, 0.96)
+                    elif hard_coded_function == 'EV-2019-rad-diff':
+                        xy = (13, 0.95)
+                    else:
+                        xy = (0, 0)
+                elif (key.startswith('TICA') and
+                        hard_coded_function in ['EV-2019-rad-dir', 'EV-2019-rad-diff']):
+                    if hard_coded_function == 'EV-2019-rad-dir':
+                        xy = (0, 0.68)
+                    elif hard_coded_function == 'EV-2019-rad-diff':
+                        xy = (0, 0.61)
                     else:
                         xy = (0, 0)
                 else:

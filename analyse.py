@@ -1,3 +1,4 @@
+import glob
 import os
 import warnings
 from datetime import datetime
@@ -92,7 +93,7 @@ class SingleTrajectoryAnalyser:
             model = model_result[MODEL]
             ArrayPlotter(
                 title_prefix=f'Eigenvalues of\n{model}',
-                x_label='Principal Component Number',
+                x_label='Num. Components',
                 y_label='Eigenvalue',
                 for_paper=self.params[PLOT_FOR_PAPER]
             ).plot_2d(ndarray_data=model.explained_variance_)
@@ -272,8 +273,8 @@ class MultiTrajectoryAnalyser:
                     title_prefix=f'{trajectory_pair[0]["model"]}\n'
                                  f'{trajectory_pair[0]["traj"].filename} & {trajectory_pair[1]["traj"].filename}\n'
                                  f'PC Similarity',
-                    x_label='Principal Component Number',
-                    y_label='Principal Component Number',
+                    x_label='Num. Components',
+                    y_label='Num. Components',
                     bottom_text=sim_text
                 ).matrix_plot(cos_matrix)
             all_similarities.append(combo_sim_of_n_pcs)
@@ -320,8 +321,8 @@ class MultiTrajectoryAnalyser:
                         interactive=self.params[INTERACTIVE],
                         title_prefix=f'{self.params[TRAJECTORY_NAME]}\n{model_params}\n'
                                      'Similarity value of all trajectories',
-                        x_label='Principal component number',
-                        y_label='Similarity value',
+                        x_label='Num. Components',
+                        y_label='Median Cosine Sim.',
                         for_paper=self.params[PLOT_FOR_PAPER]
                     ).plot_2d(np.mean(all_sim_matrix, axis=0))
                 else:
@@ -349,8 +350,8 @@ class MultiTrajectoryAnalyser:
             ArrayPlotter(
                 interactive=self.params[INTERACTIVE],
                 title_prefix=f'Eigenvector Similarities',
-                x_label='Principal Component Number',
-                y_label='Similarity value',
+                x_label='Num. Components',
+                y_label='Median Cosine Sim.',
                 # y_range=(0.2, 1),
                 for_paper=self.params[PLOT_FOR_PAPER]
             ).plot_merged_2ds(model_similarities, error_band=similarity_error_bands)
@@ -854,7 +855,7 @@ class AnalyseResultsSaver:
         np.save(self.goal_filename('.npy'), array)
 
     @execute_if_save_enabled
-    def save_to_npz(self, dictionary: dict, new_filename=None):
+    def save_to_npz(self, dictionary: dict, new_filename: str = None):
         if new_filename is not None:
             self.filename = new_filename
         np.savez(self.goal_filename('.npz'), **dictionary)
@@ -875,6 +876,15 @@ class AnalyseResultsSaver:
 
         # Save the updated dictionary to the file
         np.savez(file_path, **dictionary)
+
+
+def merge_npz_files(file1, file2, output_file):
+    data1 = np.load(file1)
+    data2 = np.load(file2)
+
+    merged_data = {**data1, **data2}
+
+    np.savez(output_file, **merged_data)
 
 
 class AnalyseResultLoader:
@@ -902,7 +912,7 @@ class AnalyseResultLoader:
 
     def load_npz_files_in_directory(self, directory_name):
         directory_path = self.get_load_path(directory_name)
-        filename_list = os.listdir(directory_path)
+        filename_list = [file for file in os.listdir(directory_path) if file.endswith(".npz")]
         return self.load_npz_list(directory_name, filename_list)
 
     def load_npz_list(self, root_dir, filename_list):

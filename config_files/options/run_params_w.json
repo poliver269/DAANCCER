@@ -5,7 +5,7 @@
   "interactive": false,
   "n_components": 2,
   "data_set":"weather",
-  "trajectory_name": "all_weather",
+  "trajectory_name": "DE",
   "file_element": 0,
-  "reducee_feature":"radiation_diffuse_horizontal"
+  "reducee_feature":"radiation_direct_horizontal"
 }

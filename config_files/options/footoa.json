@@ -3,10 +3,9 @@
   "plot_type": "color_map",
   "plot_for_paper": true,
   "interactive": false,
-  "n_components": 17,
+  "n_components": null,
   "data_set": "weather",
   "trajectory_name": "all_weather",
   "file_element": 0,
-  "enable_save": true,
-  "reducee_feature": "radiation_diffuse_horizontal"
+  "enable_save": true
 }

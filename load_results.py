@@ -71,7 +71,7 @@ def load_analyse_results_dict(result_load_files: list, kwargs: dict):
 def load_re_over_component_span(directory_root: str, kwargs: dict):
     npzs = AnalyseResultLoader(kwargs[PARAMS][TRAJECTORY_NAME]).load_npz_files_in_directory(directory_root)
     plot_dict = next(v for k, v in npzs.items() if 'median' in k)
-    # a = ['PCA', 'DROO', 'TICA', 'FastICA']
+    # a = ['PCA', 'DROPP', 'TICA', 'FastICA']
     # plot_dict = OrderedDict((key, plot_dict[key]) for key in a)
     error_band = next(v for k, v in npzs.items() if 'error_bands' in k)
     from_other_traj = True
@@ -97,7 +97,7 @@ def load_foo_toa_tws(directory_root: str, kwargs: dict):
         interactive=kwargs[PARAMS][INTERACTIVE],
         title_prefix=f'FooToa on varying time window size',
         x_label='Time window size',
-        y_label='Median RE',
+        y_label='Mean Squared Error',
         for_paper=kwargs[PARAMS][PLOT_FOR_PAPER]
     ).plot_matrix_in_2d(plot_dict, time_steps['time_steps'], component_list['component_list'], error_band)
 
@@ -109,8 +109,8 @@ def load_eigenvector_similarities(directory_root: str, kwargs: dict):
     ArrayPlotter(
         interactive=kwargs[PARAMS][INTERACTIVE],
         title_prefix=f'Eigenvector Similarities',
-        x_label='number of principal components',
-        y_label='median cosine similarity value',
+        x_label='Num. Components',
+        y_label='Median Cosine Sim.',
         # y_range=(0, 1),
         for_paper=kwargs[PARAMS][PLOT_FOR_PAPER]
     ).plot_merged_2ds(plot_dict, error_band=error_band)

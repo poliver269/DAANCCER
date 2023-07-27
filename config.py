@@ -83,16 +83,25 @@ def get_files_and_kwargs(params: dict):
         kwargs = {FILENAME: filename_list[file_element], TOPOLOGY_FILENAME: 'fs-peptide.pdb',
                   FOLDER_PATH: 'data/fs-peptide'}
     elif data_set == 'weather':
-        country = trajectory_name
+        # country = trajectory_name
         filename_list = []
-        country_list = ['BE', 'BG', 'CH', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI',
-                        'FR', 'GB', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU',
-                        'LV', 'NL', 'NO', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK']
-        # country_list = ['BE', 'DE', 'DK', 'GB', 'IE', 'LT', 'LU', 'LV', 'NL']  # radiation_direct 17
-        country_list = ['BE', 'CH', 'DE', 'FR', 'HU', 'IE', 'LU', 'NL', 'PL', 'RO', 'SK']  # radiation_diffuse 17
+        if trajectory_name == 'all_weather':
+            country_list = ['BE', 'BG', 'CH', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI',
+                            'FR', 'GB', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU',
+                            'LV', 'NL', 'NO', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK']
+
+            if REDUCEE_FEATURE in params.keys():
+                if params[REDUCEE_FEATURE] == 'radiation_direct_horizontal':
+                    country_list = ['BE', 'DE', 'DK', 'GB', 'IE', 'LT', 'LU', 'LV', 'NL']  # radiation_direct 17
+                elif params[REDUCEE_FEATURE] == 'radiation_diffuse_horizontal':
+                    country_list = ['BE', 'CH', 'DE', 'FR', 'HU', 'IE', 'LU', 'NL', 'PL',
+                                    'RO', 'SK']  # radiation_diffuse 17
+
+        else:
+            country_list = [trajectory_name]
         for country in country_list:
             folder_path = f'data/weather_data/all_weather/'
-            # filename_list = filename_list + [f'weather_{country}_{i}.csv' for i in range(1980, 2019 + 1)]
+            # filename_list = filename_list + [f'weather_{country}_{i}.csv' for i in range(2015, 2019 + 1)]
             filename_list.append(f'weather_{country}_2019.csv')
 
             if not os.path.isfile(folder_path + filename_list[-1]):
