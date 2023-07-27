@@ -1,8 +1,10 @@
+from time import time
 from tqdm import tqdm
 import numpy as np
-from sklearn.decomposition import PCA
+from sklearn.decomposition import PCA, FastICA
 from scipy.interpolate import CubicSpline
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 
 from utils.algorithms.tensor_dim_reductions.daanccer import DAANCCER
 
@@ -82,27 +84,6 @@ def two_opt_tsp(cities, improvement_threshold): # 2-opt Algorithm adapted from h
     return route # When the route is no longer improving substantially, stop searching and return the route.
 
 
-# Below gives really good separation for RMSE plot but PCA and DROPP look super similar in shape
-# def generate_trajectories(n_copies=10, dim=10, n_landmarks=50, noise=0.25):
-#     X = np.zeros((n_copies, dim, n_landmarks))
-# 
-#     global_landmarks = np.zeros((n_landmarks, dim))
-#     global_landmarks[0] = np.random.multivariate_normal(np.zeros(dim), np.eye(dim))
-#     global_landmarks[0] /= np.linalg.norm(global_landmarks[0])
-#     for i in range(1, n_landmarks):
-#         step_dir = get_ortho_unit(global_landmarks[i-1])
-#         next_landmark = global_landmarks[i-1] + step_dir * 0.1
-#         next_landmark /= np.linalg.norm(next_landmark)
-#         global_landmarks[i] = next_landmark
-#     global_landmarks = np.array(global_landmarks)
-# 
-#     for trajectory in range(n_copies):
-#         traj_landmarks = global_landmarks + np.random.normal(0, 0.1, (n_landmarks, dim))
-#         traj_landmarks /= np.linalg.norm(traj_landmarks)
-#         X[trajectory] = traj_landmarks.T
-# 
-#     return X
-
 def reconstruction_score(x, eigvecs, eps=1e-5):
     # Get the projection of x onto the eigenvectors
     proj = np.zeros_like(x)
@@ -111,13 +92,15 @@ def reconstruction_score(x, eigvecs, eps=1e-5):
             norm = u @ u.T
             if norm < eps:
                 continue
-            proj[i] += (v @ u.T / norm) * u
+            proj[i] += (v @ u.T / norm) * u / norm
 
     # Return the sum of squared errors between the projection and the input
     return np.mean(np.square(x - proj))
 
 def median_similarity(train_components, test_components):
     assert train_components.shape == test_components.shape
+    train_components /= np.linalg.norm(train_components, axis=1, keepdims=True)
+    test_components /= np.linalg.norm(test_components, axis=1, keepdims=True)
     dot_prods = np.abs(train_components @ test_components.T)
     for i in range(len(dot_prods)):
         row = dot_prods[i]
@@ -127,6 +110,19 @@ def median_similarity(train_components, test_components):
             dot_prods[:, i] = dot_prods[:, argmax]
             dot_prods[:, argmax] = temp
     return np.diag(dot_prods)
+
+
+def generate_trajectories(dim=21, n_copies=10, timestamps=300, n_landmarks=30, noise=0.01):
+    X = np.zeros((n_copies, dim, timestamps))
+    landmark_time_stamps = np.arange(0, timestamps + 1, timestamps / (n_landmarks - 1))
+    for i in range(n_copies):
+        global_landmarks = np.random.normal(0, 1, (n_landmarks, dim))
+        spline = CubicSpline(landmark_time_stamps, global_landmarks)
+        locations = spline(np.arange(timestamps))
+        locations += np.random.normal(0, noise, locations.shape)
+        X[i] = locations.T
+
+    return X
 
 
 def get_next_landmark(locations, dim, step_size, normalize, prev_step_likelihood):
@@ -154,12 +150,12 @@ def get_next_landmark(locations, dim, step_size, normalize, prev_step_likelihood
     # return next_landmark, step_dir, new_step
     return next_landmark, step_dir
 
-def get_landmarks(n_landmarks, dim, step_size, normalize, prev_step_likelihood):
+def get_landmarks(n_steps, dim, step_size, normalize, prev_step_likelihood):
     landmarks = []
     landmarks.append(np.random.multivariate_normal(np.zeros(dim), np.eye(dim)))
     if normalize:
         landmarks[0] /= np.linalg.norm(landmarks[0])
-    for i in range(1, n_landmarks):
+    for i in range(1, n_steps):
         next_landmark, step_dir = get_next_landmark(
             landmarks,
             dim,
@@ -171,24 +167,24 @@ def get_landmarks(n_landmarks, dim, step_size, normalize, prev_step_likelihood):
     landmarks = np.array(landmarks)
     return landmarks
 
-def generate_trajectories(
+def generate_random_walks(
     n_copies=10,
-    dim=22,
-    n_landmarks=300,
+    dim=21,
+    n_steps=300,
     step_size=0.1,
     noise=0.,
     normalize=True,
     prev_step_likelihood=0.,
     related_walks=False
 ):
-    X = np.zeros((n_copies, dim, n_landmarks))
+    X = np.zeros((n_copies, dim, n_steps))
 
-    landmarks = get_landmarks(n_landmarks, dim, step_size, normalize, prev_step_likelihood)
+    landmarks = get_landmarks(n_steps, dim, step_size, normalize, prev_step_likelihood)
     for i_trajectory in range(n_copies):
         if not related_walks:
-            landmarks = get_landmarks(n_landmarks, dim, step_size, normalize, prev_step_likelihood)
+            landmarks = get_landmarks(n_steps, dim, step_size, normalize, prev_step_likelihood)
 
-        traj_landmarks = landmarks + np.random.normal(0, noise, (n_landmarks, dim))
+        traj_landmarks = landmarks + np.random.normal(0, noise, (n_steps, dim))
         if normalize:
             traj_landmarks /= np.linalg.norm(traj_landmarks)
         X[i_trajectory] = traj_landmarks.T
@@ -196,123 +192,204 @@ def generate_trajectories(
     return X
 
 def compare_reconstructions():
-    noise_levels = [0.0, 0.005, 0.01, 0.02]
-    all_pca_reconstructions = []
-    all_dropp_reconstructions = []
-    all_pca_similarities = []
-    all_dropp_similarities = []
-    for noise_level in noise_levels:
-        data = generate_trajectories(noise=noise_level)
-        data *= 1000
-        train_traj = data[0]
+    noise_levels = np.array([[0., 0.005, 0.01, 0.02], [0.1, 0.2, 0.4, 0.8]])
+    fig, ax = plt.subplots(2, 2)
+    for dg_i, data_generator in enumerate([generate_random_walks, generate_trajectories]):
+        all_pca_reconstructions = []
+        # all_ica_reconstructions = []
+        all_dropp_reconstructions = []
+        all_pca_similarities = []
+        # all_ica_similarities = []
+        all_dropp_similarities = []
+        for noise_level in noise_levels[dg_i]:
+            data = data_generator(noise=noise_level)
+            if dg_i == 0:
+                data *= 1000
+            else:
+                data *= 3
+            train_traj = data[0]
 
-        # Center the dataset
-        d = train_traj.shape[0]
-        centering = np.eye(d) - np.ones((d, d)) / float(d)
-        for i in range(len(data)):
-            data[i] = centering @ data[i]
+            # Center the dataset
+            d = train_traj.shape[0]
+            centering = np.eye(d) - np.ones((d, d)) / float(d)
+            for i in range(len(data)):
+                data[i] = centering @ data[i]
 
-        rank = np.min(train_traj.shape)
-        pca_reconstructions = np.zeros((rank, len(data) - 1))
-        dropp_reconstructions = np.zeros((rank, len(data) - 1))
-        use_std = True
-        pca_models, dropp_models, ica_models, tica_models = [], [], [], []
-        for traj in data:
-            pca_models.append(PCA(rank).fit(traj))
-            dropp_models.append(DAANCCER(ndim=2, kernel='only').fit(traj, n_components=rank, use_std=use_std))
-        for n_components in tqdm(range(1, rank), total=rank - 1):
-            for j, trajectory in enumerate(data[1:]):
-                pca_reconstructions[n_components, j] = reconstruction_score(
-                    trajectory,
-                    pca_models[0].components_[:n_components]
-                )
-                dropp_reconstructions[n_components, j] = reconstruction_score(
-                    trajectory,
-                    dropp_models[0].components_[:n_components]
-                )
+            rank = np.min(train_traj.shape)
+            pca_reconstructions = np.zeros((rank, len(data) - 1))
+            # ica_reconstructions = np.zeros((rank, len(data) - 1))
+            dropp_reconstructions = np.zeros((rank, len(data) - 1))
+            use_std = True
+            pca_models, dropp_models, ica_models = [], [], []
+            for traj in data:
+                pca_models.append(PCA(rank).fit(traj))
+                # ica_models.append(FastICA(
+                #     rank,
+                #     tol=0.1,
+                #     whiten='unit-variance',
+                #     algorithm='deflation'
+                # ).fit(traj))
+                # print(ica_models[0].components_ / np.linalg.norm(ica_models[0].components_, axis=1, keepdims=True))
+                # print(ica_models[0].components_.shape)
+                # quit()
+                dropp_models.append(DAANCCER(ndim=2, kernel='only').fit(traj, n_components=rank, use_std=use_std))
+            for n_components in tqdm(range(1, rank), total=rank - 1):
+                for j, trajectory in enumerate(data[1:]):
+                    pca_reconstructions[n_components, j] = reconstruction_score(
+                        trajectory,
+                        pca_models[0].components_[:n_components]
+                    )
+                    # ica_reconstructions[n_components, j] = reconstruction_score(
+                    #     trajectory,
+                    #     ica_models[0].components_[:n_components]
+                    # )
+                    dropp_reconstructions[n_components, j] = reconstruction_score(
+                        trajectory,
+                        dropp_models[0].components_[:n_components]
+                    )
 
-        pca_similarities = []
-        dropp_similarities = []
-        for i in range(len(data)):
-            pca_train = pca_models[i]
-            dropp_train = dropp_models[i]
-            for j in range(len(data[i:])):
-                pca_test = pca_models[j]
-                dropp_test = dropp_models[j]
-                pca_similarities.append(median_similarity(pca_train.components_, pca_test.components_))
-                dropp_similarities.append(median_similarity(dropp_train.components_, dropp_test.components_))
+            pca_similarities = []
+            # ica_similarities = []
+            dropp_similarities = []
+            for i in range(len(data)):
+                pca_train = pca_models[i]
+                # ica_train = ica_models[i]
+                dropp_train = dropp_models[i]
+                for j in range(len(data[i:])):
+                    pca_test = pca_models[j]
+                    # ica_test = ica_models[j]
+                    dropp_test = dropp_models[j]
+                    pca_similarities.append(median_similarity(pca_train.components_, pca_test.components_))
+                    # ica_similarities.append(median_similarity(ica_train.components_, ica_test.components_))
+                    dropp_similarities.append(median_similarity(dropp_train.components_, dropp_test.components_))
 
-        all_pca_similarities.append(pca_similarities)
-        all_dropp_similarities.append(dropp_similarities)
-        all_pca_reconstructions.append(pca_reconstructions)
-        all_dropp_reconstructions.append(dropp_reconstructions)
+            all_pca_similarities.append(pca_similarities)
+            # all_ica_similarities.append(ica_similarities)
+            all_dropp_similarities.append(dropp_similarities)
+            all_pca_reconstructions.append(pca_reconstructions)
+            # all_ica_reconstructions.append(ica_reconstructions)
+            all_dropp_reconstructions.append(dropp_reconstructions)
 
-    all_pca_similarities = np.array(all_pca_similarities)
-    all_dropp_similarities = np.array(all_dropp_similarities)
-    all_pca_reconstructions = np.array(all_pca_reconstructions)
-    all_dropp_reconstructions = np.array(all_dropp_reconstructions)
+        all_pca_similarities = np.array(all_pca_similarities)
+        # all_ica_similarities = np.array(all_ica_similarities)
+        all_dropp_similarities = np.array(all_dropp_similarities)
+        all_pca_reconstructions = np.array(all_pca_reconstructions)
+        # all_ica_reconstructions = np.array(all_ica_reconstructions)
+        all_dropp_reconstructions = np.array(all_dropp_reconstructions)
 
+        linestyles = ['dotted', 'dashed', 'dashdot', 'solid', (0, (1, 1))]
+        ax[0, dg_i].set_yscale('log')
+        recs, labels = [], []
+        for i in range(len(noise_levels[dg_i])):
+            ax[0, dg_i].fill_between(
+                np.arange(rank-2) + 2,
+                np.min(all_pca_reconstructions[i, 2:], axis=-1),
+                np.max(all_pca_reconstructions[i, 2:], axis=-1),
+                alpha=0.25,
+                color='skyblue'
+            )
+            # ax[dg_i, 0].fill_between(
+            #     np.arange(rank-2) + 2,
+            #     np.min(all_ica_reconstructions[i, 2:], axis=-1),
+            #     np.max(all_ica_reconstructions[i, 2:], axis=-1),
+            #     alpha=0.25,
+            #     color='green'
+            # )
+            ax[0, dg_i].fill_between(
+                np.arange(rank-2) + 2,
+                np.min(all_dropp_reconstructions[i, 2:], axis=-1),
+                np.max(all_dropp_reconstructions[i, 2:], axis=-1),
+                alpha=0.25,
+                color='orange'
+            )
+            pca_rec, = ax[0, dg_i].plot(
+                np.arange(rank-2) + 2,
+                np.median(all_pca_reconstructions[i, 2:], axis=-1),
+                color='royalblue',
+                linestyle=linestyles[i],
+                linewidth=2
+            )
+            # ica_rec, = ax[dg_i, 0].plot(
+            #     np.arange(rank-2) + 2,
+            #     np.median(all_ica_reconstructions[i, 2:], axis=-1),
+            #     color='forestgreen',
+            #     linestyle=linestyles[i],
+            #     linewidth=2
+            # )
+            dropp_rec, = ax[0, dg_i].plot(
+                np.arange(rank-2) + 2,
+                np.median(all_dropp_reconstructions[i, 2:], axis=-1),
+                color='darkorange',
+                linestyle=linestyles[i],
+                linewidth=2
+            )
+            recs.append(pca_rec)
+            # recs.append(ica_rec)
+            recs.append(dropp_rec)
+            labels.append('pca; noise level {}'.format(i+1))
+            # labels.append('ica; noise level {}'.format(i+1))
+            labels.append('dropp; noise level {}'.format(i+1))
+
+        for i in range(len(noise_levels[dg_i])):
+            ax[1, dg_i].plot(
+                np.arange(rank-2) + 2,
+                np.median(all_pca_similarities[i], axis=0)[2:],
+                color='royalblue',
+                linestyle=linestyles[i],
+                linewidth=2
+            )
+            # ax[dg_i, 1].plot(
+            #     np.arange(rank-2) + 2,
+            #     np.median(all_ica_similarities[i], axis=0)[2:],
+            #     color='forestgreen',
+            #     linestyle=linestyles[i],
+            #     linewidth=2
+            # )
+            ax[1, dg_i].plot(
+                np.arange(rank-2) + 2,
+                np.median(all_dropp_similarities[i], axis=0)[2:],
+                color='darkorange',
+                linestyle=linestyles[i],
+                linewidth=2
+            )
+
+    colors = [
+        Line2D([0], [0], color='darkorange', lw=2),
+        Line2D([0], [0], color='royalblue', lw=2)
+    ]
     linestyles = ['solid', 'dotted', 'dashed', 'dashdot', (0, (1, 1))]
-    fig, ax = plt.subplots()
-    ax.set_yscale('log')
-    recs, labels = [], []
-    for i in range(len(noise_levels)):
-        ax.fill_between(
-            np.arange(rank-2) + 2,
-            np.min(all_pca_reconstructions[i, 2:], axis=-1),
-            np.max(all_pca_reconstructions[i, 2:], axis=-1),
-            alpha=0.25,
-            color='skyblue'
-        )
-        ax.fill_between(
-            np.arange(rank-2) + 2,
-            np.min(all_dropp_reconstructions[i, 2:], axis=-1),
-            np.max(all_dropp_reconstructions[i, 2:], axis=-1),
-            alpha=0.25,
-            color='orange'
-        )
-        pca_rec, = ax.plot(
-            np.arange(rank-2) + 2,
-            np.median(all_pca_reconstructions[i, 2:], axis=-1),
-            color='royalblue',
-            linestyle=linestyles[i],
-            linewidth=2
-        )
-        dropp_rec, = ax.plot(
-            np.arange(rank-2) + 2,
-            np.median(all_dropp_reconstructions[i, 2:], axis=-1),
-            color='darkorange',
-            linestyle=linestyles[i],
-            linewidth=2
-        )
-        recs.append(pca_rec)
-        recs.append(dropp_rec)
-        labels.append('pca; noise level {}'.format(i+1))
-        labels.append('dropp; noise level {}'.format(i+1))
+    linetypes = [
+        Line2D([0], [0], color='black', lw=2, linestyle=linestyles[0]),
+        Line2D([0], [0], color='black', lw=2, linestyle=linestyles[1]),
+        Line2D([0], [0], color='black', lw=2, linestyle=linestyles[2]),
+        Line2D([0], [0], color='black', lw=2, linestyle=linestyles[3])
+    ]
+    ax[0, 1].legend(colors, ['DROPP', 'PCA'], loc=(-0.32, 1.2), ncol=2)
+    ax[0, 0].legend(
+        linetypes,
+        ['Noise level 1', 'Noise level 2', 'Noise level 3', 'Noise level 4'],
+        loc=(0.39, 1.04),
+        ncol=4
+    )
+    ax[0, 1].yaxis.set_label_position('right')
+    ax[1, 1].yaxis.set_label_position('right')
+    ax[0, 1].yaxis.tick_right()
+    ax[1, 1].yaxis.tick_right()
 
-    reorder = [0, 2, 4, 6, 1, 3, 5, 7]
-    ax.legend(np.array(recs)[reorder], np.array(labels)[reorder])
-    plt.show()
-    plt.close()
+    ax[0, 0].set_ylabel('Mean Squared Error')
+    ax[0, 1].set_ylabel('Mean Squared Error')
+    ax[1, 0].set_ylabel('Median Cosine Sim.')
+    ax[1, 1].set_ylabel('Median Cosine Sim.')
 
-    # med_pca_similarities = np.median(np.array(pca_similarities), axis=0)
-    # med_dropp_similarities = np.median(np.array(dropp_similarities), axis=0)
+    ax[0, 0].set_xlabel('Random Walk')
+    ax[0, 0].xaxis.set_label_coords(0.16, 1.13)
+    ax[0, 0].xaxis.label.set_size(14)
+    ax[0, 1].set_xlabel('Trajectory Splines')
+    ax[0, 1].xaxis.set_label_coords(0.805, 1.13)
+    ax[0, 1].xaxis.label.set_size(14)
 
-    for i in range(len(noise_levels)):
-        plt.plot(
-            np.arange(rank-2) + 2,
-            np.median(all_pca_similarities[i], axis=0)[2:],
-            color='royalblue',
-            linestyle=linestyles[i],
-            linewidth=2
-        )
-        plt.plot(
-            np.arange(rank-2) + 2,
-            np.median(all_dropp_similarities[i], axis=0)[2:],
-            color='darkorange',
-            linestyle=linestyles[i],
-            linewidth=2
-        )
+    ax[1, 0].set_xlabel('Num. Components')
+    ax[1, 1].set_xlabel('Num. Components')
     plt.show()
     plt.close()
 
