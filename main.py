@@ -173,6 +173,8 @@ def load_directory(directory_root: str, kwargs: dict):
         load_results.load_foo_toa_tws(directory_root, kwargs)
     elif run_option == LOAD_EIGENVECTOR_SIMILARITIES:
         load_results.load_eigenvector_similarities(directory_root, kwargs)
+    elif run_option == LOAD_RESULT_AND_MERGE_INTO_CSV:
+        load_results.load_result_and_merge_into_csv(directory_root, kwargs)
     else:
         raise InvalidRunningOptionError(f'The loading directory is set to: {directory_root},\n'
                                         f'but the run_option: `{run_option}` in the (json) configuration '

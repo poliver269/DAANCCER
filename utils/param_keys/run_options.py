@@ -14,6 +14,7 @@ LOAD_LIST_OF_DICTS = 'load_list_of_dicts'
 LOAD_FOOTOA_TWS = 'load_footoa_tws'
 LOAD_EIGENVECTOR_SIMILARITIES = 'load_eigenvector_similarities'
 LOAD_RE_OVER_COMPONENT_SPAN = 'load_re_over_component_span'
+LOAD_RESULT_AND_MERGE_INTO_CSV = 'load_result_and_merge_into_csv'
 
 # Multi trajectory analyse
 MULTI_QUALITATIVE_TRANSFORMATION_ON_SAME_FITTING = 'multi_qualitative_compare_transformation_on_same_fitting'

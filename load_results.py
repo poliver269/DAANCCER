@@ -3,6 +3,7 @@ from collections import OrderedDict
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 from analyse import AnalyseResultLoader
 from utils.param_keys import TRAJECTORY_NAME, PLOT_TYPE, N_COMPONENTS, FILENAME, PARAMS, DUMMY_ZERO, INTERACTIVE, \
@@ -114,3 +115,38 @@ def load_eigenvector_similarities(directory_root: str, kwargs: dict):
         # y_range=(0, 1),
         for_paper=kwargs[PARAMS][PLOT_FOR_PAPER]
     ).plot_merged_2ds(plot_dict, error_band=error_band)
+
+
+def load_result_and_merge_into_csv(directory_root: str, kwargs: dict):
+    npzs = AnalyseResultLoader(kwargs[PARAMS][TRAJECTORY_NAME]).load_npz_files_in_directory(directory_root)
+    plot_dict = next(v for k, v in npzs.items() if 'median' in k)
+    # Renaming and reordering the keys in the dictionary
+    if 'DAANCCER' in plot_dict:
+        plot_dict['DROPP'] = plot_dict.pop('DAANCCER')
+    if 'FastICA' in plot_dict:
+        plot_dict['ICA'] = plot_dict.pop('FastICA')
+
+    new_order = ['DROPP', 'PCA', 'ICA', 'TICA']
+    plot_dict = {key: plot_dict[key] for key in new_order if key in plot_dict}
+
+    # Extract relevant values from the plot_dict based on extraction_list
+    extraction_list = [2, 5, 10]
+    extracted_values = np.asarray([plot_dict[key][extraction_list] for key in plot_dict])
+    reshaped_array = extracted_values.reshape(-1, order='F')
+
+    goal_filename = 'analyse_results/FooToa-merged.csv'
+    goal_path = Path(goal_filename)
+    if not goal_path.exists():
+        data_frame = pd.DataFrame()
+    else:
+        data_frame = pd.read_csv(goal_filename)
+
+    # If the 'Method' column doesn't exist, set it with repeated values
+    if 'Method' not in data_frame.columns:
+        num_rows = len(extraction_list)
+        data_frame['Method'] = np.tile(new_order, num_rows)
+
+    # Append the reshaped_array as a new column to the DataFrame
+    data_frame[kwargs[PARAMS][TRAJECTORY_NAME]] = reshaped_array
+
+    data_frame.to_csv(goal_filename, index=False)

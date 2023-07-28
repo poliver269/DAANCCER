@@ -1,0 +1,9 @@
+{
+  "run_option": "load_result_and_merge_into_csv",
+  "plot_for_paper": true,
+  "interactive": false,
+  "n_components": null,
+  "data_set": "protein",
+  "trajectory_name": "fs-peptide",
+  "file_element": 0
+}
