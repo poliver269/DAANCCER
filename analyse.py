@@ -336,9 +336,9 @@ class MultiTrajectoryAnalyser:
                             interactive=self.params[INTERACTIVE],
                             title_prefix=f'{self.params[TRAJECTORY_NAME]}\n{model_params}\n'
                                          f'Trajectory Similarities for {pc_index}-Components',
-                            x_label='Trajectory number',
-                            y_label='Trajectory number',
-                            bottom_text=sim_text,
+                            # x_label='Trajectory number',
+                            # y_label='Trajectory number',
+                            # bottom_text=sim_text,
                             for_paper=self.params[PLOT_FOR_PAPER]
                         ).matrix_plot(tria)
         if merged_plot:

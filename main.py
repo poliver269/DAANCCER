@@ -105,7 +105,7 @@ def run_multi_analyse(filename_list, model_params_list, kwargs):
     elif run_option == MULTI_COMPARE_SOME_PCS:
         mtr = MultiTrajectoryAnalyser(kwargs_list, kwargs[PARAMS])
         mtr.compare_all_trajectory_eigenvectors(traj_nrs=None, model_params_list=model_params_list,
-                                                pc_nr_list=[2, 10, 18])
+                                                pc_nr_list=[10])
     elif run_option == MULTI_GRID_SEARCH:
         param_grid = config.get_param_grid()
         mtr = MultiTrajectoryAnalyser(kwargs_list, kwargs[PARAMS])

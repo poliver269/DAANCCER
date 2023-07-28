@@ -33,7 +33,7 @@ class MyPlotter:
             mpl.use('TkAgg')
 
         if self.for_paper:
-            self.fontsize = 18
+            self.fontsize = 24
         else:
             self.fontsize = 10
 
@@ -489,6 +489,28 @@ class ArrayPlotter(MyPlotter):
         else:
             self.fig, self.axes = plt.subplots(1, 1, figsize=(1080 / 180, 1080 / 180), dpi=180)
             im = self.axes.matshow(matrix, cmap=c_map)
+
+            # Set tick labels for countries
+            countries = False
+            if countries:
+                tick_labels = ["GB", "IE", "LT", "LV"]  # TODO: this should be the country_list, if available
+                tick_positions = [(i * matrix.shape[DUMMY_ZERO] / len(tick_labels))-0.5 for i in range(len(tick_labels) + 1)]
+                minor_tick_positions = [(tick_positions[i] + tick_positions[i + 1]) / 2 for i in
+                                        range(len(tick_positions) - 1)]
+
+                self.axes.set_xticks(tick_positions)
+                self.axes.set_yticks(tick_positions)
+                self.axes.set_xticklabels('')
+                self.axes.set_yticklabels('')
+
+                # Set the tick positions and labels for both axes (x and y)
+                self.axes.set_xticks(minor_tick_positions, minor=True)
+                self.axes.set_yticks(minor_tick_positions, minor=True)
+                self.axes.set_xticklabels(tick_labels, minor=True, fontsize=self.fontsize)
+                self.axes.set_yticklabels(tick_labels, minor=True, fontsize=self.fontsize)
+                self.axes.tick_params(which='minor', width=0)
+                # color_bar = self.fig.colorbar(im, ax=self.axes)
+                # color_bar.ax.tick_params(labelsize=self.fontsize)
             if show_values:
                 for (i, j), value in np.ndenumerate(matrix):
                     self.axes.text(j, i, '{:0.2f}'.format(value), ha='center', va='center', fontsize=8)
