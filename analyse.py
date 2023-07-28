@@ -929,3 +929,49 @@ class AnalyseResultLoader:
         for filename in filename_list:
             loaded_dict[filename] = self.load_npz(Path(root_dir) / filename)
         return loaded_dict
+
+    def merge_npz_files(self, goal_dictionary):
+        # Step 1: Load all files ending with .npz in the sub_directories of directory_path
+        file_dicts = {}
+
+        for root, dirs, files in os.walk(self.current_result_path):
+            for file in files:
+                if file.endswith(".npz"):
+                    full_path = os.path.join(root, file)
+                    # Extract the name of the sub-directory to be used as a key
+                    sub_directory = os.path.basename(root)
+                    if file in file_dicts:
+                        file_dicts[file][sub_directory] = np.load(full_path)
+                    else:
+                        file_dicts[file] = {sub_directory: np.load(full_path)}
+
+        # Step 2: Create merged dictionaries for each file
+        save_path = Path(goal_dictionary) / (datetime.now().strftime("%Y-%m-%d_%H.%M.%S"))
+        os.makedirs(save_path, exist_ok=True)
+        for file, sub_directories_dict in file_dicts.items():
+            merged_dict = {}
+            for key in ['PCA', 'DROPP', 'TICA', 'FastICA']:
+                # Calculate the average of the numpy arrays for each key
+                try:
+                    merged_dict[key] = np.mean([sub_dict[key] for sub_dict in sub_directories_dict.values()], axis=0)
+                except ValueError:
+                    merged_dict[key] = calculate_mean_along_axis0(
+                        [sub_dict[key] for sub_dict in sub_directories_dict.values()])
+
+            # Step 3: Save the merged dictionary into a new .npz file at the goal_dictionary
+            np.savez(save_path / file, **merged_dict)
+        return save_path
+
+
+def calculate_mean_along_axis0(list_of_ndarrays):
+    # Find the maximum size along axis 1 in the list of arrays
+    max_size = max(arr.shape[1] for arr in list_of_ndarrays)
+
+    # Pad the smaller arrays with NaNs along axis 1 to match the maximum size
+    padded_arrays = [np.pad(arr, ((0, 0), (0, max_size - arr.shape[1])), mode='constant', constant_values=np.nan) for
+                     arr in list_of_ndarrays]
+
+    # Calculate the mean along axis 0, ignoring NaN values
+    mean_along_axis0 = np.nanmean(padded_arrays, axis=0)
+
+    return mean_along_axis0

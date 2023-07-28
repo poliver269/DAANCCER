@@ -3,10 +3,10 @@
   "plot_type": "color_map",
   "plot_for_paper": true,
   "interactive": false,
-  "n_components": null,
+  "n_components": 17,
   "data_set": "weather",
-  "trajectory_name": "all_weather_temperature",
+  "trajectory_name": "all_weather_rad-diff",
   "file_element": 0,
   "enable_save": true,
-  "reducee_feature": "temperature"
+  "reducee_feature": "radiation_diffuse_horizontal"
 }

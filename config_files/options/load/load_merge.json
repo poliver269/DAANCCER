@@ -3,7 +3,7 @@
   "plot_for_paper": true,
   "interactive": false,
   "n_components": null,
-  "data_set": "protein",
-  "trajectory_name": "fs-peptide",
+  "data_set": "weather",
+  "trajectory_name": "all_weather_rad-diff",
   "file_element": 0
 }

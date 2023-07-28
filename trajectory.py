@@ -200,7 +200,7 @@ class WeatherTrajectory(DataTrajectory):
         self.feat_traj = np.array(list(map(np.stack, self.weather_df.to_numpy())))
         self.feat_traj = (self.feat_traj - np.mean(self.feat_traj, axis=0)[np.newaxis, :]) / np.std(self.feat_traj,
                                                                                                     axis=0)
-        # print(self.feat_traj.shape)
+        print(self.feat_traj.shape)
         self.dim[TIME_FRAMES] = self.feat_traj.shape[DUMMY_ZERO]
 
     @property

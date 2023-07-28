@@ -92,11 +92,15 @@ def get_files_and_kwargs(params: dict):
                             'FR', 'GB', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU',
                             'LV', 'NL', 'NO', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK']
             if REDUCEE_FEATURE in params.keys():
-                if params[REDUCEE_FEATURE] == 'radiation_direct_horizontal':
-                    country_list = ['BE', 'DE', 'DK', 'GB', 'IE', 'LT', 'LU', 'LV', 'NL']  # radiation_direct 17
-                elif params[REDUCEE_FEATURE] == 'radiation_diffuse_horizontal':
+                if params[REDUCEE_FEATURE] == 'radiation_direct_horizontal':  # radiation_direct 17
+                    country_list = ['BE', 'DE', 'DK', 'GB', 'IE', 'LT', 'LU', 'LV', 'NL']  # 2019-17, 2009
+                if params[REDUCEE_FEATURE] == 'radiation_direct_horizontal_13':
+                    country_list = ['BE', 'DE', 'DK', 'GB', 'IE', 'LT', 'LU', 'PL', 'NL']  # 2013-2016
+                if params[REDUCEE_FEATURE] == 'radiation_direct_horizontal-10':
+                    country_list = ['DE', 'DK', 'IE', 'LT', 'LU', 'LV', 'PL', 'NL']  # 2010-2012
+                elif params[REDUCEE_FEATURE] == 'radiation_diffuse_horizontal':  # radiation_diffuse 17
                     country_list = ['BE', 'CH', 'DE', 'FR', 'HU', 'IE', 'LU', 'NL', 'PL',
-                                    'RO', 'SK']  # radiation_diffuse 17
+                                    'RO', 'SK']
 
         else:
             country_list = [trajectory_name]
@@ -105,7 +109,7 @@ def get_files_and_kwargs(params: dict):
         folder_path = f'data/weather_data/all_weather/'
         for country in country_list:
             # filename_list = filename_list + [f'weather_{country}_{i}.csv' for i in range(1980, 2019 + 1)]
-            filename_list.append(f'weather_{country}_2019.csv')
+            filename_list.append(f'weather_{country}_2009.csv')
 
             if not os.path.isfile(folder_path + filename_list[-1]):
                 raw_data = pd.read_csv('data/weather_data.csv')

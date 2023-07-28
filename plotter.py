@@ -33,7 +33,7 @@ class MyPlotter:
             mpl.use('TkAgg')
 
         if self.for_paper:
-            self.fontsize = 24
+            self.fontsize = 18
         else:
             self.fontsize = 10
 

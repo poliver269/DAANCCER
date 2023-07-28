@@ -151,3 +151,8 @@ def load_result_and_merge_into_csv(directory_root: str, kwargs: dict):
     data_frame[kwargs[PARAMS][TRAJECTORY_NAME]] = reshaped_array
 
     data_frame.to_csv(goal_filename, index=False)
+
+
+def load_merge_average(directory_root: str, kwargs: dict):
+    loader = AnalyseResultLoader(kwargs[PARAMS][TRAJECTORY_NAME], directory_root)
+    loader.merge_npz_files(f'analyse_results/{kwargs[PARAMS][TRAJECTORY_NAME]}/')

@@ -1,6 +1,5 @@
 {
-  "run_option": "load_re_over_component_span",
-  "plot_type": "color_map",
+  "run_option": "load_merge_average",
   "plot_for_paper": true,
   "interactive": false,
   "n_components": null,
