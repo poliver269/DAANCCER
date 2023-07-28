@@ -97,9 +97,10 @@ def load_foo_toa_tws(directory_root: str, kwargs: dict):
     ArrayPlotter(
         interactive=kwargs[PARAMS][INTERACTIVE],
         title_prefix=f'FooToa on varying time window size',
-        x_label='Time window size',
+        x_label='Time Window Size',
         y_label='Mean Squared Error',
-        for_paper=kwargs[PARAMS][PLOT_FOR_PAPER]
+        for_paper=kwargs[PARAMS][PLOT_FOR_PAPER],
+        y_range=(0, 2)
     ).plot_matrix_in_2d(plot_dict, time_steps['time_steps'], component_list['component_list'], error_band)
 
 

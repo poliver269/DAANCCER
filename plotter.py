@@ -455,7 +455,7 @@ class ArrayPlotter(MyPlotter):
             self.axes.legend(bbox_to_anchor=(0.5, -0.05), loc='upper center', fontsize=8)
             plt.subplots_adjust(bottom=0.25)
         elif self._activate_legend:
-            self.axes.legend(fontsize=self.fontsize)
+            self.axes.legend(fontsize=self.fontsize, ncol=4)
 
         if self.range_tuple is not None:
             self.axes.set_ylim(self.range_tuple)
@@ -687,14 +687,15 @@ class ArrayPlotter(MyPlotter):
             line_style = next(self.line_styles)
 
             for j, line_width in enumerate(np.log(line_values)):
-                if line_values[j] not in []:
+                dont_plot = []
+                if line_values[j] not in dont_plot:
                     self.axes.plot(x_axis_values, model_scores[:, j],
                                    color=color, linestyle=line_style, linewidth=line_width)
-                    if j == 0:
+                    if j == 0 or line_values[0] in dont_plot:
                         self.axes.plot([], [], color=color, linewidth=10, label=model_name)
 
-                    self.axes.annotate(line_values[j], xy=(x_axis_values[-1], model_scores[-1, j] - 0.01),
-                                       color=color, fontsize=self.fontsize)
+                    # self.axes.annotate(line_values[j], xy=(x_axis_values[-1], model_scores[-1, j] - 0.01),
+                    #                    color=color, fontsize=self.fontsize)
 
                     if error_band is not None:
                         error_component_band = error_band[model_name][:, j, :].T
@@ -704,7 +705,7 @@ class ArrayPlotter(MyPlotter):
                         else:
                             self.axes.fill_between(x_axis_values,
                                                    error_component_band[DUMMY_ZERO], error_component_band[DUMMY_ONE],
-                                                   color=color, alpha=0.1 * line_width)
+                                                   color=color, alpha=0.2)  # .1 * line_width)
 
         if self.for_paper:
             self.axes.set_xlim(0, x_axis_values[-1])

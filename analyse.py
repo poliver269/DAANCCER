@@ -779,6 +779,7 @@ class MultiSubTrajectoryAnalyser(MultiTrajectoryAnalyser):
         )
         max_time_steps = self.trajectories[DUMMY_ZERO].dim[TIME_FRAMES]  # e.g. 10000
         time_steps = np.geomspace(self.trajectories[DUMMY_ZERO].max_components, max_time_steps, num=15, dtype=int)
+        print(f'Time window sizes: {time_steps}')
         component_list = np.asarray([2, 5, 10, 25, 50])
         saver.save_to_npz({'time_steps': time_steps}, 'time_steps_FooToaTws')
         saver.save_to_npz({'component_list': component_list}, 'component_list_FooToaTws')
@@ -812,8 +813,9 @@ class MultiSubTrajectoryAnalyser(MultiTrajectoryAnalyser):
             interactive=self.params[INTERACTIVE],
             title_prefix=f'FooToa on varying time window size',
             x_label='Time window size',
-            y_label='Median RE',
-            for_paper=self.params[PLOT_FOR_PAPER]
+            y_label='Mean Squared Error',
+            for_paper=self.params[PLOT_FOR_PAPER],
+            y_range=(0, 2)
         ).plot_matrix_in_2d(model_median_scores, time_steps, component_list, re_error_bands)
 
     def change_time_window_sizes(self, new_time_window_size):

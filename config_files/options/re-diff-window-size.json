@@ -3,10 +3,11 @@
   "plot_type": "color_map",
   "interactive": false,
   "n_components": null,
-  "trajectory_name": "2f4k",
+  "trajectory_name": "fs-peptide",
   "file_element": 0,
   "enable_save": true,
   "data_set": "sub_protein",
   "time_window_size": null,
-  "part_count": 0
+  "part_count": 0,
+  "transform_on_whole": true
 }
