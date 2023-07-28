@@ -83,10 +83,11 @@ def get_files_and_kwargs(params: dict):
         kwargs = {FILENAME: filename_list[file_element], TOPOLOGY_FILENAME: 'fs-peptide.pdb',
                   FOLDER_PATH: 'data/fs-peptide'}
     elif data_set == 'weather':
-        filename_list = []
+
         if isinstance(trajectory_name, list):
             country_list = trajectory_name
-        elif trajectory_name == 'all_weather':
+        elif trajectory_name in ['all_weather', 'all_weather_temperature',
+                                 'all_weather_rad-dir', 'all_weather_rad-diff']:
             country_list = ['BE', 'BG', 'CH', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI',
                             'FR', 'GB', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU',
                             'LV', 'NL', 'NO', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK']
@@ -99,10 +100,12 @@ def get_files_and_kwargs(params: dict):
 
         else:
             country_list = [trajectory_name]
+
+        filename_list = []
         folder_path = f'data/weather_data/all_weather/'
         for country in country_list:
-            filename_list = filename_list + [f'weather_{country}_{i}.csv' for i in range(1980, 2019 + 1)]
-            # filename_list.append(f'weather_{country}_2019.csv')
+            # filename_list = filename_list + [f'weather_{country}_{i}.csv' for i in range(1980, 2019 + 1)]
+            filename_list.append(f'weather_{country}_2019.csv')
 
             if not os.path.isfile(folder_path + filename_list[-1]):
                 raw_data = pd.read_csv('data/weather_data.csv')

@@ -5,7 +5,8 @@
   "interactive": false,
   "n_components": null,
   "data_set": "weather",
-  "trajectory_name": "all_weather",
+  "trajectory_name": "all_weather_temperature",
   "file_element": 0,
-  "enable_save": true
+  "enable_save": true,
+  "reducee_feature": "temperature"
 }
