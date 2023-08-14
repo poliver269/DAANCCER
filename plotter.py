@@ -107,7 +107,7 @@ class ProteinPlotter(MyPlotter):
 
     def _update_on_slider_change(self, timeframe):
         """
-        Callable function for the slider, which updates the figure.
+        Callable function for the slider, which updates the figure
         :param timeframe: Input value of the slider.
         :return:
         """
@@ -494,7 +494,8 @@ class ArrayPlotter(MyPlotter):
             countries = False
             if countries:
                 tick_labels = ["GB", "IE", "LT", "LV"]  # TODO: this should be the country_list, if available
-                tick_positions = [(i * matrix.shape[DUMMY_ZERO] / len(tick_labels))-0.5 for i in range(len(tick_labels) + 1)]
+                tick_positions = [(i * matrix.shape[DUMMY_ZERO] / len(tick_labels)) - 0.5 for i in
+                                  range(len(tick_labels) + 1)]
                 minor_tick_positions = [(tick_positions[i] + tick_positions[i + 1]) / 2 for i in
                                         range(len(tick_positions) - 1)]
 
@@ -628,7 +629,7 @@ class ArrayPlotter(MyPlotter):
                     else:
                         xy = (0, 0)
                 elif (key.startswith('TICA') and
-                        hard_coded_function in ['EV-2019-rad-dir', 'EV-2019-rad-diff']):
+                      hard_coded_function in ['EV-2019-rad-dir', 'EV-2019-rad-diff']):
                     if hard_coded_function == 'EV-2019-rad-dir':
                         xy = (0, 0.68)
                     elif hard_coded_function == 'EV-2019-rad-diff':

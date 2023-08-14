@@ -4,6 +4,6 @@
   "interactive": false,
   "n_components": null,
   "data_set": "weather",
-  "trajectory_name": "all_weather_temperature",
+  "trajectory_name": "all_weather_rad-dir",
   "file_element": 0
 }

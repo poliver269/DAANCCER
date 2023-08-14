@@ -312,8 +312,9 @@ class MultiTrajectoryAnalyser:
             all_sim_matrix = self._get_all_similarities_from_trajectory_ev_pairs(result_pairs)
 
             if merged_plot:
-                model_similarities[str(result_pairs[0][0][MODEL])] = np.mean(all_sim_matrix, axis=0)[1:]
-                similarity_error_bands[str(result_pairs[0][0][MODEL])] = np.vstack(
+                algorithm_name = get_algorithm_name(result_pairs[0][0][MODEL])
+                model_similarities[algorithm_name] = np.mean(all_sim_matrix, axis=0)[1:]
+                similarity_error_bands[algorithm_name] = np.vstack(
                     (np.min(all_sim_matrix, axis=0), np.max(all_sim_matrix, axis=0)))[:, 1:]
             else:
                 if pc_nr_list is None:

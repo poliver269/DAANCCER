@@ -166,6 +166,7 @@ class WeatherTrajectory(DataTrajectory):
         try:
             print(f"Loading trajectory {self.filename}...")
             self.weather_df = pd.read_csv(self.filepath)
+            # noinspection PyUnresolvedReferences
             self.weather_df = self.weather_df.loc[:, (round(self.weather_df) != 0).any()]
 
             self.feat_traj = np.array(list(map(np.stack, self.weather_df.to_numpy())))

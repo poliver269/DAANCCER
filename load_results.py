@@ -128,10 +128,17 @@ def load_result_and_merge_into_csv(directory_root: str, kwargs: dict):
         plot_dict['ICA'] = plot_dict.pop('FastICA')
 
     new_order = ['DROPP', 'PCA', 'ICA', 'TICA']
+    # for algorithm_name in new_order:
+    #
+    #     if algorithm_name not in plot_dict.keys() and next(
+    #             v for k, v in plot_dict.items() if algorithm_name in k) is not None:
+    #         plot_dict[algorithm_name] = plot_dict.pop(next(k for k, v in plot_dict.items() if algorithm_name in k))
+
     plot_dict = {key: plot_dict[key] for key in new_order if key in plot_dict}
 
     # Extract relevant values from the plot_dict based on extraction_list
-    extraction_list = [2, 5, 10]
+    extraction_list = [2, 5, 10, 15, 30]
+
     extracted_values = np.asarray([plot_dict[key][extraction_list] for key in plot_dict])
     reshaped_array = extracted_values.reshape(-1, order='F')
 
