@@ -1,3 +1,4 @@
+import glob
 import os
 import warnings
 from datetime import datetime
@@ -22,7 +23,7 @@ from utils.errors import InvalidReconstructionException, InvalidProteinTrajector
 from utils.matrix_tools import calculate_symmetrical_kernel_matrix, reconstruct_matrix
 from utils.param_keys import *
 from utils.param_keys.analyses import COLOR_MAP, KERNEL_COMPARE
-from utils.param_keys.model import KERNEL_TYPE, USE_ORIGINAL_DATA
+from utils.param_keys.model import KERNEL_TYPE, USE_ORIGINAL_DATA, ALGORITHM_NAME
 from utils.param_keys.model_result import MODEL, PROJECTION, INPUT_PARAMS, TITLE_PREFIX, FITTED_ON
 from utils.param_keys.traj_dims import TIME_FRAMES
 
@@ -92,7 +93,7 @@ class SingleTrajectoryAnalyser:
             model = model_result[MODEL]
             ArrayPlotter(
                 title_prefix=f'Eigenvalues of\n{model}',
-                x_label='Principal Component Number',
+                x_label='Num. Components',
                 y_label='Eigenvalue',
                 for_paper=self.params[PLOT_FOR_PAPER]
             ).plot_2d(ndarray_data=model.explained_variance_)
@@ -244,6 +245,9 @@ class MultiTrajectoryAnalyser:
         for trajectory_pair in trajectory_result_pairs:
             pc_0_matrix = trajectory_pair[0][MODEL].components_
             pc_1_matrix = trajectory_pair[1][MODEL].components_
+            # params =
+            if pc_0_matrix.shape != pc_1_matrix.shape:
+                continue  # TODO weather data PL and FI causes TICA errors
             # if isinstance(trajectory_pair[0][MODEL], DAANCCER):
             #     pc_0_matrix = pc_0_matrix.T[:self.params[N_COMPONENTS]]
             #     pc_1_matrix = pc_1_matrix.T[:self.params[N_COMPONENTS]]
@@ -269,8 +273,8 @@ class MultiTrajectoryAnalyser:
                     title_prefix=f'{trajectory_pair[0]["model"]}\n'
                                  f'{trajectory_pair[0]["traj"].filename} & {trajectory_pair[1]["traj"].filename}\n'
                                  f'PC Similarity',
-                    x_label='Principal Component Number',
-                    y_label='Principal Component Number',
+                    x_label='Num. Components',
+                    y_label='Num. Components',
                     bottom_text=sim_text
                 ).matrix_plot(cos_matrix)
             all_similarities.append(combo_sim_of_n_pcs)
@@ -308,8 +312,9 @@ class MultiTrajectoryAnalyser:
             all_sim_matrix = self._get_all_similarities_from_trajectory_ev_pairs(result_pairs)
 
             if merged_plot:
-                model_similarities[str(result_pairs[0][0][MODEL])] = np.mean(all_sim_matrix, axis=0)[1:]
-                similarity_error_bands[str(result_pairs[0][0][MODEL])] = np.vstack(
+                algorithm_name = get_algorithm_name(result_pairs[0][0][MODEL])
+                model_similarities[algorithm_name] = np.mean(all_sim_matrix, axis=0)[1:]
+                similarity_error_bands[algorithm_name] = np.vstack(
                     (np.min(all_sim_matrix, axis=0), np.max(all_sim_matrix, axis=0)))[:, 1:]
             else:
                 if pc_nr_list is None:
@@ -317,8 +322,8 @@ class MultiTrajectoryAnalyser:
                         interactive=self.params[INTERACTIVE],
                         title_prefix=f'{self.params[TRAJECTORY_NAME]}\n{model_params}\n'
                                      'Similarity value of all trajectories',
-                        x_label='Principal component number',
-                        y_label='Similarity value',
+                        x_label='Num. Components',
+                        y_label='Median Cosine Sim.',
                         for_paper=self.params[PLOT_FOR_PAPER]
                     ).plot_2d(np.mean(all_sim_matrix, axis=0))
                 else:
@@ -332,9 +337,9 @@ class MultiTrajectoryAnalyser:
                             interactive=self.params[INTERACTIVE],
                             title_prefix=f'{self.params[TRAJECTORY_NAME]}\n{model_params}\n'
                                          f'Trajectory Similarities for {pc_index}-Components',
-                            x_label='Trajectory number',
-                            y_label='Trajectory number',
-                            bottom_text=sim_text,
+                            # x_label='Trajectory number',
+                            # y_label='Trajectory number',
+                            # bottom_text=sim_text,
                             for_paper=self.params[PLOT_FOR_PAPER]
                         ).matrix_plot(tria)
         if merged_plot:
@@ -346,8 +351,8 @@ class MultiTrajectoryAnalyser:
             ArrayPlotter(
                 interactive=self.params[INTERACTIVE],
                 title_prefix=f'Eigenvector Similarities',
-                x_label='Principal Component Number',
-                y_label='Similarity value',
+                x_label='Num. Components',
+                y_label='Median Cosine Sim.',
                 # y_range=(0.2, 1),
                 for_paper=self.params[PLOT_FOR_PAPER]
             ).plot_merged_2ds(model_similarities, error_band=similarity_error_bands)
@@ -485,8 +490,8 @@ class MultiTrajectoryAnalyser:
                          ('' if fit_transform_re
                           else f'fit-on-one-transform-on-all\n') +
                          f'on {self.trajectories[DUMMY_ZERO].max_components} Principal Components ',
-            x_label='number of principal components',
-            y_label='median REs of the trajectories',
+            x_label='Num. Components',
+            y_label='Mean Squared Error',
             # y_range=(0, 1),
             xtick_start=1
         ).plot_merged_2ds(model_median_scores, error_band=re_error_bands)
@@ -504,7 +509,8 @@ class MultiTrajectoryAnalyser:
         """
         saver = AnalyseResultsSaver(
             trajectory_name=self.params[TRAJECTORY_NAME],
-            enable_save=self.params[ENABLE_SAVE]
+            enable_save=self.params[ENABLE_SAVE],
+            folder_suffix='_' + ("Ftoa" if fit_transform_re else "FooToa")
         )
 
         model_median_scores = {}
@@ -528,7 +534,7 @@ class MultiTrajectoryAnalyser:
             saver.save_to_npz(model_mean_scores, 'mean_RE_' +
                               ('fit-transform' if fit_transform_re else 'FooToa'))
             saver.save_to_npz(component_wise_scores, 'component_wise_RE_on_' +
-                              ('fit-transform' if fit_transform_re else 'FooToa') + '_traj')
+                              ('fit-transform' if fit_transform_re else 'FooToa'))
             saver.save_to_npz(re_error_bands, 'error_bands_' +
                               ('fit-transform' if fit_transform_re else 'FooToa'))
         return model_median_scores, re_error_bands
@@ -713,6 +719,10 @@ class MultiTrajectoryAnalyser:
             if trajectory_nr == traj_index:
                 fitting_results[TITLE_PREFIX] = trajectory.filename[:-4]
                 model_results_list.append(fitting_results)
+            elif model_params[ALGORITHM_NAME] == "original_tsne":
+                fitting_results[TITLE_PREFIX] = fitting_trajectory.filename[:-4]
+                fitting_results[FITTED_ON] = trajectory.filename[:-4]
+                model_results_list.append(fitting_results)
             else:
                 transform_results = fitting_results.copy()
                 transform_results[PROJECTION] = fitting_results[MODEL].transform(trajectory.data_input(model_params))
@@ -742,6 +752,9 @@ class MultiTrajectoryAnalyser:
                 fitted_traj_row = self.compare_results_on_same_fitting(model_params, traj_index, plot=False)
                 list_of_list.append(fitted_traj_row)
 
+            if model_params[ALGORITHM_NAME] == 'original_tsne':
+                list_of_list = list(zip(*list_of_list))  # flip rows and columns
+
             ModelResultPlotter(
                 interactive=self.params[INTERACTIVE],
                 for_paper=self.params[PLOT_FOR_PAPER]
@@ -767,6 +780,7 @@ class MultiSubTrajectoryAnalyser(MultiTrajectoryAnalyser):
         )
         max_time_steps = self.trajectories[DUMMY_ZERO].dim[TIME_FRAMES]  # e.g. 10000
         time_steps = np.geomspace(self.trajectories[DUMMY_ZERO].max_components, max_time_steps, num=15, dtype=int)
+        print(f'Time window sizes: {time_steps}')
         component_list = np.asarray([2, 5, 10, 25, 50])
         saver.save_to_npz({'time_steps': time_steps}, 'time_steps_FooToaTws')
         saver.save_to_npz({'component_list': component_list}, 'component_list_FooToaTws')
@@ -800,8 +814,9 @@ class MultiSubTrajectoryAnalyser(MultiTrajectoryAnalyser):
             interactive=self.params[INTERACTIVE],
             title_prefix=f'FooToa on varying time window size',
             x_label='Time window size',
-            y_label='Median RE',
-            for_paper=self.params[PLOT_FOR_PAPER]
+            y_label='Mean Squared Error',
+            for_paper=self.params[PLOT_FOR_PAPER],
+            y_range=(0, 2)
         ).plot_matrix_in_2d(model_median_scores, time_steps, component_list, re_error_bands)
 
     def change_time_window_sizes(self, new_time_window_size):
@@ -819,9 +834,12 @@ def execute_if_save_enabled(func: callable):
 
 class AnalyseResultsSaver:
     # TODO: Refactor Saver und Loader in other file
-    def __init__(self, trajectory_name, filename='', folder_suffix='', enable_save=True):
-        self.current_result_path: Path = Path('analyse_results') / trajectory_name / (datetime.now().strftime(
-            "%Y-%m-%d_%H.%M.%S") + folder_suffix)
+    def __init__(self, trajectory_name, filename='', folder_suffix='', enable_save=True, use_time_stamp=True):
+        if not use_time_stamp and folder_suffix != '':
+            self.current_result_path: Path = Path('analyse_results') / trajectory_name / folder_suffix
+        else:
+            self.current_result_path: Path = Path('analyse_results') / trajectory_name / (datetime.now().strftime(
+                "%Y-%m-%d_%H.%M.%S") + folder_suffix)
         if enable_save and not self.current_result_path.exists():
             os.makedirs(self.current_result_path)
         self.filename = filename
@@ -847,10 +865,36 @@ class AnalyseResultsSaver:
         np.save(self.goal_filename('.npy'), array)
 
     @execute_if_save_enabled
-    def save_to_npz(self, dictionary: dict, new_filename=None):
+    def save_to_npz(self, dictionary: dict, new_filename: str = None):
         if new_filename is not None:
             self.filename = new_filename
         np.savez(self.goal_filename('.npz'), **dictionary)
+
+    @execute_if_save_enabled
+    def merge_save_to_npz(self, dictionary: dict, new_filename: str = None):
+        # TODO: Merge is not working this way. I average the average of the average
+        #  the newer ndarray have a higher weight in the average
+        if new_filename is not None:
+            self.filename = new_filename
+
+        file_path = self.goal_filename('.npz')
+
+        if os.path.exists(file_path):
+            existing_data: dict = np.load(file_path)
+            for key, value in dictionary.items():
+                dictionary[key] = (existing_data[key] + value) / 2 if key in existing_data else value
+
+        # Save the updated dictionary to the file
+        np.savez(file_path, **dictionary)
+
+
+def merge_npz_files(file1, file2, output_file):
+    data1 = np.load(file1)
+    data2 = np.load(file2)
+
+    merged_data = {**data1, **data2}
+
+    np.savez(output_file, **merged_data)
 
 
 class AnalyseResultLoader:
@@ -878,7 +922,7 @@ class AnalyseResultLoader:
 
     def load_npz_files_in_directory(self, directory_name):
         directory_path = self.get_load_path(directory_name)
-        filename_list = os.listdir(directory_path)
+        filename_list = [file for file in os.listdir(directory_path) if file.endswith(".npz")]
         return self.load_npz_list(directory_name, filename_list)
 
     def load_npz_list(self, root_dir, filename_list):
@@ -886,3 +930,49 @@ class AnalyseResultLoader:
         for filename in filename_list:
             loaded_dict[filename] = self.load_npz(Path(root_dir) / filename)
         return loaded_dict
+
+    def merge_npz_files(self, goal_dictionary):
+        # Step 1: Load all files ending with .npz in the sub_directories of directory_path
+        file_dicts = {}
+
+        for root, dirs, files in os.walk(self.current_result_path):
+            for file in files:
+                if file.endswith(".npz"):
+                    full_path = os.path.join(root, file)
+                    # Extract the name of the sub-directory to be used as a key
+                    sub_directory = os.path.basename(root)
+                    if file in file_dicts:
+                        file_dicts[file][sub_directory] = np.load(full_path)
+                    else:
+                        file_dicts[file] = {sub_directory: np.load(full_path)}
+
+        # Step 2: Create merged dictionaries for each file
+        save_path = Path(goal_dictionary) / (datetime.now().strftime("%Y-%m-%d_%H.%M.%S"))
+        os.makedirs(save_path, exist_ok=True)
+        for file, sub_directories_dict in file_dicts.items():
+            merged_dict = {}
+            for key in ['PCA', 'DROPP', 'TICA', 'FastICA']:
+                # Calculate the average of the numpy arrays for each key
+                try:
+                    merged_dict[key] = np.mean([sub_dict[key] for sub_dict in sub_directories_dict.values()], axis=0)
+                except ValueError:
+                    merged_dict[key] = calculate_mean_along_axis0(
+                        [sub_dict[key] for sub_dict in sub_directories_dict.values()])
+
+            # Step 3: Save the merged dictionary into a new .npz file at the goal_dictionary
+            np.savez(save_path / file, **merged_dict)
+        return save_path
+
+
+def calculate_mean_along_axis0(list_of_ndarrays):
+    # Find the maximum size along axis 1 in the list of arrays
+    max_size = max(arr.shape[1] for arr in list_of_ndarrays)
+
+    # Pad the smaller arrays with NaNs along axis 1 to match the maximum size
+    padded_arrays = [np.pad(arr, ((0, 0), (0, max_size - arr.shape[1])), mode='constant', constant_values=np.nan) for
+                     arr in list_of_ndarrays]
+
+    # Calculate the mean along axis 0, ignoring NaN values
+    mean_along_axis0 = np.nanmean(padded_arrays, axis=0)
+
+    return mean_along_axis0

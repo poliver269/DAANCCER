@@ -84,8 +84,14 @@ class DataTrajectory(TrajectoryFile):
             # TODO@Oli&Prio4: Explained Variance not correctly calculated
             ex_var = explained_variance(model.explained_variance_, self.params[N_COMPONENTS])
         except AttributeError as e:
-            warnings.warn(str(e))
+            if not isinstance(model, FastICA):
+                warnings.warn(str(e))
             ex_var = 0
+        except TypeError:
+            if model_parameters[ALGORITHM_NAME] == 'original_tsne':
+                ex_var = 0
+            else:
+                raise
         return {MODEL: model, PROJECTION: projection, EXPLAINED_VAR: ex_var, INPUT_PARAMS: model_parameters}
 
     def data_input(self, model_parameters: dict = None) -> np.ndarray:
@@ -142,7 +148,7 @@ class DataTrajectory(TrajectoryFile):
                     tsne = MyTimeLaggedTSNE(lag_time=model_parameters[LAG_TIME], n_components=self.params[N_COMPONENTS])
                     return tsne, tsne.fit_transform(inp)
                 elif model_parameters[ALGORITHM_NAME] == 'original_ica':
-                    ica = FastICA(n_components=self.params[N_COMPONENTS])
+                    ica = FastICA(n_components=self.params[N_COMPONENTS], whiten='unit-variance')
                     return ica, ica.fit_transform(inp)
                 else:
                     warnings.warn(f'No original algorithm was found with name: {model_parameters[ALGORITHM_NAME]}')
@@ -155,29 +161,30 @@ class DataTrajectory(TrajectoryFile):
 
 
 class WeatherTrajectory(DataTrajectory):
-    def __init__(self, filename, folder_path='data/', params=None):
-        super().__init__(filename, folder_path, params)
+    def __init__(self, filename, folder_path='data/', params=None, **kwargs):
+        super().__init__(filename, folder_path, params=params, **kwargs)
         try:
             print(f"Loading trajectory {self.filename}...")
             self.weather_df = pd.read_csv(self.filepath)
-            self.params.update({REDUCEE_FEATURE: params.get(REDUCEE_FEATURE, None)})
+            # noinspection PyUnresolvedReferences
+            self.weather_df = self.weather_df.loc[:, (round(self.weather_df) != 0).any()]
 
-            if self.params[REDUCEE_FEATURE] is not None:
-                feature_name = self.params[REDUCEE_FEATURE]
-                print("INFO: For WeatherTrajectory selected feature:", feature_name)
-                features_encoding = {
-                    'temperature': 0,
-                    'radiation_direct_horizontal': 1,
-                    'radiation_diffuse_horizontal': 2
-                }
-                if feature_name in features_encoding:
-                    self.params[REDUCEE_FEATURE] = features_encoding[feature_name]
-                else:
-                    raise KeyError(f'WeatherTrajectory needs a specific reducee_feature:{feature_name}. '
-                                   f'Set to one of {features_encoding.keys()}')
-
+            self.feat_traj = np.array(list(map(np.stack, self.weather_df.to_numpy())))
         except IOError:
             raise FileNotFoundError(f"Cannot load {self.filepath}.")
+
+        self.params.update({REDUCEE_FEATURE: params.get(REDUCEE_FEATURE, "temperature")})
+
+        features_encoding = {
+            'temperature': 0,
+            'radiation_direct_horizontal': 1,
+            'radiation_diffuse_horizontal': 2
+        }
+        if self.params[REDUCEE_FEATURE] in features_encoding:  # TODO string wird überschrieben mit Encoding-Index
+            self.params[REDUCEE_FEATURE] = features_encoding[self.params[REDUCEE_FEATURE]]
+        else:
+            raise KeyError(f'WeatherTrajectory needs a specific parameter: `{REDUCEE_FEATURE}`. '
+                           f'Set to one of {features_encoding.keys()}')
 
         self._check_init_params()
         self._init_preprocessing(self.params[REDUCEE_FEATURE])
@@ -192,12 +199,14 @@ class WeatherTrajectory(DataTrajectory):
         self.weather_df = self.weather_df.loc[:, (round(self.weather_df) != 0).any()]
 
         self.feat_traj = np.array(list(map(np.stack, self.weather_df.to_numpy())))
-        self.feat_traj = (self.feat_traj - np.mean(self.feat_traj, axis=1)[:, np.newaxis]) / np.std(self.feat_traj,
+        self.feat_traj = (self.feat_traj - np.mean(self.feat_traj, axis=0)[np.newaxis, :]) / np.std(self.feat_traj,
                                                                                                     axis=0)
+        print(self.feat_traj.shape)
+        self.dim[TIME_FRAMES] = self.feat_traj.shape[DUMMY_ZERO]
 
     @property
     def max_components(self) -> int:
-        return len(self.weather_df.columns)
+        return self.feat_traj.shape[1]
 
     def data_input(self, model_parameters: dict = None) -> np.ndarray:
         ft_traj = self.feat_traj
@@ -211,10 +220,11 @@ class WeatherTrajectory(DataTrajectory):
             raise KeyError(f'Model-parameter-dict needs the key: {e}. Set to ´2´ or ´3´.')
 
         if n_dim == MATRIX_NDIM:
-            print("INFO: Flat feature trajectory has shape", ft_traj.shape)
+            # print("INFO: Flat feature trajectory has shape", ft_traj.shape)
+            pass
         else:
             ft_traj = np.array([np.array([np.array([hour]) for hour in day]) for day in ft_traj])
-            print("INFO: Feature trajectory has shape", ft_traj.shape)
+            # print("INFO: Feature trajectory has shape", ft_traj.shape)
         return ft_traj
 
 

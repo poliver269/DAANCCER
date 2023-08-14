@@ -150,8 +150,19 @@ def calculate_symmetrical_kernel_matrix(
     if use_original_data:
         rescaled_ydata = original_ydata
     else:
-        rescaled_ydata = _get_rescaled_array(original_ydata, stat_func, flattened)
+        if flattened:
+            stat_func = np.min
+            if kernel_name in [MY_COS]:
+                interp_range = [-1, 1]
+            else:
+                interp_range = None
+            rescaled_ydata = rescale_array(original_ydata, stat_func, interp_range)
+        else:
+            rescaled_ydata = rescale_center(original_ydata, stat_func)
     fit_y = _get_curve_fitted_y(matrix, kernel_name, xdata, rescaled_ydata)
+    if flattened:  # bzw. reinterpolate
+        fit_y = rescale_array(fit_y, lower_bound=stat_func(fit_y),
+                              interp_range=[stat_func(original_ydata), np.max(original_ydata)])
     kernel_matrix = expand_diagonals_to_matrix(matrix, fit_y)
 
     if analyse_mode is not None:
@@ -159,12 +170,12 @@ def calculate_symmetrical_kernel_matrix(
             return mean_squared_error(rescaled_ydata, fit_y, squared=False)
         elif analyse_mode == PLOT_3D_MAP:
             ArrayPlotter(
-                interactive=True,
+                interactive=False,
                 title_prefix='Combined Covariance Matrix',
-                x_label='\nCarbon-Alpha Atom\nIndex',
-                y_label='\nCarbon-Alpha Atom\nIndex',
+                x_label='Hours',
+                y_label='Hours',
                 for_paper=True
-            ).matrix_plot(matrix, as_surface=PLOT_3D_MAP)
+            ).matrix_plot(matrix, as_surface='2d')
         elif analyse_mode == PLOT_KERNEL_MATRIX_3D:
             ArrayPlotter(
                 interactive=True,
@@ -210,22 +221,33 @@ def _get_rescaled_array(original_ydata, stat_func, flattened):
 # noinspection PyTupleAssignmentBalance
 def _get_curve_fitted_y(matrix, kernel_name, xdata, rescaled_ydata):
     kernel_funcs = {MY_EXPONENTIAL: exponential_2d, MY_EPANECHNIKOV: epanechnikov_2d, MY_GAUSSIAN: gaussian_2d,
-                    MY_SINC: my_sinc, MY_SINC+'_center': my_sinc, MY_SINC_SUM: my_sinc_sum, MY_COS: my_cos}
+                    MY_SINC: my_sinc, MY_SINC + '_center': my_sinc, MY_SINC_SUM: my_sinc_sum, MY_COS: my_cos}
 
     if kernel_name in kernel_funcs.keys():
-        if kernel_name in [MY_EPANECHNIKOV, MY_COS, MY_SINC+'_center']:
+        if kernel_name in [MY_EPANECHNIKOV, MY_COS, MY_SINC + '_center']:
             non_zero_i = np.argmax(rescaled_ydata > 0)
-            if non_zero_i == 0:  # TODO: Correcting for flattened data # what does this part mean?
+            fit_y = rescaled_ydata.copy()
+            if non_zero_i == 0 and kernel_name not in [MY_COS]:
+                # If the rescaled_ydata does not reach bellow threshold, a different approach is needed
                 fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata,
                                               rescaled_ydata)
+                print(*fit_parameters)
+                center_fit_y = kernel_funcs[kernel_name](xdata, *fit_parameters)
+                fit_y = center_fit_y
             else:
+                if kernel_name in [MY_COS]:
+                    non_zero_i = (len(xdata) // 6)
                 p0 = (len(xdata) // 2) - non_zero_i if kernel_name in [MY_COS] else 1
                 fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata[non_zero_i:-non_zero_i],
                                               rescaled_ydata[non_zero_i:-non_zero_i], p0=p0, maxfev=5000)
-            center_fit_y = kernel_funcs[kernel_name](xdata[non_zero_i:-non_zero_i], *fit_parameters)
-            center_fit_y = np.where(center_fit_y < 0, 0, center_fit_y)
-            fit_y = rescaled_ydata.copy()
-            fit_y[non_zero_i:-non_zero_i] = center_fit_y
+                center_fit_y = kernel_funcs[kernel_name](xdata[non_zero_i:-non_zero_i], *fit_parameters)
+                if kernel_name not in [MY_COS]:
+                    center_fit_y = np.where(center_fit_y < 0, 0, center_fit_y)
+                else:
+                    fit_y = rescaled_ydata
+                    fit_y = np.where(fit_y < 0, 0, fit_y)
+                fit_y[non_zero_i:-non_zero_i] = center_fit_y
+
             return fit_y
         else:
             fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata, rescaled_ydata, maxfev=5000)
@@ -288,7 +310,13 @@ def reconstruct_matrix(projection, eigenvectors, dim, mean, std=1):
     if is_matrix_orthogonal(eigenvectors.T):
         reconstructed_matrix = np.dot(projection[:, :dim], eigenvectors[:dim])
     else:
-        reconstructed_matrix = np.dot(projection[:, :dim], np.linalg.inv(eigenvectors.T)[:dim])
+        try:
+            reconstructed_matrix = np.dot(projection[:, :dim], np.linalg.inv(eigenvectors.T)[:dim])
+        except LinAlgError:
+            reconstructed_matrix = np.dot(projection[:, :dim], np.linalg.pinv(eigenvectors.T)[:dim])
+            # raise LinAlgError(f'Eigenvector shape: {eigenvectors.shape}\n'
+            #                   f'Projection shape: {projection.shape}\n'
+            #                   f'N-components: {dim}')
     reconstructed_matrix *= std
     reconstructed_matrix += mean
     return reconstructed_matrix
@@ -299,5 +327,5 @@ def expand_and_roll(matrix, expand_dim=3):
     rotation_matrix = np.asarray(
         [Rotation.from_euler('x', 0, degrees=True).as_matrix(),  # [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
          Rotation.from_euler('xz', [90, 90], degrees=True).as_matrix(),  # [[0, 1, 0], [0, 0, 1], [1, 0, 0]]
-         Rotation.from_euler('xy', [-90, -90], degrees=True).as_matrix()])   # [[0, 0, 1], [1, 0, 0], [0, 1, 0]]
+         Rotation.from_euler('xy', [-90, -90], degrees=True).as_matrix()])  # [[0, 0, 1], [1, 0, 0], [0, 1, 0]]
     return np.tensordot(new_matrix, rotation_matrix, [1, 0]).swapaxes(1, 2).reshape((-1, expand_dim * matrix.shape[1]))

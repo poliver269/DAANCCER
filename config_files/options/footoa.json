@@ -1,10 +1,12 @@
 {
   "run_option": "multi_median_reconstruction_error_fit_on_one_transform_on_all",
   "plot_type": "color_map",
-  "interactive": true,
-  "n_components": null,
-  "trajectory_name": "2f4k",
+  "plot_for_paper": true,
+  "interactive": false,
+  "n_components": 17,
+  "data_set": "weather",
+  "trajectory_name": "all_weather_rad-diff",
   "file_element": 0,
-  "data_set": "protein",
-  "enable_save": true
+  "enable_save": true,
+  "reducee_feature": "radiation_diffuse_horizontal"
 }

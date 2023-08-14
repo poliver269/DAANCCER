@@ -78,7 +78,8 @@ class DROPP(TensorDR):
             self.kernel_stat_func = eval(self.kernel_stat_func)
 
     def __str__(self):
-        sb = 'DROPP('
+        sb = f'DROPP('
+        #sb = f'DROPP+{self.kernel_type.replace("my_", "")}('
         # sb = self.describe()
         sb += f'PCs={self.n_components}'
         sb += f'lag-time={self.lag_time}, ' if self.lag_time > 0 else ''

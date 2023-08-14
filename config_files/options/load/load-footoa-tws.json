@@ -4,7 +4,7 @@
   "plot_for_paper": true,
   "interactive": false,
   "n_components": null,
-  "trajectory_name": "2f4k",
+  "trajectory_name": "fs-peptide",
   "file_element": 0,
   "data_set": "sub_protein",
   "time_window_size": null,

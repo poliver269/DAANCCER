@@ -3,8 +3,9 @@
   "plot_for_paper": true,
   "interactive": false,
   "n_components": null,
-  "data_set": "protein",
-  "trajectory_name": "2f4k",
+  "data_set": "weather",
+  "trajectory_name": "all_weather_temperature",
   "file_element": 0,
-  "enable_save": true
+  "enable_save": true,
+  "reducee_feature": "temperature"
 }

@@ -2,13 +2,10 @@
   "run_option": "compare",
   "plot_type": "color_map",
   "plot_tics": true,
-  "carbon_atoms_only": true,
-  "interactive": true,
+  "interactive": false,
   "n_components": 2,
-  "basis_transformation": false,
-  "use_angles": false,
-  "trajectory_name": "DK",
   "data_set":"weather",
+  "trajectory_name": "DE",
   "file_element": 0,
-  "reducee_feature":"radiation_diffuse_horizontal"
+  "reducee_feature":"radiation_direct_horizontal"
 }

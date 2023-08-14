@@ -30,10 +30,9 @@ def get_all_features_per_country(df, time_col, country):
     return result
 
 
-def get_trajectories_per_year(df, time_col, country):
+def get_trajectories_per_year(df, time_col, country, folder_path):
     print(f"INFO: Preprocessing trajectories for {country}...")
     years = [str(y) for y in pd.to_datetime(df[time_col]).apply(lambda x: x.year).unique()]
-    folder_path = "data/weather_data/" + country + "/"
     for year in tqdm(years):
         mask = df[time_col].apply(lambda x: any(item for item in [year] if item in str(x)))
         temp = df[mask]

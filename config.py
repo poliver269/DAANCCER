@@ -71,7 +71,7 @@ def get_files_and_kwargs(params: dict):
         kwargs = {FILENAME: filename_list[file_element], TOPOLOGY_FILENAME: 'savinase.pdb',
                   FOLDER_PATH: 'data/Savinase'}
     elif trajectory_name == '2wav':
-        filename_list = [f'2WAV-0-protein-{i:03d}.dcd' for i in range(0, 136)]
+        filename_list = [f'2WAV-0-protein-{i:03d}.dcd' for i in range(0, 69)]
         kwargs = {FILENAME: filename_list[file_element], TOPOLOGY_FILENAME: '2wav.pdb',
                   FOLDER_PATH: 'data/2WAV-0-protein', ATOMS: list(range(710))}
     elif trajectory_name == '5i6x':
@@ -82,18 +82,41 @@ def get_files_and_kwargs(params: dict):
         filename_list = [f'trajectory-{i}.xtc' for i in range(1, 28 + 1)]
         kwargs = {FILENAME: filename_list[file_element], TOPOLOGY_FILENAME: 'fs-peptide.pdb',
                   FOLDER_PATH: 'data/fs-peptide'}
-    # TODO: Adjust case startswith weather to multi
     elif data_set == 'weather':
-        country = trajectory_name
-        folder_path = f'data/weather_data/{country}/'
-        filename_list = [f'weather_{country}_{i}.csv' for i in range(1980, 2019 + 1)]
 
-        if not os.path.isfile(folder_path + filename_list[file_element]):
-            raw_data = pd.read_csv('data/weather_data.csv')
-            os.makedirs(folder_path, exist_ok=True)
-            print('INFO: Created directory ', folder_path)
+        if isinstance(trajectory_name, list):
+            country_list = trajectory_name
+        elif trajectory_name in ['all_weather', 'all_weather_temperature',
+                                 'all_weather_rad-dir', 'all_weather_rad-diff']:
+            country_list = ['BE', 'BG', 'CH', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI',
+                            'FR', 'GB', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU',
+                            'LV', 'NL', 'NO', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK']
+            if REDUCEE_FEATURE in params.keys():
+                if params[REDUCEE_FEATURE] == 'radiation_direct_horizontal':  # radiation_direct 17
+                    country_list = ['BE', 'DE', 'DK', 'GB', 'IE', 'LT', 'LU', 'LV', 'NL']  # 2019-17, 2009
+                elif params[REDUCEE_FEATURE] == 'radiation_direct_horizontal_13':
+                    country_list = ['BE', 'DE', 'DK', 'GB', 'IE', 'LT', 'LU', 'PL', 'NL']  # 2013-2016
+                elif params[REDUCEE_FEATURE] == 'radiation_direct_horizontal_10':
+                    country_list = ['DE', 'DK', 'IE', 'LT', 'LU', 'LV', 'PL', 'NL']  # 2010-2012
+                elif params[REDUCEE_FEATURE] == 'radiation_diffuse_horizontal':  # radiation_diffuse 17
+                    country_list = ['BE', 'CH', 'DE', 'FR', 'HU', 'IE', 'LU', 'NL', 'PL',
+                                    'RO', 'SK']
 
-            wp.get_trajectories_per_year(raw_data, 'utc_timestamp', country)
+        else:
+            country_list = [trajectory_name]
+
+        filename_list = []
+        folder_path = f'data/weather_data/all_weather/'
+        for country in country_list:
+            # filename_list = filename_list + [f'weather_{country}_{i}.csv' for i in range(1980, 2019 + 1)]
+            filename_list.append(f'weather_{country}_2019.csv')
+
+            if not os.path.isfile(folder_path + filename_list[-1]):
+                raw_data = pd.read_csv('data/weather_data.csv')
+                os.makedirs(folder_path, exist_ok=True)
+                print('INFO: Created directory ', folder_path)
+
+                wp.get_trajectories_per_year(raw_data, 'utc_timestamp', country, folder_path)
 
         kwargs = {FILENAME: filename_list[file_element],
                   FOLDER_PATH: folder_path}

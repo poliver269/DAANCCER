@@ -25,6 +25,9 @@ class MyTSNE(MyModel):
             n_iter=n_iter, metric=metric
         )
 
+    def __str__(self):
+        return f'TSNE(n_components={self.model.n_components})'
+
     def fit_transform(self, data_matrix, **fit_params):
         return self.model.fit_transform(data_matrix, **fit_params)
 
