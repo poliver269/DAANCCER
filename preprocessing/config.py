@@ -1,9 +1,10 @@
 import json
-import pandas as pd
 import os
 import warnings
-import weather_preprocessing as wp
 
+import pandas as pd
+
+import preprocessing.weather_preprocessing as wp
 from trajectory import ProteinTrajectory, SubTrajectoryDecorator, WeatherTrajectory, DataTrajectory
 from utils.param_keys import *
 from utils.param_keys.analyses import *

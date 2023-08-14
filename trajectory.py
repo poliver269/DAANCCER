@@ -9,8 +9,8 @@ import pandas as pd
 from mdtraj import Trajectory
 from sklearn.decomposition import FastICA, PCA
 
+from utils.algorithms.dropp import DROPP
 from utils.algorithms.interfaces import DeeptimeTICAInterface, PyemmaTICAInterface, PyemmaPCAInterface
-from utils.algorithms.tensor_dim_reductions.dropp import DROPP
 from utils.algorithms.tsne import MyTSNE, MyTimeLaggedTSNE
 from utils.errors import InvalidSubsetTrajectory
 from utils.math import basis_transform, explained_variance

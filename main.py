@@ -1,10 +1,10 @@
-import warnings
 from datetime import datetime
 
+from preprocessing import config, load_results
+from research_evaluations.analyse import MultiTrajectoryAnalyser, SingleTrajectoryAnalyser, \
+    SingleProteinTrajectoryAnalyser, MultiSubTrajectoryAnalyser
+from research_evaluations.plotter import ProteinPlotter
 from trajectory import ProteinTopologyConverter
-from plotter import ProteinPlotter
-from analyse import MultiTrajectoryAnalyser, SingleTrajectoryAnalyser, SingleProteinTrajectoryAnalyser, \
-    MultiSubTrajectoryAnalyser
 from utils.default_argparse import ArgParser
 from utils.errors import InvalidRunningOptionError
 from utils.param_keys import *
@@ -12,8 +12,6 @@ from utils.param_keys.analyses import ANALYSE_PLOT_TYPE, KERNEL_COMPARE
 from utils.param_keys.kernel_functions import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL
 from utils.param_keys.model import ALGORITHM_NAME, NDIM
 from utils.param_keys.run_options import *
-import config
-import load_results
 
 
 def main():
@@ -186,5 +184,4 @@ def load_directory(directory_root: str, kwargs: dict):
 
 
 if __name__ == '__main__':
-    warnings.filterwarnings("ignore")
     main()

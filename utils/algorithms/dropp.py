@@ -5,9 +5,9 @@ import scipy
 from sklearn.decomposition import PCA
 from sklearn.metrics import mean_squared_error
 
-from plotter import ArrayPlotter, MultiArrayPlotter
+from research_evaluations.plotter import ArrayPlotter, MultiArrayPlotter
 from utils import statistical_zero, ordinal
-from utils.algorithms.tensor_dim_reductions import TensorDR
+from utils.algorithms import TensorDR
 from utils.errors import NonInvertibleEigenvectorException, InvalidComponentNumberException
 from utils.math import is_matrix_orthogonal
 from utils.matrix_tools import diagonal_block_expand, calculate_symmetrical_kernel_matrix, ensure_matrix_symmetry

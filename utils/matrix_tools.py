@@ -1,12 +1,12 @@
 import numpy as np
 from numpy.linalg import LinAlgError
 from scipy.optimize import curve_fit
+from scipy.spatial.transform import Rotation
+from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import GridSearchCV, LeaveOneOut
 from sklearn.neighbors import KernelDensity
-from sklearn.metrics import mean_squared_error
-from scipy.spatial.transform import Rotation
 
-from plotter import ArrayPlotter
+from research_evaluations.plotter import ArrayPlotter
 from utils import function_name
 from utils.array_tools import rescale_array, rescale_center
 from utils.math import is_matrix_symmetric, exponential_2d, epanechnikov_2d, gaussian_2d, is_matrix_orthogonal, my_sinc, \

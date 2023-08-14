@@ -1,15 +1,14 @@
 import os
-from collections import OrderedDict
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-from analyse import AnalyseResultLoader
+from research_evaluations.file_operations import AnalyseResultLoader
 from utils.param_keys import TRAJECTORY_NAME, PLOT_TYPE, N_COMPONENTS, FILENAME, PARAMS, DUMMY_ZERO, INTERACTIVE, \
     PLOT_FOR_PAPER
 from utils.param_keys.run_options import *
-from plotter import ModelResultPlotter, ArrayPlotter
+from research_evaluations.plotter import ModelResultPlotter, ArrayPlotter
 
 
 def load_list_of_dicts(sub_dir: str, params: dict):
