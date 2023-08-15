@@ -2,29 +2,37 @@
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "kernel": "only",
-    "kernel_type": "my_gaussian",
+    "kernel_kwargs": {
+      "kernel_map": "only",
+      "kernel_function": "my_gaussian"
+    },
     "analyse_plot_type": "fitted_kernel_curves"
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "kernel": "only",
-    "kernel_type": "my_linear",
+    "kernel_kwargs": {
+      "kernel_map": "only",
+      "kernel_function": "my_linear"
+    },
     "analyse_plot_type": "fitted_kernel_curves"
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "kernel": "only",
-    "kernel_type": "my_exponential",
+    "kernel_kwargs": {
+      "kernel_map": "only",
+      "kernel_function": "my_exponential"
+    },
     "analyse_plot_type": "fitted_kernel_curves"
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "kernel": "only",
-    "kernel_type": "my_epanechnikov",
+    "kernel_kwargs": {
+      "kernel_map": "only",
+      "kernel_function": "my_epanechnikov"
+    },
     "analyse_plot_type": "fitted_kernel_curves"
   }
 ]

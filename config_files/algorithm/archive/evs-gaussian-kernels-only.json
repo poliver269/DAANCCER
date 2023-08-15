@@ -2,13 +2,17 @@
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "kernel": "only",
+    "kernel_kwargs": {
+      "kernel_map": "only"
+    },
     "nth_eigenvector": 3
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "kernel": "only",
+    "kernel_kwargs": {
+      "kernel_map": "only"
+    },
     "extra_dr_layer": true
   }
 ]

@@ -6,16 +6,22 @@
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "kernel": "only"
+    "kernel_kwargs": {
+      "kernel_map": "only"
+    }
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "kernel": "diff"
+    "kernel_kwargs": {
+      "kernel_map": "diff"
+    }
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "kernel": "multi"
+    "kernel_kwargs": {
+      "kernel_map": "multi"
+    }
   }
 ]

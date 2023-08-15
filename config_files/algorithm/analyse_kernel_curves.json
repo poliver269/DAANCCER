@@ -2,8 +2,10 @@
   {
     "algorithm_name": "pca",
     "ndim": 2,
-    "kernel_type": "my_gaussian",
-    "kernel": "only",
+    "kernel_kwargs": {
+      "kernel_function": "my_gaussian",
+      "kernel_map": "only"
+    },
     "analyse_plot_type": "3d_map"
   }
 ]

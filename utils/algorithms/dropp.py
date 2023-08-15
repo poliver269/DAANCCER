@@ -14,21 +14,17 @@ from utils.matrix_tools import diagonal_block_expand, calculate_symmetrical_kern
 from utils.param_keys import N_COMPONENTS, MATRIX_NDIM, TENSOR_NDIM
 from utils.param_keys.analyses import CORRELATION_MATRIX_PLOT, EIGENVECTOR_MATRIX_ANALYSE, COVARIANCE_MATRIX_PLOT
 from utils.param_keys.kernel_functions import MY_GAUSSIAN, KERNEL_ONLY, KERNEL_DIFFERENCE, KERNEL_MULTIPLICATION
-from utils.param_keys.model import ALGORITHM_NAME, LAG_TIME, NTH_EIGENVECTOR, EXTRA_DR_LAYER
+from utils.param_keys.model import *
 from utils.param_keys.traj_dims import TIME_DIM, CORRELATION_DIM, COMBINED_DIM
 
 
 class DROPP(TensorDR):
     def __init__(self,
                  cov_stat_func=np.mean,
-                 kernel_stat_func=statistical_zero,
                  algorithm_name='pca',  # pca, tica, kica
                  ndim=TENSOR_NDIM,  # 3: tensor, 2: matrix
-                 kernel=None,  # diff, multi, only, None
-                 corr_kernel=False,  # only for tica: True, False
-                 kernel_type=MY_GAUSSIAN,
-                 ones_on_kernel_diag=False,
-                 use_original_data_for_kernel=False,
+                 kernel_kwargs=None,
+                 # TODO Kernel kwargs on .json/README fix
                  cov_function=np.cov,  # np.cov, np.corrcoef, co_mad
                  lag_time=0,
                  nth_eigenvector=1,
@@ -43,12 +39,14 @@ class DROPP(TensorDR):
         self.algorithm_name = algorithm_name
         self.ndim = ndim
 
-        self.kernel = kernel
-        self.kernel_type = kernel_type
-        self.kernel_stat_func = kernel_stat_func
-        self.use_original_data_for_kernel = use_original_data_for_kernel
-        self.corr_kernel = corr_kernel
-        self.ones_on_kernel_diag = ones_on_kernel_diag
+        self.kernel_kwargs = {
+            KERNEL_MAP: kernel_kwargs.get(KERNEL_MAP, None),  # diff, multi, only, None
+            KERNEL_FUNCTION: kernel_kwargs.get(KERNEL_FUNCTION, MY_GAUSSIAN),
+            KERNEL_STAT_FUNC: kernel_kwargs.get(KERNEL_STAT_FUNC, statistical_zero),
+            USE_ORIGINAL_DATA: kernel_kwargs.get(USE_ORIGINAL_DATA, False),
+            CORR_KERNEL: kernel_kwargs.get(CORR_KERNEL, False),
+            ONES_ON_KERNEL_DIAG: kernel_kwargs.get(ONES_ON_KERNEL_DIAG, False)
+        }
 
         self.cov_function = cov_function
         self.lag_time = lag_time
@@ -74,15 +72,15 @@ class DROPP(TensorDR):
             warnings.warn(f'The `{ALGORITHM_NAME}` is set to a time-lagged approach: {self.algorithm_name}, '
                           f'but the `{LAG_TIME}` is not set is equal to: {self.lag_time}')
 
-        if isinstance(self.kernel_stat_func, str):
-            self.kernel_stat_func = eval(self.kernel_stat_func)
+        if isinstance(self.kernel_kwargs[KERNEL_STAT_FUNC], str):
+            self.kernel_kwargs[KERNEL_STAT_FUNC] = eval(self.kernel_kwargs[KERNEL_STAT_FUNC])
 
     def __str__(self):
         sb = f'DROPP('
-        #sb = f'DROPP+{self.kernel_type.replace("my_", "")}('
+        # sb = f'DROPP+{self.kernel_type.replace("my_", "")}('
         # sb = self.describe()
         sb += f'PCs={self.n_components}'
-        sb += f'lag-time={self.lag_time}, ' if self.lag_time > 0 else ''
+        sb += f',lag-time={self.lag_time}, ' if self.lag_time > 0 else ''
         # sb += '\n'
         # sb += f'abs_ew_sorting={self.abs_eigenvalue_sorting}, '
         return sb + ')'
@@ -94,9 +92,9 @@ class DROPP(TensorDR):
         :return: Short description of the model
         """
         sb = f'{"Matrix" if self._is_matrix_model else "Tensor"}-{self.algorithm_name}'
-        if self.kernel is not None:
-            sb += (f', {self.kernel_type}-{self.kernel}' +
-                   f'{f"-onCorr2" if self.corr_kernel else ""}')
+        if self.kernel_kwargs[KERNEL_MAP] is not None:
+            sb += (f', {self.kernel_kwargs[KERNEL_FUNCTION]}-{self.kernel_kwargs[KERNEL_MAP]}' +
+                   f'{f"-onCorr2" if self.kernel_kwargs[CORR_KERNEL] else ""}')
             if self.use_evs:
                 if self.extra_dr_layer:
                     sb += f'-2nd_layer_eevd'
@@ -203,12 +201,12 @@ class DROPP(TensorDR):
         """
         if self._is_matrix_model:
             cov = self._get_matrix_covariance()
-            if self.kernel is not None and not self._use_kernel_as_correlations_matrix():
+            if self.kernel_kwargs[KERNEL_MAP] is not None and not self._use_kernel_as_correlations_matrix():
                 cov = self._map_kernel(cov)
             return cov
         else:
             ccm = self.get_combined_covariance_matrix()
-            if self.kernel is not None and not self._use_kernel_as_correlations_matrix():
+            if self.kernel_kwargs[KERNEL_MAP] is not None and not self._use_kernel_as_correlations_matrix():
                 ccm = self._map_kernel(ccm)
             return diagonal_block_expand(ccm, self._combine_dim)
 
@@ -251,20 +249,18 @@ class DROPP(TensorDR):
     def _map_kernel(self, matrix):
         kernel_matrix = calculate_symmetrical_kernel_matrix(
             matrix,
-            stat_func=self.kernel_stat_func,
-            kernel_name=self.kernel_type,
-            analyse_mode=self.analyse_plot_type,
             flattened=self._is_matrix_model,
-            use_original_data=self.use_original_data_for_kernel
+            analyse_mode=self.analyse_plot_type,
+            **self.kernel_kwargs
         )
-        if self.kernel == KERNEL_ONLY:
+        if self.kernel_kwargs[KERNEL_MAP] == KERNEL_ONLY:
             matrix = kernel_matrix
-        elif self.kernel == KERNEL_DIFFERENCE:
+        elif self.kernel_kwargs[KERNEL_MAP] == KERNEL_DIFFERENCE:
             matrix -= kernel_matrix
-        elif self.kernel == KERNEL_MULTIPLICATION:
+        elif self.kernel_kwargs[KERNEL_MAP] == KERNEL_MULTIPLICATION:
             matrix *= kernel_matrix
 
-        if self.ones_on_kernel_diag:
+        if self.kernel_kwargs[ONES_ON_KERNEL_DIAG]:
             np.fill_diagonal(matrix, 1.0)
 
         return matrix
@@ -322,7 +318,7 @@ class DROPP(TensorDR):
         if self._is_matrix_model:
             corr = self._get_matrix_correlation()
 
-            if self.corr_kernel or self._use_kernel_as_correlations_matrix():
+            if self.kernel_kwargs[CORR_KERNEL] or self._use_kernel_as_correlations_matrix():
                 corr = self._map_kernel(corr)
 
             return corr
@@ -333,7 +329,7 @@ class DROPP(TensorDR):
             if self.analyse_plot_type == CORRELATION_MATRIX_PLOT:
                 MultiArrayPlotter().plot_tensor_layers(tensor_corr, corr, 'Correlation')
 
-            if self.corr_kernel or self._use_kernel_as_correlations_matrix():
+            if self.kernel_kwargs[CORR_KERNEL] or self._use_kernel_as_correlations_matrix():
                 corr = self._map_kernel(corr)
 
             return diagonal_block_expand(corr, tensor_corr.shape[0])

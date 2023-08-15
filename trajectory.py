@@ -151,7 +151,7 @@ class DataTrajectory(TrajectoryFile):
                     ica = FastICA(n_components=self.params[N_COMPONENTS], whiten='unit-variance')
                     return ica, ica.fit_transform(inp)
                 else:
-                    warnings.warn(f'No original algorithm was found with name: {model_parameters[ALGORITHM_NAME]}')
+                    raise ValueError(f'No original algorithm was found with name: {model_parameters[ALGORITHM_NAME]}')
             except TypeError:
                 raise TypeError(f'Input data of the function is not correct. '
                                 f'Original algorithms take only 2-n-dimensional ndarray')

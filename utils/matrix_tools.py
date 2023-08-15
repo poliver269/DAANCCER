@@ -120,17 +120,18 @@ def diagonal_block_expand(matrix, n_repeats):
 
 def calculate_symmetrical_kernel_matrix(
         matrix: np.ndarray,
-        stat_func: callable = np.median,
-        kernel_name: str = 'gaussian',
+        kernel_stat_func: callable = np.median,
+        kernel_function: str = 'gaussian',
         analyse_mode: str = None,
         flattened: bool = False,
-        use_original_data: bool = False) -> np.ndarray:
+        use_original_data: bool = False,
+        **kwargs) -> np.ndarray:
     """
     Creates a symmetrical kernel matrix out of a symmetrical matrix.
     :param matrix: ndarray (symmetrical)
-    :param stat_func: Numpy statistical function: np.median (default), np.mean, np.min, ... (See link below)
+    :param kernel_stat_func: Numpy statistical function: np.median (default), np.mean, np.min, ... (See link below)
         https://www.tutorialspoint.com/numpy/numpy_statistical_functions.htm
-    :param kernel_name: str
+    :param kernel_function: str
         (my_)gaussian, (my_)exponential, (my_)epanechnikov, (my_)linear, my_sinc(_sum)
     :param analyse_mode: str
         If the name of the trajectory is given than a plot of the gauss curve will be plotted with the given
@@ -142,7 +143,7 @@ def calculate_symmetrical_kernel_matrix(
         The gaussian kernel matrix
     """
     if not is_matrix_symmetric(matrix):
-        raise ValueError(f'Input matrix to calculate the {kernel_name}-kernel has to be symmetric.')
+        raise ValueError(f'Input matrix to calculate the {kernel_function}-kernel has to be symmetric.')
 
     xdata = diagonal_indices(matrix)
     original_ydata = matrix_diagonals_calculation(matrix, np.mean)
@@ -151,18 +152,18 @@ def calculate_symmetrical_kernel_matrix(
         rescaled_ydata = original_ydata
     else:
         if flattened:
-            stat_func = np.min
-            if kernel_name in [MY_COS]:
+            kernel_stat_func = np.min
+            if kernel_function in [MY_COS]:
                 interp_range = [-1, 1]
             else:
                 interp_range = None
-            rescaled_ydata = rescale_array(original_ydata, stat_func, interp_range)
+            rescaled_ydata = rescale_array(original_ydata, kernel_stat_func, interp_range)
         else:
-            rescaled_ydata = rescale_center(original_ydata, stat_func)
-    fit_y = _get_curve_fitted_y(matrix, kernel_name, xdata, rescaled_ydata)
+            rescaled_ydata = rescale_center(original_ydata, kernel_stat_func)
+    fit_y = _get_curve_fitted_y(matrix, kernel_function, xdata, rescaled_ydata)
     if flattened:  # bzw. reinterpolate
-        fit_y = rescale_array(fit_y, lower_bound=stat_func(fit_y),
-                              interp_range=[stat_func(original_ydata), np.max(original_ydata)])
+        fit_y = rescale_array(fit_y, lower_bound=kernel_stat_func(fit_y),
+                              interp_range=[kernel_stat_func(original_ydata), np.max(original_ydata)])
     kernel_matrix = expand_diagonals_to_matrix(matrix, fit_y)
 
     if analyse_mode is not None:
@@ -187,17 +188,17 @@ def calculate_symmetrical_kernel_matrix(
         elif analyse_mode == WEIGHTED_DIAGONAL:
             ArrayPlotter(
                 interactive=False,
-                title_prefix=f'{WEIGHTED_DIAGONAL} of {function_name(stat_func)}',
+                title_prefix=f'{WEIGHTED_DIAGONAL} of {function_name(kernel_stat_func)}',
                 for_paper=True
-            ).plot_gauss2d(xdata, original_ydata - fit_y, rescaled_ydata, fit_y, kernel_name, stat_func)
+            ).plot_gauss2d(xdata, original_ydata - fit_y, rescaled_ydata, fit_y, kernel_function, kernel_stat_func)
         elif analyse_mode == FITTED_KERNEL_CURVES:
             ArrayPlotter(
                 interactive=False,
-                title_prefix=f'Kernel Curves: {kernel_name}, use_original_data={use_original_data}',
+                title_prefix=f'Kernel Curves: {kernel_function}, use_original_data={use_original_data}',
                 x_label='Off-Diagonal Index',
                 y_label='Correlation Value',
                 for_paper=True
-            ).plot_gauss2d(xdata, original_ydata, rescaled_ydata, fit_y, kernel_name, stat_func)
+            ).plot_gauss2d(xdata, original_ydata, rescaled_ydata, fit_y, kernel_function, kernel_stat_func)
     return kernel_matrix
 
 

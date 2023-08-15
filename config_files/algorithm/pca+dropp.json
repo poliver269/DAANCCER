@@ -6,6 +6,8 @@
   {
     "algorithm_name": "pca",
     "ndim": 2,
-    "kernel": "only"
+    "kernel_kwargs": {
+      "kernel_map": "only"
+    }
   }
 ]

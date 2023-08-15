@@ -11,28 +11,38 @@
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "kernel": "only"
+    "kernel_kwargs":{
+      "kernel": "only"
+    }
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "kernel": "diff"
+    "kernel_kwargs":{
+      "kernel": "diff"
+    }
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "kernel": "multi"
+    "kernel_kwargs":{
+      "kernel": "multi"
+    }
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "kernel": "only",
+    "kernel_kwargs":{
+      "kernel": "only"
+    },
     "nth_eigenvector": 3
   },
   {
     "algorithm_name": "pca",
     "ndim": 3,
-    "kernel": "only",
+    "kernel_kwargs":{
+      "kernel": "only"
+    },
     "extra_dr_layer": true
   }
 ]

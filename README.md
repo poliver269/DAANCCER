@@ -1,18 +1,24 @@
-# Master thesis implementation - Olivér Palotás
+# DROPP (Dimensionality Reduction for Ordered Points with PCA)
 ## 1. Create conda environment
 ```
 conda env create -f .conda.yml
 ```
 
-## 2. Get Molecular Dynamics Data
-(e.g.) FS-Peptide:
+## 2. Get Data
+Molecular Dynamics Data: (e.g. FS-Peptide):
 > https://figshare.com/articles/dataset/Fs_MD_Trajectories/1030363
+
+Climate Data:
+> https://data.open-power-system-data.org/weather_data/
+
+Save the data in the *data* folder. For climate data run the preprocessing steps for the countries.
 
 
 ## 3. Configurate Model Parameters
 To run the program, models with different parameters can be used and trained.
-Use predefined ***.json* file** or config the parameters in a new file in the folder *config_files\algorithm*.
+Use predefined ***.json* file** in the folder *config_files\algorithm* or config the parameters in a new file.
 The different parameters are explained here, this includes important and optional parameters.
+
 Note: The different parameters in upper-case can be imported `from utils.param_key import *`,
 although the string values of the parameters are written in lower-case and should be used in the *.json*-config-files.
 
@@ -24,11 +30,11 @@ In the following some main algorithms with its parameter settings are listed:
 2. TICA
     - `{ALGORITHM_NAME: 'original_tica', NDIM: MATRIX_NDIM}` or
     - `{ALGORITHM_NAME: 'tica', LAG_TIME: params[LAG_TIME], NDIM: MATRIX_NDIM, USE_STD: False, ABS_EVAL_SORT: False}`
-3. raw MATRIX models
+3. raw MATRIX models (DROPP)
     - `{ALGORITHM_NAME: 'pca', NDIM: MATRIX_NDIM}`
     - `{ALGORITHM_NAME: 'tica', NDIM: MATRIX_NDIM, LAG_TIME: params[LAG_TIME]}`
 
-4. raw TENSOR models
+4. raw TENSOR models (DROPP)
     - `{ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM}`
     - `{ALGORITHM_NAME: 'tica', NDIM: TENSOR_NDIM, LAG_TIME: params[LAG_TIME]}`
 
@@ -40,6 +46,7 @@ These parameters are **mandatory** for a correct program run!
     - 'tica'
     - ('original_pca')
     - ('original_tica')
+    - ('original_ica')
 2. NDIM:
     - MATRIX_NDIM (=2)
     - TENSOR_NDIM (=3)
@@ -82,9 +89,13 @@ If *True*, then the fitted kernel-matrix is also mapped on the correlation matri
 [Not Recommended], *default: False*)
 
 ## 4. Configure Run options/parameters
-Additionally, use different options to run the program. Config the parameters in a in a ***.json* file** 
+Additionally, use different options to run the program. Config the parameters in a ***.json* file** 
 in the folder *config_files\options*.
-The different parameters are explained here.
+The different parameters are explained here:
+
+1. TODO
+2. TODO
+
 *Note:* The different parameters in upper-case can be imported `from utils.param_key import *`,
 although the string values of the parameters are written in lower-case and should be used in the *.json*-config-files.
 

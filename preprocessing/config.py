@@ -53,8 +53,8 @@ def get_files_and_kwargs(params: dict):
         kwargs with the important arguments for the classes
     """
     try:
-        trajectory_name = params[TRAJECTORY_NAME]
-        file_element = params[FILE_ELEMENT]
+        trajectory_name: str = params[TRAJECTORY_NAME]
+        file_element: int = params[FILE_ELEMENT]
         data_set: str = params[DATA_SET]
     except KeyError as e:
         raise KeyError(f'Run option parameter is missing the key: `{e}`. This parameter is mandatory.')
@@ -177,7 +177,7 @@ def get_model_params_list(alg_json_file: str) -> list[dict]:
             # *** Boolean Parameters:
             # CORR_KERNEL, ONES_ON_KERNEL_DIAG, USE_STD, CENTER_OVER_TIME, EXTRA_DR_LAYER
 
-            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, KERNEL_TYPE: MY_GAUSSIAN},
+            {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, KERNEL_MAP: KERNEL_ONLY, KERNEL_FUNCTION: MY_GAUSSIAN},
             # {ALGORITHM_NAME: 'tica', NDIM: TENSOR_NDIM, KERNEL: KERNEL_ONLY, LAG_TIME: params[LAG_TIME]},
         ]
 
@@ -198,12 +198,12 @@ def get_param_grid(param_grid_json_file: str = None) -> list:
         return [
             {
                 ALGORITHM_NAME: ['pca', 'tica'],
-                KERNEL: [None],
+                KERNEL_MAP: [None],
             }, {
                 ALGORITHM_NAME: ['pca', 'tica', 'kica'],
                 LAG_TIME: [10],
-                KERNEL: [KERNEL_DIFFERENCE, KERNEL_MULTIPLICATION, KERNEL_ONLY],
-                KERNEL_TYPE: [MY_LINEAR, MY_GAUSSIAN, MY_EXPONENTIAL, MY_EPANECHNIKOV],
+                KERNEL_MAP: [KERNEL_DIFFERENCE, KERNEL_MULTIPLICATION, KERNEL_ONLY],
+                KERNEL_FUNCTION: [MY_LINEAR, MY_GAUSSIAN, MY_EXPONENTIAL, MY_EPANECHNIKOV],
                 ONES_ON_KERNEL_DIAG: [True, False],
                 # EXTRA_DR_LAYER: [False, True],
                 # EXTRA_LAYER_ON_PROJECTION: [False, True],

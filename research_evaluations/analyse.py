@@ -20,7 +20,7 @@ from utils.errors import InvalidReconstructionException, InvalidProteinTrajector
 from utils.matrix_tools import calculate_symmetrical_kernel_matrix, reconstruct_matrix
 from utils.param_keys import *
 from utils.param_keys.analyses import COLOR_MAP, KERNEL_COMPARE
-from utils.param_keys.model import KERNEL_TYPE, USE_ORIGINAL_DATA, ALGORITHM_NAME
+from utils.param_keys.model import KERNEL_FUNCTION, USE_ORIGINAL_DATA, ALGORITHM_NAME
 from utils.param_keys.model_result import MODEL, PROJECTION, INPUT_PARAMS, TITLE_PREFIX, FITTED_ON
 from utils.param_keys.traj_dims import TIME_FRAMES
 
@@ -671,7 +671,7 @@ class MultiTrajectoryAnalyser:
 
         for model_params in model_params_list:
 
-            kernel_description = f'{model_params[KERNEL_TYPE]}'
+            kernel_description = f'{model_params[KERNEL_FUNCTION]}'
             if USE_ORIGINAL_DATA in model_params.keys():
                 if model_params[USE_ORIGINAL_DATA]:
                     kernel_description += "use original data"
@@ -685,7 +685,7 @@ class MultiTrajectoryAnalyser:
                 model, _ = trajectory.get_model_and_projection(model_params)
                 matrix = model.get_combined_covariance_matrix()
                 variance = calculate_symmetrical_kernel_matrix(
-                    matrix, statistical_zero, model_params[KERNEL_TYPE],
+                    matrix, statistical_zero, model_params[KERNEL_FUNCTION],
                     analyse_mode=KERNEL_COMPARE)
                 kernel_accuracies[kernel_description].append(variance)
         return kernel_accuracies
