@@ -6,6 +6,6 @@
   "data_set": "weather",
   "trajectory_name": "all_weather_temperature",
   "file_element": 0,
-  "enable_save": true,
+  "enable_save": false,
   "reducee_feature": "temperature"
 }

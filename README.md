@@ -53,40 +53,69 @@ These parameters are **mandatory** for a correct program run!
 
 #### Optional Parameters
 The different parameters and their different options are listed here below.
-1. KERNEL (Choose how to map the kernel-matrix onto the covariance matrix,
-*default: kernel-matrix not used*)
-    - KERNEL_ONLY
-    - KERNEL_DIFFERENCE
-    - KERNEL_MULTIPLICATION
-2. KERNEL_TYPE (Choose the kernel-function which should be fitted on the covariance matrix,
-*default (if kernel set): MY_GAUSSIAN*)
-    - MY_GAUSSIAN
-    - MY_EXPONENTIAL
-    - MY_LINEAR
-    - MY_EPANECHNIKOV
-    - GAUSSIAN, EXPONENTIAL, LINEAR, EPANECHNIKOV (only with interval 1 fitting)
-3. COV_FUNCTION (Choose how to calculate the Covariance-Matrix for the algorithm,
+1. KERNEL_KWARGS (Kernel parameters, which are used to define the kernel on the DROPP-Algorithm)
+   1. KERNEL_MAP (Choose how to map the kernel-matrix onto the covariance matrix;
+   *default: kernel-matrix not used*)
+       - KERNEL_ONLY (*default for DROPP*)
+       - KERNEL_DIFFERENCE
+       - KERNEL_MULTIPLICATION
+       - None
+   2. KERNEL_FUNCTION (Choose the kernel-function which should be fitted on the covariance matrix;
+   *default (if kernel set): MY_GAUSSIAN*)
+       - MY_GAUSSIAN
+       - MY_EXPONENTIAL
+       - MY_LINEAR
+       - MY_EPANECHNIKOV
+       - MY_SINC(_SUM)
+       - MY_COS
+       - GAUSSIAN, EXPONENTIAL, LINEAR, EPANECHNIKOV (only with interval 1 fitting)
+   3. KERNEL_STAT_FUNC (Choose the statistical function which determines the threshold 
+   for the rescaling the data before fitting the kernel function on the data; *default: statistical_zero*)
+       - [str]
+       - statistical_zero
+       - np.min
+       - np.max
+       - ... (numpy statistical function like)
+   4. USE_ORIGINAL_DATA (If this parameter is set the rescaling of the data 
+   before the fitting of kernel function is not happening; *default: False*)
+       - [bool]
+   5. CORR_KERNEL (Set this parameter in connection with ALGORITHM_NAME 'tica'.
+   If *True*, then the fitted kernel-matrix is also mapped on the correlation matrix [Not recommended]; 
+   *default: False*)
+   6. ONES_ON_KERNEL_DIAG (This parameter is useful, to force the diagonally dominant matrix properties in some cases;
+   *default: False*)
+2. COV_FUNCTION (Choose how to calculate the Covariance-Matrix for the algorithm,
 *default: np.cov*)
+    - [str]
     - np.cov
     - np.corrcoef
     - utils.matrix_tools.co_mad
-4. NTH_EIGENVECTOR (Set this parameter to *>1*, if you want to use the Eigenvalue Selection Approach
-with every *n*-th eigenvector [Not recommended], *default: 1*)
+3. NTH_EIGENVECTOR (Set this parameter to *>1*, if you want to use the Eigenvalue Selection Approach
+with every *n*-th eigenvector [Not recommended]; *default: 1*)
     - [int]
-5. LAG_TIME (Set this parameter in connection with ALGORITHM_NAME: 'tica', *default: 0*)
+4. LAG_TIME (Set this parameter in connection with ALGORITHM_NAME: 'tica'; *default: 0*)
     - [int]
+5. ANALYSE_PLOT_TYPE (Set this parameter to plot different information while using the model; *default: None*)
+    - [str]
+   1. Model Analysing strings
+      - EIGENVECTOR_MATRIX_ANALYSE
+      - COVARIANCE_MATRIX_PLOT
+      - CORRELATION_MATRIX_PLOT
+   2. Kernel Curves Analysing strings
+      - PLOT_3D_MAP
+      - PLOT_KERNEL_MATRIX_3D
+      - WEIGHTED_DIAGONAL
+      - FITTED_KERNEL_CURVES
 
 ### Boolean Parameters
-1. CORR_KERNEL (Set this parameter in connection with ALGORITHM_NAME 'tica'.
-If *True*, then the fitted kernel-matrix is also mapped on the correlation matrix [Not recommended], *default: False*)
-2. ONES_ON_KERNEL_DIAG (This parameter is useful, to force the diagonally dominant matrix properties in some cases,
-*default: False*)
-3. USE_STD (An additional standardizing preprocessing step can be used within the algorithm,
+1. USE_STD (An additional standardizing preprocessing step can be used within the algorithm;
 *default: True*)
-4. CENTER_OVER_TIME (An additional standardizing preprocessing step can be used within the algorithm,
+2. CENTER_OVER_TIME (An additional standardizing preprocessing step can be used within the algorithm;
 *default: True*)
-5. EXTRA_DR_LAYER (Set this parameter to True, if you want to use the Eigenvalue Selection approach with a second layer
-[Not Recommended], *default: False*)
+3. EXTRA_DR_LAYER (Set this parameter to True, if you want to use the Eigenvalue Selection approach with a second layer
+[Not Recommended]; *default: False*)
+4. ABS_EIGENVALUE_SORTING (Set this parameter to sort the eigenvalues and respectively the eigenvectors 
+by the absolut eigenvalue; *default: True*)
 
 ## 4. Configure Run options/parameters
 Additionally, use different options to run the program. Config the parameters in a ***.json* file** 

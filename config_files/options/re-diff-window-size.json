@@ -5,7 +5,7 @@
   "n_components": null,
   "trajectory_name": "fs-peptide",
   "file_element": 0,
-  "enable_save": true,
+  "enable_save": false,
   "data_set": "sub_protein",
   "time_window_size": null,
   "part_count": 0,

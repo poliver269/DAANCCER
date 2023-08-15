@@ -7,6 +7,6 @@
   "data_set": "weather",
   "trajectory_name": "all_weather_rad-diff",
   "file_element": 0,
-  "enable_save": true,
+  "enable_save": false,
   "reducee_feature": "radiation_diffuse_horizontal"
 }

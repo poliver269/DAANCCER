@@ -6,6 +6,6 @@
   "data_set":"weather",
   "trajectory_name": ["GB", "IE", "LT", "LV"],
   "file_element": 0,
-  "enable_save": true
+  "enable_save": false
 
 }
