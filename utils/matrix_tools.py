@@ -122,7 +122,7 @@ def calculate_symmetrical_kernel_matrix(
         matrix: np.ndarray,
         kernel_stat_func: callable = np.median,
         kernel_function: str = 'gaussian',
-        analyse_mode: str = None,
+        analyse_mode: str = '',
         flattened: bool = False,
         use_original_data: bool = False,
         **kwargs) -> np.ndarray:
@@ -140,7 +140,7 @@ def calculate_symmetrical_kernel_matrix(
     :param use_original_data: bool
         If True: uses only the original data without rescaling
     :return: ndarray (ndim=2)
-        The gaussian kernel matrix
+        The kernel matrix
     """
     if not is_matrix_symmetric(matrix):
         raise ValueError(f'Input matrix to calculate the {kernel_function}-kernel has to be symmetric.')
@@ -160,13 +160,13 @@ def calculate_symmetrical_kernel_matrix(
             rescaled_ydata = rescale_array(original_ydata, kernel_stat_func, interp_range)
         else:
             rescaled_ydata = rescale_center(original_ydata, kernel_stat_func)
-    fit_y = _get_curve_fitted_y(matrix, kernel_function, xdata, rescaled_ydata)
+    fit_y = _get_fitted_y_curve(matrix, kernel_function, xdata, rescaled_ydata)
     if flattened:  # bzw. reinterpolate
         fit_y = rescale_array(fit_y, lower_bound=kernel_stat_func(fit_y),
                               interp_range=[kernel_stat_func(original_ydata), np.max(original_ydata)])
     kernel_matrix = expand_diagonals_to_matrix(matrix, fit_y)
 
-    if analyse_mode is not None:
+    if analyse_mode != '':
         if analyse_mode == KERNEL_COMPARE:
             return mean_squared_error(rescaled_ydata, fit_y, squared=False)
         elif analyse_mode == PLOT_3D_MAP:
@@ -220,7 +220,7 @@ def _get_rescaled_array(original_ydata, stat_func, flattened):
 
 
 # noinspection PyTupleAssignmentBalance
-def _get_curve_fitted_y(matrix, kernel_name, xdata, rescaled_ydata):
+def _get_fitted_y_curve(matrix, kernel_name, xdata, rescaled_ydata):
     kernel_funcs = {MY_EXPONENTIAL: exponential_2d, MY_EPANECHNIKOV: epanechnikov_2d, MY_GAUSSIAN: gaussian_2d,
                     MY_SINC: my_sinc, MY_SINC + '_center': my_sinc, MY_SINC_SUM: my_sinc_sum, MY_COS: my_cos}
 
