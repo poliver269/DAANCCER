@@ -159,7 +159,7 @@ class DROPP(TensorDR):
                           "eigenvector will be used.",
                           UserWarning)
 
-        if self._is_time_lagged_algorithm() and self.lag_time == 0:
+        if self._is_time_lagged_model and self.lag_time == 0:
             warnings.warn(f"The '{ALGORITHM_NAME}' is set to a time-lagged "
                           f"approach ('{self.algorithm_name}'), but the "
                           f"'{LAG_TIME}' parameter is not set. "
@@ -209,7 +209,8 @@ class DROPP(TensorDR):
         """
         return self.ndim == MATRIX_NDIM
 
-    def _is_time_lagged_algorithm(self) -> bool:
+    @property
+    def _is_time_lagged_model(self) -> bool:
         """
         Check if the dimensionality reduction algorithm is time-lagged.
 
@@ -244,7 +245,7 @@ class DROPP(TensorDR):
             is a time-lagged algorithm (e.g., 'tica'), False otherwise.
 
         """
-        return self._use_kernel_as_correlation_matrix() or self._is_time_lagged_algorithm()
+        return self._use_kernel_as_correlation_matrix() or self._is_time_lagged_model
 
     @property
     def use_evs(self) -> bool:
@@ -446,12 +447,12 @@ class DROPP(TensorDR):
         if self._is_matrix_model:
             cov = self._get_matrix_covariance()
             if self.kernel_kwargs[KERNEL_MAP] is not None and not self._use_kernel_as_correlation_matrix():
-                cov = self._map_kernel(cov)
+                cov = self._map_kernel_on(cov)
             return cov
         else:
             ccm = self.get_combined_covariance_matrix()
             if self.kernel_kwargs[KERNEL_MAP] is not None and not self._use_kernel_as_correlation_matrix():
-                ccm = self._map_kernel(ccm)
+                ccm = self._map_kernel_on(ccm)
             return diagonal_block_expand(ccm, self._combine_dim)
 
     def _get_matrix_covariance(self) -> np.ndarray:
@@ -473,7 +474,7 @@ class DROPP(TensorDR):
         - If not time-lagged, the standard covariance matrix is used.
 
         """
-        if self._is_time_lagged_algorithm() and self.lag_time > 0:
+        if self._is_time_lagged_model and self.lag_time > 0:
             return np.cov(self._standardized_data[:-self.lag_time].T)
         else:
             return super().get_covariance_matrix()
@@ -497,65 +498,124 @@ class DROPP(TensorDR):
           covariance matrix is generated.
 
         """
-        tensor_cov = self.get_tensor_covariance()
+        tensor_cov = self.get_covariance_tensor()
         cov = self.cov_stat_func(tensor_cov, axis=0)
         if self.analyse_plot_type == COVARIANCE_MATRIX_PLOT:
             MultiArrayPlotter().plot_tensor_layers(tensor_cov, cov, 'Covariance')
         return cov
 
-    def get_tensor_covariance(self):
-        if self._is_time_lagged_algorithm() and self.lag_time > 0:
-            return np.asarray(list(
-                map(lambda index: self.cov_function(
-                    self._standardized_data[:-self.lag_time, :, index].T),
-                    range(self._combine_dim))
-            ))
-        else:
-            return np.asarray(list(
-                map(lambda index: self.cov_function(self._standardized_data[:, :, index].T),
-                    range(self._combine_dim))
-            ))
+    def get_covariance_tensor(self):
+        """
+        Calculate the tensor covariance tensor.
 
-    def _map_kernel(self, matrix):
+        This method computes the covariance tensor or a time-lagged covariance tensor for tensor data,
+        where the tensor dimensions represent samples, features, and combined dimensions.
+        The calculation depends on the model and lag_time.
+
+        Returns
+        -------
+        tensor_cov_tensor : np.ndarray
+            Covariance tensor with shape (_combined_dim, _feature_dim, _feature_dim)
+            if lag_time is used and the model is time-lagged the samples of the tensor
+            is truncated by the lag_time.
+
+        Notes
+        -----
+        - The covariance tensor is calculated by applying the specified covariance function
+          (e.g. np.cov) along axis 0 for each combined dimension.
+        - If the algorithm is time-lagged (e.g., 'tica') and lag_time is greater than 0,
+          the covariance tensor is calculated over the truncated data.
+        - If not time-lagged, the covariance tensor is calculated using the full data.
+
+        """
+        if self._is_time_lagged_model and self.lag_time > 0:
+            cov_indices = slice(None, -self.lag_time)
+        else:
+            cov_indices = slice(None)
+
+        tensor_data = self._standardized_data[cov_indices]
+        return np.asarray([
+            self.cov_function(tensor_data[:, :, index].T) for index in range(self._combine_dim)
+        ])
+
+    def _map_kernel_on(self, covariance_matrix):
+        """
+        Apply kernel mapping to the input covariance matrix.
+
+        This method applies kernel mapping to the input covariance matrix based on the specified kernel mapping mode.
+        The kernel mapping can involve operations such as kernel matrix calculation, subtraction, multiplication,
+        and diagonal modification.
+
+        Parameters
+        ----------
+        covariance_matrix : np.ndarray
+           Input covariance matrix to which kernel mapping is applied.
+
+        Returns
+        -------
+        mapped_matrix : np.ndarray
+           Covariance matrix after kernel mapping has been applied.
+
+        Notes
+        -----
+        - Kernel mapping can modify the input covariance matrix according to the specified kernel mapping mode.
+        - The kernel mapping is determined by the 'kernel_kwargs' attribute.
+
+        """
         kernel_matrix = calculate_symmetrical_kernel_matrix(
-            matrix,
+            covariance_matrix,
             flattened=self._is_matrix_model,
             analyse_mode=self.analyse_plot_type,
             **self.kernel_kwargs
         )
         if self.kernel_kwargs[KERNEL_MAP] == KERNEL_ONLY:
-            matrix = kernel_matrix
+            covariance_matrix = kernel_matrix
         elif self.kernel_kwargs[KERNEL_MAP] == KERNEL_DIFFERENCE:
-            matrix -= kernel_matrix
+            covariance_matrix -= kernel_matrix
         elif self.kernel_kwargs[KERNEL_MAP] == KERNEL_MULTIPLICATION:
-            matrix *= kernel_matrix
+            covariance_matrix *= kernel_matrix
 
         if self.kernel_kwargs[ONES_ON_KERNEL_DIAG]:
-            np.fill_diagonal(matrix, 1.0)
+            np.fill_diagonal(covariance_matrix, 1.0)
 
-        return matrix
+        return covariance_matrix
 
     def get_eigenvectors(self):
-        # calculate eigenvalues & eigenvectors of covariance matrix
-        # assert is_matrix_symmetric(self._covariance_matrix), 'Covariance-Matrix should be symmetric.'
+        """
+        Calculate the eigenvectors of the covariance matrix.
+
+        This method computes the eigenvectors of the covariance matrix based on the specified algorithm.
+        The eigenvalues and eigenvectors can be sorted and processed according to various settings.
+
+        Returns
+        -------
+        eigenvectors : np.ndarray
+            Eigenvectors of the covariance matrix, either with or without dimensionality reduction layer.
+
+        Notes
+        -----
+        - The eigenvalues and eigenvectors of the covariance matrix are computed based on the chosen algorithm.
+        - If the algorithm is 'tica' or 'kica', the correlation matrix is calculated and used to compute
+          the eigenvalues and eigenvectors.
+        - Eigenvalues are sorted in descending order, and the eigenvectors are reordered accordingly.
+        - The 'abs_eigenvalue_sorting' option determines whether to sort eigenvalues by absolute values or
+          if complex eigenvalues are encountered, their absolute values are used.
+        - If 'extra_dr_layer' is enabled, an additional dimensionality reduction layer is applied to the eigenvectors.
+
+        """
+
         if self.algorithm_name in ['tica', 'kica']:
             correlation_matrix = self._get_correlations_matrix()
-            # assert is_matrix_symmetric(correlation_matrix), 'Correlation-Matrix should be symmetric.'
-            # noinspection PyTupleAssignmentBalance
             eigenvalues, eigenvectors = scipy.linalg.eig(correlation_matrix, b=self._covariance_matrix)
         else:
             eigenvalues, eigenvectors = np.linalg.eigh(self._covariance_matrix)
 
-        if self.abs_eigenvalue_sorting:
+        if self.abs_eigenvalue_sorting or np.any(np.iscomplex(eigenvalues)):
             eigenvalues = np.abs(eigenvalues)
 
-        if np.any(np.iscomplex(eigenvalues)):
-            eigenvalues = np.abs(eigenvalues)
-
-        # sort eigenvalues descending
-        sorted_eigenvalue_indexes = np.argsort(eigenvalues)[::-1]
-        self.explained_variance_ = np.real_if_close(eigenvalues[sorted_eigenvalue_indexes])
-        eigenvectors = np.real_if_close(eigenvectors[:, sorted_eigenvalue_indexes])
+        sorted_indices = np.argsort(eigenvalues)[::-1]
+        self.explained_variance_ = np.real_if_close(eigenvalues[sorted_indices])
+        eigenvectors = np.real_if_close(eigenvectors[:, sorted_indices])
 
         if self.extra_dr_layer:
             return self._get_eigenvectors_with_dr_layer(eigenvectors)
@@ -564,6 +624,31 @@ class DROPP(TensorDR):
             return eigenvectors[:, ::self.nth_eigenvector]
 
     def _get_eigenvectors_with_dr_layer(self, eigenvectors):
+        """
+        Apply an additional dimensionality reduction layer to the eigenvectors.
+
+        This method applies a dimensionality reduction (DR) layer to the given eigenvectors to further reduce their
+        dimensionality while capturing important information. The DR layer is applied per feature, and its effect
+        on eigenvalues is reflected.
+
+        Parameters
+        ----------
+        eigenvectors : np.ndarray
+            Eigenvectors of the covariance matrix.
+
+        Returns
+        -------
+        reduced_eigenvectors : np.ndarray
+            Eigenvectors after the additional dimensionality reduction layer has been applied.
+
+        Notes
+        -----
+        - The dimensionality reduction (DR) layer is applied to each feature's eigenvectors independently.
+        - The DR layer uses PCA (Principal Component Analysis) with n_components=1 for each feature.
+        - The DR layer modifies the eigenvalues and eigenvectors to capture essential information
+          while reducing the dimensionality.
+
+        """
         eigenvalues2 = []
         eigenvectors2 = []
         for component in range(self._feature_dim):
@@ -572,7 +657,6 @@ class DROPP(TensorDR):
             model = PCA(n_components=1)
             model.fit_transform(eigenvectors[:, vector_from:vector_to])
 
-            # No idea if it makes sense TODO
             ew2 = model.explained_variance_[0]
             # eigenvalues2.append(np.mean(self.eigenvalues[vector_from:vector_to] * ew2))
             eigenvalues2.append(np.sum(self.explained_variance_[vector_from:vector_to] * ew2))
@@ -585,11 +669,36 @@ class DROPP(TensorDR):
         return np.asarray(eigenvectors2).T
 
     def _get_correlations_matrix(self):
+        """
+        Calculate the correlations matrix based on the model's configuration.
+
+        This method computes the correlations matrix based on the data's nature (matrix or tensor) and the chosen
+        kernel mapping mode. The correlations matrix can involve operations such as correlation matrix calculation,
+        kernel mapping, and diagonal expansion.
+
+        Returns
+        -------
+        corr_matrix : np.ndarray
+            Correlations matrix with shape (_feature_dim*_combined_dim - lag_time,
+                                            _feature_dim*_combined_dim - lag_time)
+            if using kernel mapping or diagonal expansion.
+            Otherwise, the shape is (_feature_dim - lag_time, _feature_dim - lag_time).
+
+        Notes
+        -----
+        - The correlations matrix is calculated differently based on whether the data is in matrix or tensor form.
+        - If using matrix data, the correlations matrix is calculated directly or kernel-mapped and returned.
+        - If using tensor data, the tensor correlation matrix is calculated, and statistical functions
+          are applied along axis 0.
+        - Kernel mapping can modify the correlations matrix according to the specified algorithm mode.
+
+        """
+
         if self._is_matrix_model:
             corr = self._get_matrix_correlation()
 
             if self.kernel_kwargs[CORR_KERNEL] or self._use_kernel_as_correlation_matrix():
-                corr = self._map_kernel(corr)
+                corr = self._map_kernel_on(corr)
 
             return corr
         else:
@@ -600,11 +709,31 @@ class DROPP(TensorDR):
                 MultiArrayPlotter().plot_tensor_layers(tensor_corr, corr, 'Correlation')
 
             if self.kernel_kwargs[CORR_KERNEL] or self._use_kernel_as_correlation_matrix():
-                corr = self._map_kernel(corr)
+                corr = self._map_kernel_on(corr)
 
             return diagonal_block_expand(corr, tensor_corr.shape[0])
 
     def _get_matrix_correlation(self):
+        """
+        Calculate the matrix correlation based on the model's configuration.
+
+        This method computes the matrix correlation based on the data's nature and lag time. The matrix correlation
+        captures the linear relationship between features in the data matrix.
+
+        Returns
+        -------
+        corr_matrix : np.ndarray
+            Matrix correlation with shape (_feature_dim, _feature_dim).
+
+        Notes
+        -----
+        - The matrix correlation is calculated by computing the dot product of standardized data slices
+          with and without lag time and normalizing by the number of samples.
+        - If lag time is not used (lag_time <= 0), the matrix covariance is returned instead.
+        - The resulting matrix correlation is ensured to be symmetric.
+
+        """
+
         if self.lag_time <= 0:
             return self._get_matrix_covariance()
         else:
@@ -613,8 +742,30 @@ class DROPP(TensorDR):
             return ensure_matrix_symmetry(corr)
 
     def _get_tensor_correlation(self):
+        """
+        Calculate the tensor correlation based on the model's configuration.
+
+        This method computes the tensor correlation based on the data's nature, lag time, and kernel mapping mode.
+        The tensor correlation captures the linear relationships between features across time steps.
+
+        Returns
+        -------
+        tensor_corr : np.ndarray
+            Tensor correlation with shape (_combined_dim, _feature_dim, _feature_dim)
+            if lag_time is used and the model is time-lagged the samples of the tensor
+            is truncated by the lag_time.
+
+        Notes
+        -----
+        - The tensor correlation is calculated based on the standardized data slices with and without lag time.
+        - If kernel mapping is used for the correlations matrix or lag time is not used (lag_time <= 0),
+          the covariance tensor is returned instead.
+        - The resulting tensor correlation is ensured to have symmetric matrices for each combined dimension.
+
+        """
+
         if self._use_kernel_as_correlation_matrix() or self.lag_time <= 0:
-            return self.get_tensor_covariance()
+            return self.get_covariance_tensor()
         else:
             temp_list = []
             for index in range(self._combine_dim):
@@ -626,23 +777,100 @@ class DROPP(TensorDR):
             return np.asarray(temp_list)
 
     def transform(self, data_tensor):
+        """
+        Transform input data tensor or matrix into a reduced-dimensional representation.
+
+        This method performs the dimensionality reduction transformation on the input data tensor or matrix using
+        the learned components of the DROPP model.
+
+        Parameters
+        ----------
+        data_tensor : np.ndarray
+            Input data tensor or matrix with shape (n_samples, _feature_dim, _combined_dim) for tensor data,
+            or (n_samples, _feature_dim) for matrix data.
+
+        Returns
+        -------
+        transformed_data : np.ndarray
+            Reduced-dimensional representation of the input data tensor or matrix with shape
+            (n_samples, n_components).
+
+        """
         data_tensor_standardized = self._standardize_data(data_tensor)
         data_matrix = self.convert_to_matrix(data_tensor_standardized)
         return np.dot(data_matrix, self.components_.T)
 
     def convert_to_matrix(self, tensor):
+        """
+        Convert input data tensor to a matrix representation if required.
+
+        This method converts the input data tensor to a matrix representation based on the model's configuration.
+
+        Parameters
+        ----------
+        tensor : np.ndarray
+            Input data tensor or matrix with shape (n_samples, _feature_dim, _combined_dim) for tensor data,
+            or (n_samples, _feature_dim) for matrix data.
+
+        Returns
+        -------
+        matrix : np.ndarray
+            Matrix representation of the input data tensor.
+
+        """
         if self._is_matrix_model:
             return tensor
         else:
             return super().convert_to_matrix(tensor)
 
     def convert_to_tensor(self, matrix):
+        """
+        Convert input data matrix to a tensor representation if required.
+
+        This method converts the input data matrix to a tensor representation based on the model's configuration.
+
+        Parameters
+        ----------
+        matrix : np.ndarray
+            Input data matrix with shape (n_samples, _feature_dim*_combined_dim).
+
+        Returns
+        -------
+        tensor : np.ndarray
+            Tensor representation of the input data matrix with shape (n_samples, _feature_dim, _combined_dim).
+
+        """
         if self._is_matrix_model:
             return matrix
         else:
             return super().convert_to_tensor(matrix)
 
     def inverse_transform(self, projection_data: np.ndarray, component_count: int):
+        """
+        Transform reduced-dimensional projection back to the original data space.
+
+        This method performs the inverse transformation from the reduced-dimensional projection space to the original
+        data space using the learned components of the DROPP model.
+
+        Parameters
+        ----------
+        projection_data : np.ndarray
+            Reduced-dimensional projection data with shape (n_samples, component_count).
+
+        component_count : int
+            Number of components to use for the inverse transformation.
+
+        Returns
+        -------
+        original_data : np.ndarray
+            Inverse-transformed data in the original data space with shape (n_samples, _feature_dim, _combined_dim).
+
+        Raises
+        ------
+        NonInvertibleEigenvectorException
+            If eigenvectors are non-orthogonal and non-squared, and `use_evs` flag is not set.
+
+        """
         if is_matrix_orthogonal(self.components_.T):
             return np.dot(
                 projection_data,
@@ -658,6 +886,32 @@ class DROPP(TensorDR):
                 )
 
     def reconstruct(self, projection_matrix, component_count=None):
+        """
+        Reconstruct original data tensor from a reduced-dimensional projection.
+
+        This method reconstructs the original data tensor from a reduced-dimensional projection matrix using the
+        learned components of the DROPP model.
+
+        Parameters
+        ----------
+        projection_matrix : np.ndarray
+            Reduced-dimensional projection matrix with shape (n_samples, component_count).
+
+        component_count : int, optional
+            Number of components to use for the reconstruction. If not provided, the maximum number of components
+            available in the model will be used.
+
+        Returns
+        -------
+        reconstructed_data : np.ndarray
+            Reconstructed data tensor in the original data space with shape (n_samples, _feature_dim, _combined_dim).
+
+        Raises
+        ------
+        InvalidComponentNumberException
+            If the provided `component_count` exceeds the available number of components in the model.
+
+        """
         if component_count is None:
             component_count = self._feature_dim * self._combine_dim
         elif component_count > self.components_.shape[0]:
@@ -675,18 +929,38 @@ class DROPP(TensorDR):
 
     def score(self, data_tensor, y=None):
         """
-        Reconstruct data and calculate the root mean squared error (RMSE).
-        See Notes: https://stats.stackexchange.com/q/229093
+        Calculate the root mean squared error (RMSE) between original data and its reconstruction.
+
+        This method calculates the root mean squared error (RMSE) between the original data tensor and its
+        reconstruction obtained using the DROPP model. The RMSE provides a measure of the dissimilarity between the
+        original and reconstructed data.
 
         Parameters
         ----------
-        data_tensor : (X) array-like of shape (n_samples, n_features)
-            List of n_features-dimensional data points.  Each row
-            corresponds to a single data point.
+        data_tensor : np.ndarray
+            Original data tensor with shape (n_samples, _feature_dim, _combined_dim).
 
         y : None
-            Ignored. This parameter exists only for compatibility with
-            :class:`~sklearn.pipeline.Pipeline`.
+            Ignored. This parameter exists only for compatibility with scikit-learns pipeline.
+
+        Returns
+        -------
+        rmse : float
+            Root mean squared error (RMSE) between original data and its reconstruction.
+
+        See Also
+        --------
+        transform : Project data tensor into the reduced-dimensional space.
+        reconstruct : Reconstruct original data tensor from a reduced-dimensional projection.
+
+        Notes
+        -----
+        The RMSE is calculated based on the element-wise difference between the original data tensor and its
+        reconstructed version. It provides an indication of the overall dissimilarity between the two data tensors.
+
+        References
+        ----------
+        [1] StackExchange. "What does RMSE tell us?" URL: https://stats.stackexchange.com/q/229093
         """
 
         if y is not None:  # "use" variable, to not have a PyCharm warning

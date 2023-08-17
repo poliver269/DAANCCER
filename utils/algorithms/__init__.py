@@ -3,7 +3,7 @@ from sklearn.base import TransformerMixin, BaseEstimator
 
 from utils.matrix_tools import diagonal_block_expand
 from utils.param_keys import N_COMPONENTS
-from utils.param_keys.traj_dims import TIME_DIM, ATOM_DIM, COORDINATE_DIM
+from utils.param_keys.traj_dims import TIME_DIM, ATOM_DIM, COORDINATE_DIM, FEATURE_DIM, COMBINED_DIM
 
 
 class MyModel(TransformerMixin, BaseEstimator):
@@ -109,9 +109,10 @@ class TensorDR(MyModel):
 
     def convert_to_matrix(self, tensor):
         return tensor.reshape(tensor.shape[TIME_DIM],
-                              self._standardized_data.shape[ATOM_DIM] * self._standardized_data.shape[COORDINATE_DIM])
+                              self._standardized_data.shape[FEATURE_DIM] *
+                              self._standardized_data.shape[COMBINED_DIM])
 
     def convert_to_tensor(self, matrix):
         return matrix.reshape(matrix.shape[TIME_DIM],
-                              self._standardized_data.shape[ATOM_DIM],
+                              self._standardized_data.shape[FEATURE_DIM],
                               self._standardized_data.shape[COORDINATE_DIM])
