@@ -19,3 +19,7 @@ MY_LINEAR_INVERSE_NORM = 'my_linear_inverse_norm'  # 1\0/1
 KERNEL_ONLY = 'only'
 KERNEL_DIFFERENCE = 'diff'
 KERNEL_MULTIPLICATION = 'multi'
+
+# Kernel additions
+USE_DENSITY_KERNEL = 'use_density_kernel'
+MY = 'my_'

@@ -6,7 +6,7 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import mean_squared_error
 
 from research_evaluations.plotter import ArrayPlotter, MultiArrayPlotter
-from utils import statistical_zero, ordinal
+from utils import statistical_zero
 from utils.algorithms import TensorDR
 from utils.errors import NonInvertibleEigenvectorException, InvalidComponentNumberException
 from utils.math import is_matrix_orthogonal
@@ -90,7 +90,6 @@ class DROPP(TensorDR):
         ...     'kernel_kwargs': {
         ...         'kernel_map': 'only',
         ...         'kernel_function': 'my_gaussian',
-        ...         'use_original_data': True
         ...     }
         ... }
         >>> custom_dropp = DROPP(**custom_params)
@@ -328,7 +327,7 @@ class DROPP(TensorDR):
         --------
         >>> dropp_instance = DROPP()
         >>> data = np.random.rand(100, 10, 5)
-        >>> dropp_instance.fit(data)
+        >>> dropp_instance = dropp_instance.fit(data)
         >>> transformed_data = dropp_instance.transform(data)
 
         """

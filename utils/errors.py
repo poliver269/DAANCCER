@@ -20,3 +20,7 @@ class InvalidSubsetTrajectory(Exception):
 
 class InvalidProteinTrajectory(Exception):
     pass
+
+
+class InvalidKernelName(Exception):
+    pass

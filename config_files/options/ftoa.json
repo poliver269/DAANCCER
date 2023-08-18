@@ -8,6 +8,7 @@
   "n_components": null,
   "basis_transformation": false,
   "use_angles": false,
+  "data_set": "protein",
   "trajectory_name": "2f4k",
   "file_element": 0
 }

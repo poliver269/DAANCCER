@@ -9,12 +9,23 @@ from sklearn.neighbors import KernelDensity
 from research_evaluations.plotter import ArrayPlotter
 from utils import function_name
 from utils.array_tools import rescale_array, rescale_center
+from utils.errors import InvalidKernelName
 from utils.math import is_matrix_symmetric, exponential_2d, epanechnikov_2d, gaussian_2d, is_matrix_orthogonal, my_sinc, \
     my_sinc_sum, my_cos
 from utils.param_keys.analyses import PLOT_3D_MAP, WEIGHTED_DIAGONAL, FITTED_KERNEL_CURVES, KERNEL_COMPARE, \
     PLOT_KERNEL_MATRIX_3D
 from utils.param_keys.kernel_functions import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL, MY_LINEAR, \
-    MY_LINEAR_INVERSE_P1, MY_LINEAR_NORM, MY_LINEAR_INVERSE_NORM, MY_SINC, MY_SINC_SUM, MY_COS
+    MY_LINEAR_INVERSE_P1, MY_LINEAR_NORM, MY_LINEAR_INVERSE_NORM, MY_SINC, MY_SINC_SUM, MY_COS, USE_DENSITY_KERNEL, MY
+
+kernel_funcs = {
+    MY_EXPONENTIAL: exponential_2d,
+    MY_EPANECHNIKOV: epanechnikov_2d,
+    MY_GAUSSIAN: gaussian_2d,
+    MY_SINC: my_sinc,
+    MY_SINC + '_center': my_sinc,
+    MY_SINC_SUM: my_sinc_sum,
+    MY_COS: my_cos
+}
 
 
 def diagonal_indices(matrix: np.ndarray):
@@ -127,23 +138,32 @@ def calculate_symmetrical_kernel_matrix(
         use_original_data: bool = False,
         **kwargs) -> np.ndarray:
     """
-    Creates a symmetrical kernel matrix out of a symmetrical matrix.
-    :param matrix: ndarray (symmetrical)
-    :param kernel_stat_func: Numpy statistical function: np.median (default), np.mean, np.min, ... (See link below)
-        https://www.tutorialspoint.com/numpy/numpy_statistical_functions.htm
-    :param kernel_function: str
-        (my_)gaussian, (my_)exponential, (my_)epanechnikov, (my_)linear, my_sinc(_sum)
-    :param analyse_mode: str
-        If the name of the trajectory is given than a plot of the gauss curve will be plotted with the given
-    :param flattened: bool
-        If True: runs the calculation in a way, where discontinuous input values are permitted.
-    :param use_original_data: bool
-        If True: uses only the original data without rescaling
-    :return: ndarray (ndim=2)
-        The kernel matrix
+    Create a symmetrical kernel matrix out of a symmetrical matrix.
+
+    Parameters
+    ----------
+    matrix : ndarray
+        Input symmetrical matrix.
+    kernel_stat_func : callable, optional
+        Numpy statistical function, e.g., np.median (default), np.mean, np.min, etc.
+    kernel_function : str, optional
+        Kernel function name: 'gaussian', 'exponential', 'epanechnikov', 'linear', etc.
+    analyse_mode : str, optional
+        Analysis mode: 'KERNEL_COMPARE', 'PLOT_3D_MAP', 'PLOT_KERNEL_MATRIX_3D', 'WEIGHTED_DIAGONAL',
+        'FITTED_KERNEL_CURVES', or empty string for no analysis.
+    flattened : bool, optional
+        If True, permits discontinuous input values.
+    use_original_data : bool, optional
+        If True, uses only the original data without rescaling.
+
+    Returns
+    -------
+    ndarray
+        The kernel matrix.
     """
     if not is_matrix_symmetric(matrix):
-        raise ValueError(f'Input matrix to calculate the {kernel_function}-kernel has to be symmetric.')
+        raise ValueError(f'Input matrix with shape ({matrix.shape}) has to be symmetric'
+                         f'to calculate the {kernel_function}-kernel.')
 
     xdata = diagonal_indices(matrix)
     original_ydata = matrix_diagonals_calculation(matrix, np.mean)
@@ -153,17 +173,20 @@ def calculate_symmetrical_kernel_matrix(
     else:
         if flattened:
             kernel_stat_func = np.min
-            if kernel_function in [MY_COS]:
-                interp_range = [-1, 1]
-            else:
-                interp_range = None
+            interp_range = [-1, 1] if kernel_function in [MY_COS] else None
             rescaled_ydata = rescale_array(original_ydata, kernel_stat_func, interp_range)
         else:
             rescaled_ydata = rescale_center(original_ydata, kernel_stat_func)
-    fit_y = _get_fitted_y_curve(matrix, kernel_function, xdata, rescaled_ydata)
-    if flattened:  # bzw. reinterpolate
-        fit_y = rescale_array(fit_y, lower_bound=kernel_stat_func(fit_y),
-                              interp_range=[kernel_stat_func(original_ydata), np.max(original_ydata)])
+
+    fit_y = _get_fitted_y_curve(matrix, kernel_function, xdata, rescaled_ydata, **kwargs)
+
+    if flattened:  # re-interpolate
+        fit_y = rescale_array(
+            fit_y,
+            lower_bound=kernel_stat_func(fit_y),
+            interp_range=[kernel_stat_func(original_ydata), np.max(original_ydata)]
+        )
+
     kernel_matrix = expand_diagonals_to_matrix(matrix, fit_y)
 
     if analyse_mode != '':
@@ -219,65 +242,87 @@ def _get_rescaled_array(original_ydata, stat_func, flattened):
         return rescale_center(original_ydata, stat_func)
 
 
-# noinspection PyTupleAssignmentBalance
-def _get_fitted_y_curve(matrix, kernel_name, xdata, rescaled_ydata):
-    kernel_funcs = {MY_EXPONENTIAL: exponential_2d, MY_EPANECHNIKOV: epanechnikov_2d, MY_GAUSSIAN: gaussian_2d,
-                    MY_SINC: my_sinc, MY_SINC + '_center': my_sinc, MY_SINC_SUM: my_sinc_sum, MY_COS: my_cos}
+def _get_fitted_y_curve(matrix, kernel_name, xdata, rescaled_ydata, **kwargs):
+    if USE_DENSITY_KERNEL in kwargs.keys() and kwargs[USE_DENSITY_KERNEL]:
+        return _get_density_fitted_y(kernel_name, xdata, rescaled_ydata)
+    else:
+        if not kernel_name.startswith(MY):
+            kernel_name = MY + kernel_name
 
-    if kernel_name in kernel_funcs.keys():
-        if kernel_name in [MY_EPANECHNIKOV, MY_COS, MY_SINC + '_center']:
-            non_zero_i = np.argmax(rescaled_ydata > 0)
-            fit_y = rescaled_ydata.copy()
-            if non_zero_i == 0 and kernel_name not in [MY_COS]:
-                # If the rescaled_ydata does not reach bellow threshold, a different approach is needed
-                fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata,
-                                              rescaled_ydata)
-                print(*fit_parameters)
-                center_fit_y = kernel_funcs[kernel_name](xdata, *fit_parameters)
-                fit_y = center_fit_y
+        if kernel_name in kernel_funcs.keys():
+            if kernel_name in [MY_EPANECHNIKOV, MY_COS, MY_SINC + '_center']:
+                return _get_y_fitted_on_center(kernel_name, xdata, rescaled_ydata)
             else:
-                if kernel_name in [MY_COS]:
-                    non_zero_i = (len(xdata) // 6)
-                p0 = (len(xdata) // 2) - non_zero_i if kernel_name in [MY_COS] else 1
-                fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata[non_zero_i:-non_zero_i],
-                                              rescaled_ydata[non_zero_i:-non_zero_i], p0=p0, maxfev=5000)
-                center_fit_y = kernel_funcs[kernel_name](xdata[non_zero_i:-non_zero_i], *fit_parameters)
-                if kernel_name not in [MY_COS]:
-                    center_fit_y = np.where(center_fit_y < 0, 0, center_fit_y)
-                else:
-                    fit_y = rescaled_ydata
-                    fit_y = np.where(fit_y < 0, 0, fit_y)
-                fit_y[non_zero_i:-non_zero_i] = center_fit_y
-
-            return fit_y
+                return _fit_y_curve(kernel_name, xdata, rescaled_ydata, maxfev=5000)
+        elif kernel_name.startswith(MY_LINEAR):
+            return _get_linear_fitted_y(kernel_name, xdata, len(matrix))
         else:
-            fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata, rescaled_ydata, maxfev=5000)
-            return kernel_funcs[kernel_name](xdata, *fit_parameters)
-    elif kernel_name.startswith('my_linear'):
-        if kernel_name == MY_LINEAR_NORM:
-            return np.concatenate((np.linspace(0, 1, len(matrix)), np.linspace(1, 0, len(matrix))[1:]))
-        elif kernel_name == MY_LINEAR_INVERSE_NORM:
-            return np.concatenate((np.linspace(1, 0, len(matrix)), np.linspace(0, 1, len(matrix))[1:]))
-        elif kernel_name == MY_LINEAR:
-            return np.concatenate((np.linspace(0, np.max(xdata), len(matrix)),
-                                   np.linspace(np.max(xdata), 0, len(matrix))[1:]))
-        else:  # kernel_name.startswith(MY_LINEAR_INVERSE):
-            fit_y = np.abs(xdata)
-            if kernel_name == MY_LINEAR_INVERSE_P1:
-                fit_y -= 1
-                return np.where(fit_y < 0, 1, fit_y)
-    else:  # Try to use an implemented kernel from sklearn
-        xdata = xdata[:, np.newaxis]
-        rescaled_ydata = rescaled_ydata[:, np.newaxis]
-        rescaled_ydata = rescaled_ydata / rescaled_ydata.sum()
-        bandwidths = 10 ** np.linspace(-1, 1, 100)
-        grid = GridSearchCV(KernelDensity(kernel=kernel_name), {'bandwidth': bandwidths}, cv=LeaveOneOut())
-        grid.fit(xdata)
-        print(f'Best parameters for {kernel_name}: {grid.best_params_}')
-        kde = KernelDensity(kernel=kernel_name, **grid.best_params_).fit(rescaled_ydata)
-        # noinspection PyUnresolvedReferences
-        fit_y = np.exp(kde.score_samples(xdata))
-        return np.interp(fit_y, [0, fit_y.max()], [0, 1])
+            raise InvalidKernelName(f'Kernel name `{kernel_name.split(MY)[1]}` '
+                                    f'does not exist. Please choose a valid kernel.')
+
+
+def _get_y_fitted_on_center(kernel_name, xdata, rescaled_ydata):
+    non_zero_i = np.argmax(rescaled_ydata > 0)  # first index which is above 0
+    fit_y = rescaled_ydata.copy()
+    if (non_zero_i == 0 and kernel_name not in [MY_COS]) or (np.sum(rescaled_ydata > 0) == 1):
+        return _fit_y_curve(kernel_name, xdata, rescaled_ydata)
+    else:
+        if kernel_name in [MY_COS]:
+            magic_number = 6
+            non_zero_i = (len(xdata) // magic_number)
+        fit_y[non_zero_i:-non_zero_i] = _fit_y_on_positive_values_in_center(
+            kernel_name, xdata, rescaled_ydata, non_zero_i)
+        return fit_y
+
+
+def _fit_y_curve(kernel_name, xdata, rescaled_ydata, **fit_kwargs):
+    fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata, rescaled_ydata, **fit_kwargs)
+    return kernel_funcs[kernel_name](xdata, *fit_parameters)
+
+
+def _fit_y_on_positive_values_in_center(kernel_name, xdata, rescaled_ydata, non_zero_i):
+    p0 = (len(xdata) // 2) - non_zero_i if kernel_name in [MY_COS] else 1
+    center_fit_y = _fit_y_curve(kernel_name, xdata[non_zero_i:-non_zero_i],
+                                rescaled_ydata[non_zero_i:-non_zero_i],
+                                p0=p0, maxfev=5000)
+    if kernel_name not in [MY_COS]:
+        center_fit_y = np.where(center_fit_y < 0, 0, center_fit_y)
+    fit_y = rescaled_ydata
+    fit_y[non_zero_i:-non_zero_i] = center_fit_y
+    return fit_y
+
+
+def _get_linear_fitted_y(kernel_name, xdata, matrix_length):
+    if kernel_name == MY_LINEAR_NORM:
+        return np.concatenate((np.linspace(0, 1, matrix_length), np.linspace(1, 0, matrix_length)[1:]))
+    elif kernel_name == MY_LINEAR_INVERSE_NORM:
+        return np.concatenate((np.linspace(1, 0, matrix_length), np.linspace(0, 1, matrix_length)[1:]))
+    elif kernel_name == MY_LINEAR:
+        return np.concatenate((np.linspace(0, np.max(xdata), matrix_length),
+                               np.linspace(np.max(xdata), 0, matrix_length)[1:]))
+    else:
+        return _get_inverse_linear_fitted_y(kernel_name, xdata)
+
+
+def _get_inverse_linear_fitted_y(kernel_name, xdata):
+    fit_y = np.abs(xdata)
+    if kernel_name == MY_LINEAR_INVERSE_P1:
+        fit_y -= 1
+        return np.where(fit_y < 0, 1, fit_y)
+
+
+def _get_density_fitted_y(kernel_name, xdata, rescaled_ydata):
+    xdata = xdata[:, np.newaxis]
+    rescaled_ydata = rescaled_ydata[:, np.newaxis]
+    rescaled_ydata = rescaled_ydata / rescaled_ydata.sum()
+    bandwidths = 10 ** np.linspace(-1, 1, 100)
+    grid = GridSearchCV(KernelDensity(kernel=kernel_name), {'bandwidth': bandwidths}, cv=LeaveOneOut())
+    grid.fit(xdata)
+    print(f'Best parameters for {kernel_name}: {grid.best_params_}')
+    kde = KernelDensity(kernel=kernel_name, **grid.best_params_).fit(rescaled_ydata)
+    # noinspection PyUnresolvedReferences
+    fit_y = np.exp(kde.score_samples(xdata))
+    return np.interp(fit_y, [0, fit_y.max()], [0, 1])
 
 
 def co_mad(matrix):
