@@ -10,8 +10,8 @@ from research_evaluations.plotter import ArrayPlotter
 from utils import function_name
 from utils.array_tools import rescale_array, rescale_center
 from utils.errors import InvalidKernelName
-from utils.math import is_matrix_symmetric, exponential_2d, epanechnikov_2d, gaussian_2d, is_matrix_orthogonal, my_sinc, \
-    my_sinc_sum, my_cos
+from utils.math import is_matrix_symmetric, exponential_2d, epanechnikov_2d, gaussian_2d, is_matrix_orthogonal, \
+    my_sinc, my_sinc_sum, my_cos
 from utils.param_keys.analyses import PLOT_3D_MAP, WEIGHTED_DIAGONAL, FITTED_KERNEL_CURVES, KERNEL_COMPARE, \
     PLOT_KERNEL_MATRIX_3D
 from utils.param_keys.kernel_functions import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL, MY_LINEAR, \
@@ -225,35 +225,59 @@ def calculate_symmetrical_kernel_matrix(
     return kernel_matrix
 
 
-def _get_rescaled_array(original_ydata, stat_func, flattened):
+def _get_fitted_y_curve(matrix: np.ndarray, kernel_name: str, xdata: np.ndarray, ydata: np.ndarray, **kwargs):
     """
-    This function chooses the rescaling option depending on the flattened or unflattened input vairable.
-    It the input-data-matrix was flattened, the array has to be rescaled on another way,
-    since in this case, the original_ydata is not a continuous function.
-    :param original_ydata:
-    :param stat_func:
-    :param flattened:
-    :return:
+    Generate a fitted y curve based on the specified kernel and input data.
+
+    This function generates a fitted y curve based on the specified kernel and input data. The type of fitted y curve
+    generation depends on the selected kernel and additional options provided through keyword arguments.
+
+    Parameters
+    ----------
+    matrix : ndarray
+        The input matrix for which the fitted y curve is calculated.
+    kernel_name : str
+        Name of the kernel to be used for curve fitting.
+    xdata : ndarray
+        x data for fitting.
+    ydata : ndarray
+        y data for fitting.
+    **kwargs
+        Additional keyword arguments to control the fitting process.
+
+    Returns
+    -------
+    ndarray
+        The fitted y curve generated using the specified kernel and input data.
+
+    Raises
+    ------
+    InvalidKernelName
+        If the specified kernel name is not valid.
+
+    Notes
+    -----
+    - If the option `USE_DENSITY_KERNEL` is provided in kwargs and set to True, kernel density estimation (KDE) is
+      used to generate the fitted y curve using the `_get_density_fitted_y` function.
+    - Otherwise, the function determines the type of kernel and its fitting process based on the kernel_name parameter:
+      - For specific kernel types (MY_EPANECHNIKOV, MY_COS, MY_SINC_CENTER), `_get_y_fitted_on_positive_values`
+        is used to generate the fitted y curve.
+      - For other kernel types, `_fit_y_curve` is used to generate the fitted y curve with specified fitting options.
+      - For kernel names starting with MY_LINEAR, `_get_linear_fitted_y` is used to generate the fitted y curve.
+    - The returned fitted y curve is based on the conditions and fitting process described above.
+
     """
-    if flattened:
-        stat_func = np.min
-        return rescale_array(original_ydata, stat_func)
-    else:
-        return rescale_center(original_ydata, stat_func)
-
-
-def _get_fitted_y_curve(matrix, kernel_name, xdata, rescaled_ydata, **kwargs):
     if USE_DENSITY_KERNEL in kwargs.keys() and kwargs[USE_DENSITY_KERNEL]:
-        return _get_density_fitted_y(kernel_name, xdata, rescaled_ydata)
+        return _get_density_fitted_y(kernel_name, xdata, ydata)
     else:
         if not kernel_name.startswith(MY):
             kernel_name = MY + kernel_name
 
         if kernel_name in kernel_funcs.keys():
             if kernel_name in [MY_EPANECHNIKOV, MY_COS, MY_SINC + '_center']:
-                return _get_y_fitted_on_center(kernel_name, xdata, rescaled_ydata)
+                return _get_y_fitted_on_positive_values(kernel_name, xdata, ydata)
             else:
-                return _fit_y_curve(kernel_name, xdata, rescaled_ydata, maxfev=5000)
+                return _fit_y_curve(kernel_name, xdata, ydata, maxfev=5000)
         elif kernel_name.startswith(MY_LINEAR):
             return _get_linear_fitted_y(kernel_name, xdata, len(matrix))
         else:
@@ -261,38 +285,156 @@ def _get_fitted_y_curve(matrix, kernel_name, xdata, rescaled_ydata, **kwargs):
                                     f'does not exist. Please choose a valid kernel.')
 
 
-def _get_y_fitted_on_center(kernel_name, xdata, rescaled_ydata):
-    non_zero_i = np.argmax(rescaled_ydata > 0)  # first index which is above 0
-    fit_y = rescaled_ydata.copy()
-    if (non_zero_i == 0 and kernel_name not in [MY_COS]) or (np.sum(rescaled_ydata > 0) == 1):
-        return _fit_y_curve(kernel_name, xdata, rescaled_ydata)
+def _get_y_fitted_on_positive_values(kernel_name, xdata, ydata):
+    """
+    Generate a fitted y curve for the given kernel based on positive values.
+
+    This function calculates a fitted y curve using the specified kernel when the input data has positive values.
+    The kernel curve fitting process varies depending on whether the kernel name is MY_COS and whether the
+    rescaled y data has any positive values.
+
+    Parameters
+    ----------
+    kernel_name : str
+        Name of the kernel.
+    xdata : ndarray
+        x data for fitting.
+    ydata : ndarray
+        (Rescaled) y data.
+
+    Returns
+    -------
+    ndarray
+        The fitted y curve.
+
+    Notes
+    -----
+    - If the first index above 0 in `ydata` is 0 (equals to not found) and the kernel is not MY_COS,
+      or if there is only one positive value in `rescaled_ydata`, the fitted y curve is generated
+      using the specified kernel function.
+    - For MY_COS kernel, a magic number (6) is used to determine the region of non-zero values in `rescaled_ydata`.
+      `_fit_y_on_positive_values_in_center` is called to generate the fitted y curve for the non-zero values region.
+    - The returned fitted y curve is based on the conditions described above.
+
+    """
+    non_zero_i = np.argmax(ydata > 0)  # first index which is above 0
+    fit_y = ydata.copy()
+    if (non_zero_i == 0 and kernel_name not in [MY_COS]) or (np.sum(ydata > 0) == 1):
+        return _fit_y_curve(kernel_name, xdata, ydata)
     else:
         if kernel_name in [MY_COS]:
             magic_number = 6
             non_zero_i = (len(xdata) // magic_number)
-        fit_y[non_zero_i:-non_zero_i] = _fit_y_on_positive_values_in_center(
-            kernel_name, xdata, rescaled_ydata, non_zero_i)
+        fit_y[non_zero_i:-non_zero_i] = _fit_y_on_positive_values_in_the_middle(
+            kernel_name, xdata, ydata, non_zero_i)
         return fit_y
 
 
-def _fit_y_curve(kernel_name, xdata, rescaled_ydata, **fit_kwargs):
-    fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata, rescaled_ydata, **fit_kwargs)
+def _fit_y_curve(kernel_name: str, xdata: np.ndarray, ydata: np.ndarray, **fit_kwargs):
+    """
+    Fit a curve for the specified kernel and generate the fitted y curve.
+
+    This function fits a curve using the specified kernel function to the given x data and rescaled y data. The
+    fitted y curve is generated based on the calculated fit parameters.
+
+    Parameters
+    ----------
+    kernel_name : str
+        Name of the kernel.
+    xdata : ndarray
+        x data for fitting.
+    ydata : ndarray
+        (Rescaled) y data.
+    fit_kwargs
+        Additional keyword arguments to be passed to the curve fitting function.
+
+    Returns
+    -------
+    ndarray
+        The fitted y curve generated using the calculated fit parameters.
+
+    """
+    fit_parameters, _ = curve_fit(kernel_funcs[kernel_name], xdata, ydata, **fit_kwargs)
     return kernel_funcs[kernel_name](xdata, *fit_parameters)
 
 
-def _fit_y_on_positive_values_in_center(kernel_name, xdata, rescaled_ydata, non_zero_i):
+def _fit_y_on_positive_values_in_the_middle(kernel_name, xdata, ydata, non_zero_i):
+    """
+    Fit a curve for the specified kernel in the region of positive values within the middle range.
+
+    This function fits a curve using the specified kernel function to the given x data and y data, considering
+    only the region of positive values within the middle range. The fitted y curve is generated based on the
+    calculated fit parameters.
+
+    Parameters
+    ----------
+    kernel_name : str
+        Name of the kernel.
+    xdata : ndarray
+        x data for fitting.
+    ydata : ndarray
+        y data for fitting.
+    non_zero_i : int
+        Index of the first non-zero value.
+
+    Returns
+    -------
+    ndarray
+        The fitted y curve generated using the calculated fit parameters.
+
+    Notes
+    -----
+    - For MY_COS kernel, the magic number (6) is used to determine the region of non-zero values in `ydata`.
+      The fitted y curve is generated for the non-zero values within the middle range.
+    - The returned fitted y curve is based on the conditions described above.
+
+    """
     p0 = (len(xdata) // 2) - non_zero_i if kernel_name in [MY_COS] else 1
-    center_fit_y = _fit_y_curve(kernel_name, xdata[non_zero_i:-non_zero_i],
-                                rescaled_ydata[non_zero_i:-non_zero_i],
+    middle_fit_y = _fit_y_curve(kernel_name, xdata[non_zero_i:-non_zero_i],
+                                ydata[non_zero_i:-non_zero_i],
                                 p0=p0, maxfev=5000)
     if kernel_name not in [MY_COS]:
-        center_fit_y = np.where(center_fit_y < 0, 0, center_fit_y)
-    fit_y = rescaled_ydata
-    fit_y[non_zero_i:-non_zero_i] = center_fit_y
+        middle_fit_y = np.where(middle_fit_y < 0, 0, middle_fit_y)
+    fit_y = ydata
+    fit_y[non_zero_i:-non_zero_i] = middle_fit_y
     return fit_y
 
 
 def _get_linear_fitted_y(kernel_name, xdata, matrix_length):
+    """
+    Generate a fitted y curve for linear kernels or their inverses.
+
+    This function generates a fitted y curve based on the specified linear kernel or its inverse for the given x data
+    and matrix length. The fitted y curve is constructed by linearly interpolating values according to the selected
+    kernel type.
+
+    Parameters
+    ----------
+    kernel_name : str
+        Name of the linear kernel or its inverse.
+    xdata : ndarray
+        x data for fitting.
+    matrix_length : int
+        Length of the matrix.
+
+    Returns
+    -------
+    ndarray
+        The fitted y curve generated using linear interpolation.
+
+    Notes
+    -----
+    - For MY_LINEAR_NORM kernel, the fitted y curve is constructed by concatenating a linearly spaced sequence from
+      0 to 1 with a reversed linearly spaced sequence from 1 to 0 (excluding the first element).
+    - For MY_LINEAR_INVERSE_NORM kernel, the fitted y curve is constructed by concatenating a linearly spaced
+      sequence from 1 to 0 with a reversed linearly spaced sequence from 0 to 1 (excluding the first element).
+    - For MY_LINEAR kernel, the fitted y curve is constructed by concatenating a linearly spaced sequence from 0
+      to the maximum value of xdata with a reversed linearly spaced sequence from the maximum value of xdata to 0
+      (excluding the first element).
+    - For other linear kernels or their inverses,
+      `_get_inverse_linear_fitted_y` is called to generate the fitted y curve.
+
+    """
     if kernel_name == MY_LINEAR_NORM:
         return np.concatenate((np.linspace(0, 1, matrix_length), np.linspace(1, 0, matrix_length)[1:]))
     elif kernel_name == MY_LINEAR_INVERSE_NORM:
@@ -305,6 +447,32 @@ def _get_linear_fitted_y(kernel_name, xdata, matrix_length):
 
 
 def _get_inverse_linear_fitted_y(kernel_name, xdata):
+    """
+    Generate a fitted y curve for the inverse of a linear kernel.
+
+    This function generates a fitted y curve based on the inverse of a linear kernel for the given x data. The fitted y
+    curve is constructed by calculating the absolute values of x data and applying specific adjustments based on the
+    selected kernel type.
+
+    Parameters
+    ----------
+    kernel_name : str
+        Name of the inverse linear kernel.
+    xdata : ndarray
+        x data for fitting.
+
+    Returns
+    -------
+    ndarray
+        The fitted y curve generated based on the inverse linear kernel.
+
+    Notes
+    -----
+    - The fitted y curve is constructed by calculating the absolute values of x data.
+    - For MY_LINEAR_INVERSE_P1 kernel, the fitted y curve is adjusted by subtracting 1 from the calculated absolute
+      values and then applying a thresholding operation to ensure all values are non-negative.
+
+    """
     fit_y = np.abs(xdata)
     if kernel_name == MY_LINEAR_INVERSE_P1:
         fit_y -= 1
@@ -312,6 +480,36 @@ def _get_inverse_linear_fitted_y(kernel_name, xdata):
 
 
 def _get_density_fitted_y(kernel_name, xdata, rescaled_ydata):
+    """
+    Generate a fitted y curve using kernel density estimation.
+
+    This function generates a fitted y curve using kernel density estimation (KDE) for the given x data and rescaled
+    y data. The KDE process involves finding the optimal bandwidth parameter and fitting the kernel to the data
+    distribution. The fitted y curve is then generated based on the estimated kernel density.
+
+    Parameters
+    ----------
+    kernel_name : str
+        Name of the kernel for KDE.
+    xdata : ndarray
+        x data for fitting.
+    rescaled_ydata : ndarray
+        Rescaled y data.
+
+    Returns
+    -------
+    ndarray
+        The fitted y curve generated using kernel density estimation.
+
+    Notes
+    -----
+    - The kernel density estimation process involves finding the optimal bandwidth parameter using a grid search
+      approach based on a range of bandwidth values.
+    - The best bandwidth parameter is used to fit the kernel to the rescaled y data distribution.
+    - The fitted y curve is generated based on the estimated kernel density using the calculated bandwidth parameter.
+    - The resulting fitted y curve is interpolated to ensure it ranges between 0 and 1.
+
+    """
     xdata = xdata[:, np.newaxis]
     rescaled_ydata = rescaled_ydata[:, np.newaxis]
     rescaled_ydata = rescaled_ydata / rescaled_ydata.sum()
