@@ -1,7 +1,6 @@
 import numpy as np
 from numpy.linalg import LinAlgError
 from scipy.optimize import curve_fit
-from scipy.spatial.transform import Rotation
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import GridSearchCV, LeaveOneOut
 from sklearn.neighbors import KernelDensity
@@ -14,8 +13,7 @@ from utils.math import is_matrix_symmetric, exponential_2d, epanechnikov_2d, gau
     my_sinc, my_sinc_sum, my_cos
 from utils.param_keys.analyses import PLOT_3D_MAP, WEIGHTED_DIAGONAL, FITTED_KERNEL_CURVES, KERNEL_COMPARE, \
     PLOT_KERNEL_MATRIX_3D
-from utils.param_keys.kernel_functions import MY_GAUSSIAN, MY_EPANECHNIKOV, MY_EXPONENTIAL, MY_LINEAR, \
-    MY_LINEAR_INVERSE_P1, MY_LINEAR_NORM, MY_LINEAR_INVERSE_NORM, MY_SINC, MY_SINC_SUM, MY_COS, USE_DENSITY_KERNEL, MY
+from utils.param_keys.kernel_functions import *
 
 kernel_funcs = {
     MY_EXPONENTIAL: exponential_2d,
@@ -30,9 +28,20 @@ kernel_funcs = {
 
 def diagonal_indices(matrix: np.ndarray):
     """
-    Determines the (main and off) diagonal indices of a matrix
-    :param matrix: array like
-    :return:
+    Determine the indices of the main and off-diagonals of a matrix.
+
+    This function calculates the indices corresponding to the main and off-diagonals of the input matrix.
+
+    Parameters
+    ----------
+    matrix : ndarray
+        The input matrix for which diagonal indices are determined.
+
+    Returns
+    -------
+    ndarray
+        An array of diagonal indices.
+
     """
     lower_indices = -matrix.shape[0] + 1
     upper_indices = matrix.shape[1] - 1
@@ -42,18 +51,27 @@ def diagonal_indices(matrix: np.ndarray):
 
 def matrix_diagonals_calculation(matrix: np.ndarray, func: callable = np.sum, func_kwargs: dict = None):
     """
-    Down sample matrix to an array by applying function `func` to diagonals
-    :param matrix: ndarray
-        N-dimensional input image
-    :param func: callable
-        Function object which is used to calculate the return value for each
-        diagonal. Primary functions are ``numpy.sum``, ``numpy.min``, ``numpy.max``,
-        ``numpy.mean`` and ``numpy.median``.  See also `func_kwargs`
-    :param func_kwargs: dict
-        Keyword arguments passed to `func`. Notably useful for passing dtype
-        argument to ``np.mean``. Takes dictionary of inputs, e.g.:
-        ``func_kwargs={'dtype': np.float16})``
-    :return: ndarray
+    Calculate summary statistics along diagonals of a matrix.
+
+    This function applies the specified summary function to each diagonal of the input matrix and returns an array
+    containing the calculated values.
+
+    Parameters
+    ----------
+    matrix : ndarray
+        The input matrix for which diagonals are used.
+    func : callable, optional
+        A function object used to calculate the return value for each diagonal. Default is numpy.sum.
+        Other common functions are numpy.min, numpy.max, numpy.mean, and numpy.median.
+    func_kwargs : dict, optional
+        Keyword arguments passed to the summary function. Useful for providing additional arguments.
+        For example, to specify dtype for numpy.mean, use func_kwargs={'dtype': np.float16}.
+
+    Returns
+    -------
+    ndarray
+        An array containing the calculated summary values for each diagonal.
+
     """
     if func_kwargs is None:
         func_kwargs = {}
@@ -68,14 +86,40 @@ def matrix_diagonals_calculation(matrix: np.ndarray, func: callable = np.sum, fu
 
 def expand_diagonals_to_matrix(matrix: np.ndarray, array: np.ndarray):
     """
-    Expand the values on the minor diagonals to its corresponding off-diagonal.
-    Similar to: https://stackoverflow.com/questions/27875931/numpy-affect-diagonal-elements-of-matrix-prior-to-1-10
-    :param matrix: ndarray
-        2-array-dimensional input image. Specifies the size and the off-diagonal indexes of the return matrix
-    :param array: ndarray
-        Values on the minor diagonal which are going to expand by the function
-    :return:
+    Expand values on the minor diagonals to their corresponding off-diagonals.
+
+    This function expands the values on the minor diagonals of the input matrix to their corresponding off-diagonal
+    positions.
+
+    Parameters
+    ----------
+    matrix : ndarray
+        The 2D input matrix that specifies the size and off-diagonal indexes of the return matrix.
+    array : ndarray
+        Values on the minor diagonal that will be expanded.
+
+    Returns
+    -------
+    ndarray
+        A new matrix with the specified minor diagonal values expanded to off-diagonals.
+
+    Raises
+    ------
+    ValueError
+        If the input matrix or array does not have the correct number of dimensions.
+
+    Notes
+    -----
+    - The function expects a square matrix and an array with a length equal to the number of diagonals in the matrix.
+    - The values on the minor diagonals of the matrix are expanded to their corresponding off-diagonal positions.
+
+    References
+    ----------
+    - Stack Overflow: "Affect diagonal elements of matrix prior to 1.10"
+      https://stackoverflow.com/questions/27875931/numpy-affect-diagonal-elements-of-matrix-prior-to-1-10
+
     """
+
     if not matrix.ndim == 2:
         raise ValueError(f'Input should be a matrix, but it\'s n-dimension is: {matrix.ndim}')
     if not array.ndim == 1:
@@ -95,36 +139,29 @@ def expand_diagonals_to_matrix(matrix: np.ndarray, array: np.ndarray):
     return new_matrix
 
 
-def calculate_pearson_correlations(matrix_list: list[np.ndarray], func: callable = np.sum, func_kwargs=None):
-    """
-    Calculates the Pearson product-moment correlation coefficients of all the matrix in the list and applies a function
-    :param matrix_list: list of ndarray
-        List of N-dimensional input image
-    :param func: callable
-        Function object which is used to calculate the return value for each
-        element in the matrix. This function must implement an ``axis`` parameter.
-        Primary functions are ``numpy.sum``, ``numpy.min``, ``numpy.max``,
-        ``numpy.mean`` and ``numpy.median``.  See also `func_kwargs`
-    :param func_kwargs: dict
-        Keyword arguments passed to `func`. Notably useful for passing dtype
-        argument to ``np.mean``. Takes dictionary of inputs, e.g.:
-        ``func_kwargs={'dtype': np.float16})``
-    """
-    if func_kwargs is None:
-        func_kwargs = {}
-
-    pc_list = list(map(lambda m: np.corrcoef(m.T), matrix_list))
-
-    return func(np.array(pc_list), axis=0, **func_kwargs)
-
-
 def diagonal_block_expand(matrix, n_repeats):
     """
-    Expands a Matrix with the values as diagonals on a block with the size n_repeats.
-    https://stackoverflow.com/questions/74054138/fastest-way-to-resize-a-numpy-matrix-in-diagonal-blocks
-    :param matrix: matrix ndarray which should be expanded
-    :param n_repeats:
-    :return:
+    Expand a matrix with diagonal blocks.
+
+    This function expands the input matrix by repeating its values as diagonal blocks with the specified size.
+
+    Parameters
+    ----------
+    matrix : ndarray
+        The input matrix to be expanded.
+    n_repeats : int
+        The size of the diagonal blocks.
+
+    Returns
+    -------
+    ndarray
+        The expanded matrix with repeated diagonal blocks.
+
+    References
+    ----------
+    - Stack Overflow: "Fastest way to resize a numpy matrix in diagonal blocks"
+      https://stackoverflow.com/questions/74054138/fastest-way-to-resize-a-numpy-matrix-in-diagonal-blocks
+
     """
     return np.einsum('ij,kl->ikjl', matrix, np.eye(n_repeats)).reshape(len(matrix) * n_repeats, -1)
 
@@ -166,7 +203,9 @@ def calculate_symmetrical_kernel_matrix(
                          f'to calculate the {kernel_function}-kernel.')
 
     xdata = diagonal_indices(matrix)
-    original_ydata = matrix_diagonals_calculation(matrix, np.mean)
+
+    summary_function = kwargs.get(DIAGONAL_SUMMARY_FUNCTION, np.mean)
+    original_ydata = matrix_diagonals_calculation(matrix, summary_function)
 
     if use_original_data:
         rescaled_ydata = original_ydata
@@ -525,32 +564,88 @@ def _get_density_fitted_y(kernel_name, xdata, rescaled_ydata):
 
 def co_mad(matrix):
     """
-    Calculates the coMAD (Co Median Absolute Deviation) matrix of an input matrix.
-    https://ceur-ws.org/Vol-2454/paper_74.pdf
-    https://github.com/huenemoerder/CODEC/blob/master/CODEC.ipynb
-    :param matrix: ndarray
-    :return: Co-Median Absolute Deviation
+    Calculate the Co-Median Absolute Deviation (coMAD) matrix of an input matrix.
+
+    The Co-Median Absolute Deviation (coMAD) matrix measures the joint variability
+    between variables in the input matrix. It is computed as the median of the matrix
+    of squared differences between each variable and the median of the matrix.
+
+    Parameters
+    ----------
+    matrix : ndarray
+        The input matrix for which the coMAD matrix is calculated.
+
+    Returns
+    -------
+    ndarray
+        The Co-Median Absolute Deviation (coMAD) value, representing the joint variability between variables.
+
+    References
+    ----------
+    - [1] "CODEC: Detecting Linear Correlations in Dense Clusters using coMAD-based PCA"
+      Hünenberger, M., & Kazempour, D. (2019)
+      https://ceur-ws.org/Vol-2454/paper_74.pdf
+    - [2] CODEC GitHub Repository
+      https://github.com/huenemoerder/CODEC/blob/master/CODEC.ipynb
+
     """
     matrix_sub = matrix - np.median(matrix, axis=1)[:, np.newaxis]
     return np.median(matrix_sub[np.newaxis, :, :] * matrix_sub[:, np.newaxis, :], axis=2)
 
 
 def ensure_matrix_symmetry(matrix):
+    """
+    Ensure matrix symmetry by averaging with its transpose.
+
+    This function ensures the symmetry of a matrix by computing the element-wise average between the matrix and its
+    transpose. The resulting matrix will be symmetric, and the diagonal elements remain unchanged.
+
+    Parameters
+    ----------
+    matrix : ndarray
+        The input matrix to be made symmetric.
+
+    Returns
+    -------
+    ndarray
+        A symmetric matrix obtained by averaging the input matrix and its transpose.
+
+    """
     return 0.5 * (matrix + matrix.T)
 
 
 def reconstruct_matrix(projection, eigenvectors, dim, mean, std=1):
     """
-    Reconstructs a matrix from a given projection and eigenvector
-    :param projection:
-    :param eigenvectors:
-    :param dim:
-    :param mean: of the original data
-    :param std: of the original data
-    :return:
+    Reconstructs a matrix from a given projection and eigenvectors.
+
+    This function reconstructs a matrix using the given projection, eigenvectors, and other parameters.
+
+    Parameters
+    ----------
+    projection : ndarray
+        The projection of the data onto the selected eigenvectors.
+    eigenvectors : ndarray
+        The eigenvectors used for reconstruction.
+    dim : int
+        The number of dimensions to consider for reconstruction.
+    mean : float or ndarray
+        The mean of the original data. If the data is standardized, this can be 0.
+    std : float or ndarray, optional
+        The standard deviation of the original data. Default is 1.
+
+    Returns
+    -------
+    ndarray
+        The reconstructed matrix.
+
+    Notes
+    -----
+    - The function first checks if the provided eigenvectors are orthogonal.
+    - If the eigenvectors are orthogonal, the reconstruction is performed using matrix multiplication.
+    - If the eigenvectors are not orthogonal, the function attempts to use the inverse of eigenvectors.
+      If that is not possible (e.g., if eigenvectors are not invertible), it uses the pseudo inverse.
+
     """
-    # if is_matrix_orthogonal(eigenvectors):
-    #   reconstructed_matrix = np.dot(projection[:, :dim], eigenvectors[:, :dim].T)
     if is_matrix_orthogonal(eigenvectors.T):
         reconstructed_matrix = np.dot(projection[:, :dim], eigenvectors[:dim])
     else:
@@ -558,18 +653,6 @@ def reconstruct_matrix(projection, eigenvectors, dim, mean, std=1):
             reconstructed_matrix = np.dot(projection[:, :dim], np.linalg.inv(eigenvectors.T)[:dim])
         except LinAlgError:
             reconstructed_matrix = np.dot(projection[:, :dim], np.linalg.pinv(eigenvectors.T)[:dim])
-            # raise LinAlgError(f'Eigenvector shape: {eigenvectors.shape}\n'
-            #                   f'Projection shape: {projection.shape}\n'
-            #                   f'N-components: {dim}')
     reconstructed_matrix *= std
     reconstructed_matrix += mean
     return reconstructed_matrix
-
-
-def expand_and_roll(matrix, expand_dim=3):
-    new_matrix = matrix.reshape((-1, expand_dim, matrix.shape[1]))
-    rotation_matrix = np.asarray(
-        [Rotation.from_euler('x', 0, degrees=True).as_matrix(),  # [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
-         Rotation.from_euler('xz', [90, 90], degrees=True).as_matrix(),  # [[0, 1, 0], [0, 0, 1], [1, 0, 0]]
-         Rotation.from_euler('xy', [-90, -90], degrees=True).as_matrix()])  # [[0, 0, 1], [1, 0, 0], [0, 1, 0]]
-    return np.tensordot(new_matrix, rotation_matrix, [1, 0]).swapaxes(1, 2).reshape((-1, expand_dim * matrix.shape[1]))

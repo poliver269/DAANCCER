@@ -286,7 +286,7 @@ class ModelResultPlotter(MyPlotter):
 
         projection = result_dict[PROJECTION].copy()
         if superposing is not None:
-            # TODO: dont use hardcoded flipping
+            # TODO: do not use hardcoded flipping
             if superposing == 'PDB':
                 flip_x_axis_pca = {(2, 4), (4, 0), (4, 1), (4, 2), (4, 3), (4, 4)}
                 flip_x_axis_dropp = {(2, 0), (3, 0), (4, 0), (3, 4), (1, 1),

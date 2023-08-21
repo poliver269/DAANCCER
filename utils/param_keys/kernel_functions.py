@@ -21,5 +21,6 @@ KERNEL_DIFFERENCE = 'diff'
 KERNEL_MULTIPLICATION = 'multi'
 
 # Kernel additions
+DIAGONAL_SUMMARY_FUNCTION = 'diagonal_summary_function'
 USE_DENSITY_KERNEL = 'use_density_kernel'
 MY = 'my_'
