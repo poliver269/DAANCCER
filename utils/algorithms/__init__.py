@@ -3,7 +3,7 @@ from sklearn.base import TransformerMixin, BaseEstimator
 
 from utils.matrix_tools import diagonal_block_expand
 from utils.param_keys import N_COMPONENTS
-from utils.param_keys.traj_dims import TIME_DIM, ATOM_DIM, COORDINATE_DIM, FEATURE_DIM, COMBINED_DIM
+from utils.param_keys.traj_dims import TIME_DIM, COORDINATE_DIM, FEATURE_DIM, COMBINED_DIM
 
 
 class MyModel(TransformerMixin, BaseEstimator):
@@ -33,7 +33,7 @@ class MyModel(TransformerMixin, BaseEstimator):
         self.n_components = fit_params.get(N_COMPONENTS, 2)
         self._standardized_data = self._standardize_data(data_matrix)
         self._covariance_matrix = self.get_covariance_matrix()
-        self.components_ = self.get_eigenvectors()[:, :self.n_components].T
+        self.components_ = self._get_eigenvectors()[:, :self.n_components].T
         return self
 
     @staticmethod
@@ -57,7 +57,7 @@ class MyModel(TransformerMixin, BaseEstimator):
         """
         return np.cov(self._standardized_data.T)
 
-    def get_eigenvectors(self):
+    def _get_eigenvectors(self):
         pass
 
     def transform(self, data_matrix):
@@ -84,7 +84,7 @@ class TensorDR(MyModel):
         self._standardized_data = self._standardize_data(data_tensor)
         self._covariance_matrix = self.get_covariance_matrix()
         self._update_cov()
-        self.components_ = self.get_eigenvectors()[:, :self.n_components].T
+        self.components_ = self._get_eigenvectors()[:, :self.n_components].T
         return self
 
     def get_covariance_matrix(self):
@@ -94,7 +94,7 @@ class TensorDR(MyModel):
         averaged_cov = self.cov_stat_func(self._covariance_matrix, axis=0)
         self._covariance_matrix = diagonal_block_expand(averaged_cov, self._covariance_matrix.shape[0])
 
-    def get_eigenvectors(self):
+    def _get_eigenvectors(self):
         # calculate eigenvalues & eigenvectors of covariance matrix
         eigenvalues, eigenvectors = np.linalg.eigh(self._covariance_matrix)
 

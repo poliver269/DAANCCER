@@ -8,12 +8,13 @@ from sklearn.metrics import mean_squared_error
 from research_evaluations.plotter import ArrayPlotter, MultiArrayPlotter
 from utils import statistical_zero
 from utils.algorithms import TensorDR
-from utils.errors import NonInvertibleEigenvectorException, InvalidComponentNumberException
+from utils.errors import NonInvertibleEigenvectorException, InvalidComponentNumberException, ModelNotFittedError
 from utils.math import is_matrix_orthogonal
 from utils.matrix_tools import diagonal_block_expand, calculate_symmetrical_kernel_matrix, ensure_matrix_symmetry
 from utils.param_keys import N_COMPONENTS, MATRIX_NDIM, TENSOR_NDIM
 from utils.param_keys.analyses import CORRELATION_MATRIX_PLOT, EIGENVECTOR_MATRIX_ANALYSE, COVARIANCE_MATRIX_PLOT
-from utils.param_keys.kernel_functions import MY_GAUSSIAN, KERNEL_ONLY, KERNEL_DIFFERENCE, KERNEL_MULTIPLICATION
+from utils.param_keys.kernel_functions import MY_GAUSSIAN, KERNEL_ONLY, KERNEL_DIFFERENCE, KERNEL_MULTIPLICATION, \
+    GAUSSIAN
 from utils.param_keys.model import *
 from utils.param_keys.traj_dims import TIME_DIM, FEATURE_DIM, COMBINED_DIM
 
@@ -106,7 +107,7 @@ class DROPP(TensorDR):
 
         self.kernel_kwargs = {
             KERNEL_MAP: kernel_kwargs.get(KERNEL_MAP, KERNEL_ONLY),  # diff, multi, only, None
-            KERNEL_FUNCTION: kernel_kwargs.get(KERNEL_FUNCTION, MY_GAUSSIAN),
+            KERNEL_FUNCTION: kernel_kwargs.get(KERNEL_FUNCTION, GAUSSIAN),
             KERNEL_STAT_FUNC: kernel_kwargs.get(KERNEL_STAT_FUNC, statistical_zero),
             USE_ORIGINAL_DATA: kernel_kwargs.get(USE_ORIGINAL_DATA, False),
             CORR_KERNEL: kernel_kwargs.get(CORR_KERNEL, False),
@@ -170,6 +171,7 @@ class DROPP(TensorDR):
                           "Make sure it corresponds to a valid callable function. "
                           "Using 'eval' on user input may be risky. Please ensure security.",
                           UserWarning)
+
             self.kernel_kwargs[KERNEL_STAT_FUNC] = eval(self.kernel_kwargs[KERNEL_STAT_FUNC])
 
     def __str__(self):
@@ -247,7 +249,7 @@ class DROPP(TensorDR):
         return self._use_kernel_as_correlation_matrix() or self._is_time_lagged_model
 
     @property
-    def use_evs(self) -> bool:
+    def _use_evs(self) -> bool:
         """
         Determine if EigenVector Selection (EVS) is enabled.
 
@@ -272,8 +274,18 @@ class DROPP(TensorDR):
         int
             Size of the combined dimension (3rd dimension) from the tensor.
 
+        Raises
+        ------
+        ModelNotFittedError
+            If the model is not yet fitted, this error is raised.
+            Please fit the model before accessing this property.
+
         """
-        return self._standardized_data.shape[COMBINED_DIM]
+        try:
+            return self._standardized_data.shape[COMBINED_DIM]
+        except AttributeError:
+            raise ModelNotFittedError(f"The model `{self}` is not yet fitted. "
+                                      "Please fit the model before accessing this property.")
 
     @property
     def _feature_dim(self) -> int:
@@ -285,8 +297,18 @@ class DROPP(TensorDR):
         int
             Size of the feature dimension, which represents the size of correlated features in the data.
 
+        Raises
+        ------
+        ModelNotFittedError
+            If the model is not yet fitted, this error is raised.
+            Please fit the model before accessing this property.
+
         """
-        return self._standardized_data.shape[FEATURE_DIM]
+        try:
+            return self._standardized_data.shape[FEATURE_DIM]
+        except AttributeError:
+            raise ModelNotFittedError(f"The model `{self}` is not yet fitted. "
+                                      "Please fit the model before accessing this property.")
 
     def fit_transform(self, data_tensor, **fit_params):
         return super().fit_transform(data_tensor, **fit_params)
@@ -303,7 +325,7 @@ class DROPP(TensorDR):
         data_tensor : ndarray
             Input data tensor with shape (n_samples, correlation_dim, combine_dim) for tensor data,
             or (n_samples, feature_dim) for matrix data.
-        **fit_params : dict
+        **fit_params
             Additional parameters for the fitting process. Available keys include:
             - 'n_components' (int, optional): Number of components to retain.
               Defaults to 2 if not provided.
@@ -340,7 +362,7 @@ class DROPP(TensorDR):
         self.n_components = fit_params.get(N_COMPONENTS, 2)
         self._standardized_data = self._standardize_data(data_tensor)
         self._covariance_matrix = self.get_covariance_matrix()
-        eigenvectors = self.get_eigenvectors()
+        eigenvectors = self._get_eigenvectors()
         self.components_ = eigenvectors[:, :self.n_components].T
         if self.analyse_plot_type == EIGENVECTOR_MATRIX_ANALYSE:
             ArrayPlotter(
@@ -417,7 +439,6 @@ class DROPP(TensorDR):
         if self._is_matrix_model or not self.center_over_time:
             self.mean = np.mean(tensor, axis=0)
         else:
-            # self.mean = np.mean(tensor, axis=1)[:, np.newaxis, :]
             self.mean = np.mean(tensor, axis=0)[np.newaxis, :, :]
         return tensor - self.mean
 
@@ -497,13 +518,13 @@ class DROPP(TensorDR):
           covariance matrix is generated.
 
         """
-        tensor_cov = self.get_covariance_tensor()
+        tensor_cov = self._get_covariance_tensor()
         cov = self.cov_stat_func(tensor_cov, axis=0)
         if self.analyse_plot_type == COVARIANCE_MATRIX_PLOT:
             MultiArrayPlotter().plot_tensor_layers(tensor_cov, cov, 'Covariance')
         return cov
 
-    def get_covariance_tensor(self):
+    def _get_covariance_tensor(self):
         """
         Calculate the tensor covariance tensor.
 
@@ -579,7 +600,7 @@ class DROPP(TensorDR):
 
         return covariance_matrix
 
-    def get_eigenvectors(self):
+    def _get_eigenvectors(self):
         """
         Calculate the eigenvectors of the covariance matrix.
 
@@ -764,7 +785,7 @@ class DROPP(TensorDR):
         """
 
         if self._use_kernel_as_correlation_matrix() or self.lag_time <= 0:
-            return self.get_covariance_tensor()
+            return self._get_covariance_tensor()
         else:
             temp_list = []
             for index in range(self._combine_dim):
@@ -876,7 +897,7 @@ class DROPP(TensorDR):
                 self.components_[:component_count]
             )  # Da orthogonal --> Transform = inverse
         else:
-            if self.use_evs:
+            if self._use_evs:
                 raise NonInvertibleEigenvectorException('Eigenvectors are Non-Orthogonal and Non-Squared. ')
             else:
                 return np.dot(

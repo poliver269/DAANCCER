@@ -24,3 +24,7 @@ class InvalidProteinTrajectory(Exception):
 
 class InvalidKernelName(Exception):
     pass
+
+
+class ModelNotFittedError(Exception):
+    pass
