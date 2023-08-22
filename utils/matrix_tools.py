@@ -43,6 +43,9 @@ def diagonal_indices(matrix: np.ndarray):
         An array of diagonal indices.
 
     """
+    if matrix.size == 0:
+        return np.array([])
+
     lower_indices = -matrix.shape[0] + 1
     upper_indices = matrix.shape[1] - 1
     number_of_diagonals = sum(matrix.shape) - 1
@@ -78,8 +81,8 @@ def matrix_diagonals_calculation(matrix: np.ndarray, func: callable = np.sum, fu
 
     calculated_diagonals = []
     for diagonal_index in diagonal_indices(matrix):
-        m = np.diag(matrix, k=diagonal_index)
-        calculated_diagonals.append(func(m, **func_kwargs))
+        diagonal_values = np.diag(matrix, k=diagonal_index)
+        calculated_diagonals.append(func(diagonal_values, **func_kwargs))
 
     return np.asarray(calculated_diagonals)
 
@@ -217,7 +220,7 @@ def calculate_symmetrical_kernel_matrix(
         else:
             rescaled_ydata = rescale_center(original_ydata, kernel_stat_func)
 
-    fit_y = _get_fitted_y_curve(matrix, kernel_function, xdata, rescaled_ydata, **kwargs)
+    fit_y = get_fitted_y_curve(kernel_function, xdata, rescaled_ydata, **kwargs)
 
     if flattened:  # re-interpolate
         fit_y = rescale_array(
@@ -264,7 +267,7 @@ def calculate_symmetrical_kernel_matrix(
     return kernel_matrix
 
 
-def _get_fitted_y_curve(matrix: np.ndarray, kernel_name: str, xdata: np.ndarray, ydata: np.ndarray, **kwargs):
+def get_fitted_y_curve(kernel_name: str, xdata: np.ndarray, ydata: np.ndarray, **kwargs):
     """
     Generate a fitted y curve based on the specified kernel and input data.
 
@@ -273,8 +276,6 @@ def _get_fitted_y_curve(matrix: np.ndarray, kernel_name: str, xdata: np.ndarray,
 
     Parameters
     ----------
-    matrix : ndarray
-        The input matrix for which the fitted y curve is calculated.
     kernel_name : str
         Name of the kernel to be used for curve fitting.
     xdata : ndarray
@@ -318,7 +319,7 @@ def _get_fitted_y_curve(matrix: np.ndarray, kernel_name: str, xdata: np.ndarray,
             else:
                 return _fit_y_curve(kernel_name, xdata, ydata, maxfev=5000)
         elif kernel_name.startswith(MY_LINEAR):
-            return _get_linear_fitted_y(kernel_name, xdata, len(matrix))
+            return _get_linear_fitted_y(kernel_name, xdata)
         else:
             raise InvalidKernelName(f'Kernel name `{kernel_name.split(MY)[1]}` '
                                     f'does not exist. Please choose a valid kernel.')
@@ -357,16 +358,13 @@ def _get_y_fitted_on_positive_values(kernel_name, xdata, ydata):
 
     """
     non_zero_i = np.argmax(ydata > 0)  # first index which is above 0
-    fit_y = ydata.copy()
     if (non_zero_i == 0 and kernel_name not in [MY_COS]) or (np.sum(ydata > 0) == 1):
         return _fit_y_curve(kernel_name, xdata, ydata)
     else:
         if kernel_name in [MY_COS]:
             magic_number = 6
-            non_zero_i = (len(xdata) // magic_number)
-        fit_y[non_zero_i:-non_zero_i] = _fit_y_on_positive_values_in_the_middle(
-            kernel_name, xdata, ydata, non_zero_i)
-        return fit_y
+            non_zero_i = (len(xdata) // magic_number) if len(xdata) > magic_number else 1
+        return _fit_y_on_positive_values_in_the_middle(kernel_name, xdata, ydata, non_zero_i)
 
 
 def _fit_y_curve(kernel_name: str, xdata: np.ndarray, ydata: np.ndarray, **fit_kwargs):
@@ -414,7 +412,7 @@ def _fit_y_on_positive_values_in_the_middle(kernel_name, xdata, ydata, non_zero_
     ydata : ndarray
         y data for fitting.
     non_zero_i : int
-        Index of the first non-zero value.
+        Index of the first non-zero value. Shouldn't be zero.
 
     Returns
     -------
@@ -439,7 +437,7 @@ def _fit_y_on_positive_values_in_the_middle(kernel_name, xdata, ydata, non_zero_
     return fit_y
 
 
-def _get_linear_fitted_y(kernel_name, xdata, matrix_length):
+def _get_linear_fitted_y(kernel_name, xdata):
     """
     Generate a fitted y curve for linear kernels or their inverses.
 
@@ -453,8 +451,6 @@ def _get_linear_fitted_y(kernel_name, xdata, matrix_length):
         Name of the linear kernel or its inverse.
     xdata : ndarray
         x data for fitting.
-    matrix_length : int
-        Length of the matrix.
 
     Returns
     -------
@@ -474,6 +470,7 @@ def _get_linear_fitted_y(kernel_name, xdata, matrix_length):
       `_get_inverse_linear_fitted_y` is called to generate the fitted y curve.
 
     """
+    matrix_length = len(xdata) // 2 + 1
     if kernel_name == MY_LINEAR_NORM:
         return np.concatenate((np.linspace(0, 1, matrix_length), np.linspace(1, 0, matrix_length)[1:]))
     elif kernel_name == MY_LINEAR_INVERSE_NORM:
@@ -516,6 +513,8 @@ def _get_inverse_linear_fitted_y(kernel_name, xdata):
     if kernel_name == MY_LINEAR_INVERSE_P1:
         fit_y -= 1
         return np.where(fit_y < 0, 1, fit_y)
+    else:
+        return fit_y
 
 
 def _get_density_fitted_y(kernel_name, xdata, rescaled_ydata):
@@ -540,6 +539,11 @@ def _get_density_fitted_y(kernel_name, xdata, rescaled_ydata):
     ndarray
         The fitted y curve generated using kernel density estimation.
 
+    Raises
+    ------
+    InvalidKernelName
+        If the specified kernel name is not valid.
+
     Notes
     -----
     - The kernel density estimation process involves finding the optimal bandwidth parameter using a grid search
@@ -549,17 +553,22 @@ def _get_density_fitted_y(kernel_name, xdata, rescaled_ydata):
     - The resulting fitted y curve is interpolated to ensure it ranges between 0 and 1.
 
     """
-    xdata = xdata[:, np.newaxis]
-    rescaled_ydata = rescaled_ydata[:, np.newaxis]
-    rescaled_ydata = rescaled_ydata / rescaled_ydata.sum()
-    bandwidths = 10 ** np.linspace(-1, 1, 100)
-    grid = GridSearchCV(KernelDensity(kernel=kernel_name), {'bandwidth': bandwidths}, cv=LeaveOneOut())
-    grid.fit(xdata)
-    print(f'Best parameters for {kernel_name}: {grid.best_params_}')
-    kde = KernelDensity(kernel=kernel_name, **grid.best_params_).fit(rescaled_ydata)
-    # noinspection PyUnresolvedReferences
-    fit_y = np.exp(kde.score_samples(xdata))
-    return np.interp(fit_y, [0, fit_y.max()], [0, 1])
+    try:
+        xdata = xdata[:, np.newaxis]
+        rescaled_ydata = rescaled_ydata[:, np.newaxis]
+        rescaled_ydata = rescaled_ydata / rescaled_ydata.sum()
+        bandwidths = 10 ** np.linspace(-1, 1, 100)
+        grid = GridSearchCV(KernelDensity(kernel=kernel_name), {'bandwidth': bandwidths}, cv=LeaveOneOut())
+        grid.fit(xdata)
+        print(f'Best parameters for {kernel_name}: {grid.best_params_}')
+        kde = KernelDensity(kernel=kernel_name, **grid.best_params_).fit(rescaled_ydata)
+        # noinspection PyUnresolvedReferences
+        fit_y = np.exp(kde.score_samples(xdata))
+        return np.interp(fit_y, [0, fit_y.max()], [0, 1])
+    except ValueError:
+        raise InvalidKernelName(f'Kernel name `{kernel_name}` does not exist '
+                                f'as using kernel density estimation. '
+                                f'Please choose a valid kernel.')
 
 
 def co_mad(matrix):
