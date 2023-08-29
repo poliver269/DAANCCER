@@ -6,7 +6,7 @@
   "n_components": 2,
   "for_paper": true,
   "data_set": "protein",
-  "trajectory_name": "2f4k",
+  "trajectory_name": "2wav",
   "file_element": 0,
   "superposing_index": null
 }

@@ -1,7 +1,10 @@
 import unittest
 from unittest.mock import patch
 
+import numpy.testing as np_testing
+
 from utils.algorithms.dropp import *
+from utils.errors import ModelNotFittedError
 from utils.matrix_tools import co_mad
 
 
@@ -167,12 +170,21 @@ class TestDROPPFit(unittest.TestCase):
 
         self.assertTrue(np.allclose(np.mean(self.dropp._standardized_data, axis=0), np.zeros(10)))
         self.assertFalse(np.allclose(np.std(self.dropp._standardized_data, axis=0), np.ones(10)))
+        self.assertEqual((100, 10), self.dropp._standardized_data.shape)
 
     def test_standardize_data_tensor(self):
         self.dropp.fit(self.data_tensor)
 
         self.assertTrue(np.allclose(np.mean(self.dropp._standardized_data, axis=0), np.zeros(5)))
         self.assertTrue(np.allclose(np.std(self.dropp._standardized_data, axis=0), np.ones(5)))
+        self.assertEqual((100, 10, 5), self.dropp._standardized_data.shape)
+
+    def test_standardized_error(self):
+        with self.assertRaises(ModelNotFittedError):
+            _ = self.dropp._standardized_data
+
+        # TODO: test _get_eigenvectors: extra_dr_layer
+        #       _get_correlation_matrix: CORR_KERNEL, ndim=2/3, CORRELATION_MATRIX_PLOT,
 
 
 class TestDROPPGetCovarianceMatrix(unittest.TestCase):
@@ -184,37 +196,64 @@ class TestDROPPGetCovarianceMatrix(unittest.TestCase):
         self.dropp = DROPP(ndim=2, kernel_kwargs={KERNEL_MAP: None})
         matrix_data = np.random.rand(100, 10)
         self.dropp.fit(matrix_data)
-        cov_matrix = self.dropp.get_covariance_matrix()
 
-        # TODO: Add assertions to check the shape and values of the covariance matrix
+        cov_matrix = self.dropp.get_covariance_matrix()
+        cov_expected = np.cov(self.dropp._standardized_data.T)
+
+        self.assertEqual((10, 10), cov_matrix.shape)
+        np_testing.assert_array_equal(cov_expected, cov_matrix)
 
     def test_get_covariance_matrix_matrix_with_kernel(self):
-        self.dropp = DROPP(ndim=2)
-        matrix_data = np.random.rand(100, 10)  # (n_samples, n_features)
+        self.dropp = DROPP(algorithm_name='tica', ndim=2, lag_time=10)
+        matrix_data = np.random.rand(100, 10)
         self.dropp.fit(matrix_data)
-        cov_matrix = self.dropp.get_covariance_matrix()
 
-        # TODO: Add assertions to check the shape and values of the kernel-mapped covariance matrix
+        with patch('utils.algorithms.dropp.calculate_symmetrical_kernel_matrix',
+                   return_value=np.random.rand(10, 10)) as mocker_patch:
+            cov_matrix = self.dropp.get_covariance_matrix()
+            raw_cov = np.cov(self.dropp._standardized_data[:-10].T)
+
+            np_testing.assert_array_equal(raw_cov, mocker_patch.call_args[0][0])
+            mocker_patch.assert_called_once()
+        self.assertEqual((10, 10), cov_matrix.shape)
 
     def test_get_covariance_matrix_tensor_no_kernel(self):
         self.dropp = DROPP(kernel_kwargs={KERNEL_MAP: None})
         self.dropp.fit(self.data_tensor)
+
         cov_matrix = self.dropp.get_covariance_matrix()
 
-        # TODO: Add assertions to check the shape and values of the covariance matrix
+        self.assertEqual((10 * 5, 10 * 5), cov_matrix.shape)
+        self.assertEqual((10 * 5 * 10 * 5) - (10 * 10 * 5), np.count_nonzero(cov_matrix == 0))
 
     def test_get_covariance_matrix_tensor_with_kernel(self):
-        self.dropp = DROPP(ndim=3)  # Set ndim to 3 for tensor data
         self.dropp.fit(self.data_tensor)
-        cov_matrix = self.dropp.get_covariance_matrix()
 
-        # TODO: Add assertions to check the shape and values of the kernel-mapped covariance matrix
+        with patch('utils.algorithms.dropp.calculate_symmetrical_kernel_matrix',
+                   return_value=np.random.rand(10, 10)) as mocker_patch:
+            cov_matrix = self.dropp.get_covariance_matrix()
+
+            mocker_patch.assert_called_once()
+            self.assertEqual((10, 10), mocker_patch.call_args[0][0].shape)
+        self.assertEqual((50, 50), cov_matrix.shape)
+
+    # TODO: test _map__kernel_on with KERNEl_DIFFERENCE, KERNEL_MULTIPLICATION, ONES_ON_KERNEL_DIAG
 
 
-class TestDROPP(unittest.TestCase):
-    def test_get_combined_covariance_matrix(self):
-        self.fail()
+class TestDROPPGetCombinedCovarianceMatrix(unittest.TestCase):
+    def test_get_combined_covariance_matrix_tensor(self):
+        self.dropp = DROPP(algorithm_name='tica', lag_time=10)
+        self.tensor_data = np.random.rand(100, 10, 5)
+        self.dropp.fit(self.tensor_data)
 
+        with patch.object(MultiArrayPlotter, 'plot_tensor_layers') as plot_mocker:
+            self.dropp.analyse_plot_type = COVARIANCE_MATRIX_PLOT
+            combined_cov_matrix = self.dropp.get_combined_covariance_matrix()
+            self.assertEqual((10, 10), combined_cov_matrix.shape)
+            plot_mocker.assert_called_once()
+
+
+class TestDROPP():
     def test_get_eigenvectors(self):
         self.fail()
 

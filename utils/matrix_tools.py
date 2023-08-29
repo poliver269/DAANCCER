@@ -14,6 +14,7 @@ from utils.math import is_matrix_symmetric, exponential_2d, epanechnikov_2d, gau
 from utils.param_keys.analyses import PLOT_3D_MAP, WEIGHTED_DIAGONAL, FITTED_KERNEL_CURVES, KERNEL_COMPARE, \
     PLOT_KERNEL_MATRIX_3D
 from utils.param_keys.kernel_functions import *
+from utils.timer import Timer
 
 kernel_funcs = {
     MY_EXPONENTIAL: exponential_2d,
@@ -220,7 +221,11 @@ def calculate_symmetrical_kernel_matrix(
         else:
             rescaled_ydata = rescale_center(original_ydata, kernel_stat_func)
 
-    fit_y = get_fitted_y_curve(kernel_function, xdata, rescaled_ydata, **kwargs)
+    if 'performance_test' in kwargs.keys():
+        with Timer(name='fit_curve'):
+            fit_y = get_fitted_y_curve(kernel_function, xdata, rescaled_ydata, **kwargs)
+    else:
+        fit_y = get_fitted_y_curve(kernel_function, xdata, rescaled_ydata, **kwargs)
 
     if flattened:  # re-interpolate
         fit_y = rescale_array(

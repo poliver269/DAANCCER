@@ -17,6 +17,7 @@ from utils.param_keys.analyses import HEAT_MAP, COLOR_MAP, PLOT_3D_MAP
 from utils.param_keys.kernel_functions import MY_SINC
 from utils.param_keys.model_result import MODEL, PROJECTION, TITLE_PREFIX, EXPLAINED_VAR, FITTED_ON
 from utils.param_keys.traj_dims import TIME_FRAMES
+from utils.timer import Timer
 
 
 class MyPlotter:
@@ -194,6 +195,7 @@ class ModelResultPlotter(MyPlotter):
                     self._plot_transformed_trajectory(main_axes[i], result, color_map=plot_type,
                                                       show_model_properties=True)
         plt.show()
+        print(Timer().timers)
 
     def _plot_transformed_trajectory(self, ax, result_dict: dict, color_map: str, show_model_properties: bool = False,
                                      center_plot: bool = False, sub_part: [int, None] = None):

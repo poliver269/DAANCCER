@@ -2,13 +2,14 @@ import warnings
 
 import numpy as np
 import scipy
+from scipy.stats import zscore
 from sklearn.decomposition import PCA
 from sklearn.metrics import mean_squared_error
 
 from research_evaluations.plotter import ArrayPlotter, MultiArrayPlotter
 from utils import statistical_zero
 from utils.algorithms import TensorDR
-from utils.errors import NonInvertibleEigenvectorException, InvalidComponentNumberException, ModelNotFittedError
+from utils.errors import NonInvertibleEigenvectorException, InvalidComponentNumberException
 from utils.math import is_matrix_orthogonal
 from utils.matrix_tools import diagonal_block_expand, calculate_symmetrical_kernel_matrix, ensure_matrix_symmetry
 from utils.param_keys import N_COMPONENTS, MATRIX_NDIM, TENSOR_NDIM
@@ -17,6 +18,7 @@ from utils.param_keys.kernel_functions import MY_GAUSSIAN, KERNEL_ONLY, KERNEL_D
     GAUSSIAN
 from utils.param_keys.model import *
 from utils.param_keys.traj_dims import TIME_DIM, FEATURE_DIM, COMBINED_DIM
+from utils.timer import Timer
 
 
 class DROPP(TensorDR):
@@ -32,7 +34,8 @@ class DROPP(TensorDR):
                  abs_eigenvalue_sorting: bool = True,
                  analyse_plot_type: str = '',
                  use_std: bool = True,
-                 center_over_time: bool = True
+                 center_over_time: bool = True,
+                 performance_test: bool = True
                  ):
         """
         Initialize the DROPP (Dimensionality Reduction for Ordered Points with PCA) model.
@@ -124,6 +127,7 @@ class DROPP(TensorDR):
         self.analyse_plot_type = analyse_plot_type
         self.use_std = use_std
         self.center_over_time = center_over_time
+        self.performance_test = performance_test
         self.__check_init_params__()
 
     def __check_init_params__(self):
@@ -274,18 +278,8 @@ class DROPP(TensorDR):
         int
             Size of the combined dimension (3rd dimension) from the tensor.
 
-        Raises
-        ------
-        ModelNotFittedError
-            If the model is not yet fitted, this error is raised.
-            Please fit the model before accessing this property.
-
         """
-        try:
-            return self._standardized_data.shape[COMBINED_DIM]
-        except AttributeError:
-            raise ModelNotFittedError(f"The model `{self}` is not yet fitted. "
-                                      "Please fit the model before accessing this property.")
+        return self._standardized_data.shape[COMBINED_DIM]
 
     @property
     def _feature_dim(self) -> int:
@@ -297,18 +291,8 @@ class DROPP(TensorDR):
         int
             Size of the feature dimension, which represents the size of correlated features in the data.
 
-        Raises
-        ------
-        ModelNotFittedError
-            If the model is not yet fitted, this error is raised.
-            Please fit the model before accessing this property.
-
         """
-        try:
-            return self._standardized_data.shape[FEATURE_DIM]
-        except AttributeError:
-            raise ModelNotFittedError(f"The model `{self}` is not yet fitted. "
-                                      "Please fit the model before accessing this property.")
+        return self._standardized_data.shape[FEATURE_DIM]
 
     def fit_transform(self, data_tensor, **fit_params):
         return super().fit_transform(data_tensor, **fit_params)
@@ -353,27 +337,29 @@ class DROPP(TensorDR):
         >>> transformed_data = dropp_instance.transform(data)
 
         """
-        if self._is_matrix_model and data_tensor.ndim != MATRIX_NDIM:
-            raise ValueError("The input data tensor shape is incompatible with the model type. "
-                             "For tensor data, use shape (n_samples, correlation_dim, combine_dim), "
-                             "or for matrix data, use shape (n_samples, feature_dim).")
+        with Timer(name='fit', enable_timer=self.performance_test):
+            if self._is_matrix_model and data_tensor.ndim != MATRIX_NDIM:
+                raise ValueError("The input data tensor shape is incompatible with the model type. "
+                                 "For tensor data, use shape (n_samples, correlation_dim, combine_dim), "
+                                 "or for matrix data, use shape (n_samples, feature_dim).")
 
-        self.n_samples = data_tensor.shape[TIME_DIM]
-        self.n_components = fit_params.get(N_COMPONENTS, 2)
-        self._standardized_data = self._standardize_data(data_tensor)
-        self._covariance_matrix = self.get_covariance_matrix()
-        eigenvectors = self._get_eigenvectors()
-        self.components_ = eigenvectors[:, :self.n_components].T
-        if self.analyse_plot_type == EIGENVECTOR_MATRIX_ANALYSE:
-            ArrayPlotter(
-                interactive=False,
-                title_prefix=EIGENVECTOR_MATRIX_ANALYSE,
-                x_label='Eigenvector Number',
-                y_label='Eigenvector Dimension',
-                xtick_start=1,
-                for_paper=True
-            ).matrix_plot(eigenvectors[:12, :15], show_values=True)
-        return self
+            self.n_samples = data_tensor.shape[TIME_DIM]
+            self.n_components = fit_params.get(N_COMPONENTS, 2)
+            with Timer(name='standardize_data', enable_timer=self.performance_test):
+                self._standardized_data_ = self._standardize_data(data_tensor)
+            self._covariance_matrix = self.get_covariance_matrix()
+            eigenvectors = self._get_eigenvectors()
+            self.components_ = eigenvectors[:, :self.n_components].T
+            if self.analyse_plot_type == EIGENVECTOR_MATRIX_ANALYSE:
+                ArrayPlotter(
+                    interactive=False,
+                    title_prefix=EIGENVECTOR_MATRIX_ANALYSE,
+                    x_label='Eigenvector Number',
+                    y_label='Eigenvector Dimension',
+                    xtick_start=1,
+                    for_paper=True
+                ).matrix_plot(eigenvectors[:12, :15], show_values=True)
+            return self
 
     def _standardize_data(self, tensor):
         """
@@ -405,13 +391,10 @@ class DROPP(TensorDR):
         >>> standardized_tensor = dropp_instance._standardize_data(tensor_data)
 
         """
-        centered_data = self._center_data(tensor)
-
         if self.use_std:
-            self._std = np.std(tensor, axis=0)
+            return zscore(tensor, axis=0)
         else:
-            self._std = 1
-        return centered_data / self._std
+            return self._center_data(tensor)
 
     def _center_data(self, tensor):
         """
@@ -464,16 +447,19 @@ class DROPP(TensorDR):
         - Set 'kernel_kwargs[KERNEL_MAP]' to None to disable kernel mapping.
         - The covariance matrix is used in the DROPP algorithm to capture correlations between features.
         """
-        if self._is_matrix_model:
-            cov = self._get_matrix_covariance()
-            if self.kernel_kwargs[KERNEL_MAP] is not None and not self._use_kernel_as_correlation_matrix():
-                cov = self._map_kernel_on(cov)
-            return cov
-        else:
-            ccm = self.get_combined_covariance_matrix()
-            if self.kernel_kwargs[KERNEL_MAP] is not None and not self._use_kernel_as_correlation_matrix():
-                ccm = self._map_kernel_on(ccm)
-            return diagonal_block_expand(ccm, self._combine_dim)
+        with Timer(name='get_covariance_matrix', enable_timer=self.performance_test):
+            if self._is_matrix_model:
+                cov = self._get_matrix_covariance()
+                if self.kernel_kwargs[KERNEL_MAP] is not None and not self._use_kernel_as_correlation_matrix():
+                    cov = self._map_kernel_on(cov)
+                return cov
+            else:
+                ccm = self.get_combined_covariance_matrix()
+                if self.kernel_kwargs[KERNEL_MAP] is not None and not self._use_kernel_as_correlation_matrix():
+                    ccm = self._map_kernel_on(ccm)
+                with Timer(name='block_expand', enable_timer=self.performance_test):
+                    dbe = diagonal_block_expand(ccm, self._combine_dim)
+                return dbe
 
     def _get_matrix_covariance(self) -> np.ndarray:
         """
@@ -518,11 +504,12 @@ class DROPP(TensorDR):
           covariance matrix is generated.
 
         """
-        tensor_cov = self._get_covariance_tensor()
-        cov = self.cov_stat_func(tensor_cov, axis=0)
-        if self.analyse_plot_type == COVARIANCE_MATRIX_PLOT:
-            MultiArrayPlotter().plot_tensor_layers(tensor_cov, cov, 'Covariance')
-        return cov
+        with Timer(name='combined_cov_matrix', enable_timer=self.performance_test):
+            tensor_cov = self._get_covariance_tensor()
+            cov = self.cov_stat_func(tensor_cov, axis=0)
+            if self.analyse_plot_type == COVARIANCE_MATRIX_PLOT:
+                MultiArrayPlotter().plot_tensor_layers(tensor_cov, cov, 'Covariance')
+            return cov
 
     def _get_covariance_tensor(self):
         """
@@ -582,12 +569,14 @@ class DROPP(TensorDR):
         - The kernel mapping is determined by the 'kernel_kwargs' attribute.
 
         """
-        kernel_matrix = calculate_symmetrical_kernel_matrix(
-            covariance_matrix,
-            flattened=self._is_matrix_model,
-            analyse_mode=self.analyse_plot_type,
-            **self.kernel_kwargs
-        )
+        with Timer(name='calculate_symmetrical_kernel_matrix', enable_timer=self.performance_test):
+            kernel_matrix = calculate_symmetrical_kernel_matrix(
+                covariance_matrix,
+                flattened=self._is_matrix_model,
+                analyse_mode=self.analyse_plot_type,
+                performance_test=self.performance_test,
+                **self.kernel_kwargs
+            )
         if self.kernel_kwargs[KERNEL_MAP] == KERNEL_ONLY:
             covariance_matrix = kernel_matrix
         elif self.kernel_kwargs[KERNEL_MAP] == KERNEL_DIFFERENCE:
@@ -623,25 +612,25 @@ class DROPP(TensorDR):
         - If 'extra_dr_layer' is enabled, an additional dimensionality reduction layer is applied to the eigenvectors.
 
         """
+        with Timer(name='eigenvector_decomposition', enable_timer=self.performance_test):
+            if self.algorithm_name in ['tica', 'kica']:
+                correlation_matrix = self._get_correlations_matrix()
+                eigenvalues, eigenvectors = scipy.linalg.eig(correlation_matrix, b=self._covariance_matrix)
+            else:
+                eigenvalues, eigenvectors = np.linalg.eigh(self._covariance_matrix)
 
-        if self.algorithm_name in ['tica', 'kica']:
-            correlation_matrix = self._get_correlations_matrix()
-            eigenvalues, eigenvectors = scipy.linalg.eig(correlation_matrix, b=self._covariance_matrix)
-        else:
-            eigenvalues, eigenvectors = np.linalg.eigh(self._covariance_matrix)
+            if self.abs_eigenvalue_sorting or np.any(np.iscomplex(eigenvalues)):
+                eigenvalues = np.abs(eigenvalues)
 
-        if self.abs_eigenvalue_sorting or np.any(np.iscomplex(eigenvalues)):
-            eigenvalues = np.abs(eigenvalues)
+            sorted_indices = np.argsort(eigenvalues)[::-1]
+            self.explained_variance_ = np.real_if_close(eigenvalues[sorted_indices])
+            eigenvectors = np.real_if_close(eigenvectors[:, sorted_indices])
 
-        sorted_indices = np.argsort(eigenvalues)[::-1]
-        self.explained_variance_ = np.real_if_close(eigenvalues[sorted_indices])
-        eigenvectors = np.real_if_close(eigenvectors[:, sorted_indices])
-
-        if self.extra_dr_layer:
-            return self._get_eigenvectors_with_dr_layer(eigenvectors)
-        else:
-            self.explained_variance_ = self.explained_variance_[::self.nth_eigenvector]
-            return eigenvectors[:, ::self.nth_eigenvector]
+            if self.extra_dr_layer:
+                return self._get_eigenvectors_with_dr_layer(eigenvectors)
+            else:
+                self.explained_variance_ = self.explained_variance_[::self.nth_eigenvector]
+                return eigenvectors[:, ::self.nth_eigenvector]
 
     def _get_eigenvectors_with_dr_layer(self, eigenvectors):
         """

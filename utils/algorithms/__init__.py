@@ -1,6 +1,7 @@
 import numpy as np
 from sklearn.base import TransformerMixin, BaseEstimator
 
+from utils.errors import ModelNotFittedError
 from utils.matrix_tools import diagonal_block_expand
 from utils.param_keys import N_COMPONENTS
 from utils.param_keys.traj_dims import TIME_DIM, COORDINATE_DIM, FEATURE_DIM, COMBINED_DIM
@@ -16,13 +17,20 @@ class MyModel(TransformerMixin, BaseEstimator):
     def __init__(self):
         self.explained_variance_ = None
         self.components_ = None
-        self._standardized_data = None
+        self._standardized_data_ = None
         self.n_components = None
         self.n_samples = None
         self._covariance_matrix = None
 
     def __str__(self):
         return f'{self.__class__.__name__}:\ncomponents={self.n_components}'
+
+    @property
+    def _standardized_data(self):
+        if self._standardized_data_ is None:
+            raise ModelNotFittedError(f"The model `{self}` is not yet fitted. "
+                                      "Please fit the model before accessing this property.")
+        return self._standardized_data_
 
     def fit_transform(self, data_ndarray, **fit_params):
         self.fit(data_ndarray, **fit_params)
@@ -31,7 +39,7 @@ class MyModel(TransformerMixin, BaseEstimator):
     def fit(self, data_matrix, **fit_params):
         self.n_samples = data_matrix.shape[0]
         self.n_components = fit_params.get(N_COMPONENTS, 2)
-        self._standardized_data = self._standardize_data(data_matrix)
+        self._standardized_data_ = self._standardize_data(data_matrix)
         self._covariance_matrix = self.get_covariance_matrix()
         self.components_ = self._get_eigenvectors()[:, :self.n_components].T
         return self
@@ -81,7 +89,7 @@ class TensorDR(MyModel):
     def fit(self, data_tensor, **fit_params):
         self.n_samples = data_tensor.shape[TIME_DIM]
         self.n_components = fit_params.get(N_COMPONENTS, 2)
-        self._standardized_data = self._standardize_data(data_tensor)
+        self._standardized_data_ = self._standardize_data(data_tensor)
         self._covariance_matrix = self.get_covariance_matrix()
         self._update_cov()
         self.components_ = self._get_eigenvectors()[:, :self.n_components].T

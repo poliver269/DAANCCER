@@ -2,6 +2,8 @@ import unittest
 from unittest import TestCase
 from unittest.mock import patch
 
+import numpy.testing as np_testing 
+
 from utils.matrix_tools import *
 
 
@@ -46,7 +48,7 @@ class TestMatrixDiagonalsCalculation(TestCase):
                            [7, 8, 9]])
         result = matrix_diagonals_calculation(matrix, func=np.sum)
         expected = np.array([7, 4 + 8, 1 + 5 + 9, 2 + 6, 3])
-        np.testing.assert_array_equal(result, expected)
+        np_testing.assert_array_equal(result, expected)
 
     def test_max_diagonals(self):
         matrix = np.array([[1, 2, 3],
@@ -54,7 +56,7 @@ class TestMatrixDiagonalsCalculation(TestCase):
                            [7, 8, 9]])
         result = matrix_diagonals_calculation(matrix, func=np.max)
         expected = np.array([7, 8, 9, 6, 3])
-        np.testing.assert_array_equal(result, expected)
+        np_testing.assert_array_equal(result, expected)
 
     def test_custom_function(self):
         def product_if_all_positive(diagonal):
@@ -65,7 +67,7 @@ class TestMatrixDiagonalsCalculation(TestCase):
                            [-7, 8, 9]])
         result = matrix_diagonals_calculation(matrix, func=product_if_all_positive)
         expected = np.array([-7, 4 * 8, 1 * 5 * 9, 2, 3])
-        np.testing.assert_array_equal(result, expected)
+        np_testing.assert_array_equal(result, expected)
 
 
 class TestExpandDiagonalsToMatrix(unittest.TestCase):
@@ -78,7 +80,7 @@ class TestExpandDiagonalsToMatrix(unittest.TestCase):
         expected = np.array([[30, 40, 50],
                              [20, 30, 40],
                              [10, 20, 30]])
-        np.testing.assert_array_equal(result, expected)
+        np_testing.assert_array_equal(result, expected)
 
     def test_invalid_input_matrix(self):
         matrix = np.array([1, 2, 3])  # Not a 2D matrix
@@ -113,7 +115,7 @@ class TestDiagonalBlockExpand(unittest.TestCase):
                              [0, 1, 0, 0],
                              [0, 0, 2, 0],
                              [0, 0, 0, 2]])
-        np.testing.assert_array_equal(result, expected)
+        np_testing.assert_array_equal(result, expected)
 
     def test_diagonal_block_expand_non_identity(self):
         matrix = np.array([[1, 2],
@@ -126,7 +128,7 @@ class TestDiagonalBlockExpand(unittest.TestCase):
                              [3, 0, 0, 4, 0, 0],
                              [0, 3, 0, 0, 4, 0],
                              [0, 0, 3, 0, 0, 4]])
-        np.testing.assert_array_equal(result, expected)
+        np_testing.assert_array_equal(result, expected)
 
     def test_diagonal_block_expand_empty_matrix(self):
         matrix = np.array([])
@@ -149,7 +151,7 @@ class TestCalculateSymmetricalKernelMatrix(unittest.TestCase):
             [8e-04, 1.667e-01, 1]
         ])
         self.assertIsInstance(result, np.ndarray)
-        np.testing.assert_array_almost_equal(rounded_expected, np.round(result, decimals=4))
+        np_testing.assert_array_almost_equal(rounded_expected, np.round(result, decimals=4))
 
     def test_invalid_matrix_non_symmetric(self):
         matrix = np.array([[1, 2, 3],
@@ -169,7 +171,7 @@ class TestCalculateSymmetricalKernelMatrix(unittest.TestCase):
         rounded_expected = np.array([[1, 0.6368, 0.1644],
                                      [0.6368, 1, 0.6368],
                                      [0.1644, 0.6368, 1]])
-        np.testing.assert_array_almost_equal(rounded_expected, np.round(result, decimals=4))
+        np_testing.assert_array_almost_equal(rounded_expected, np.round(result, decimals=4))
 
     def test_flattened(self):
         matrix = np.array([[1, .4, .2],
@@ -182,7 +184,7 @@ class TestCalculateSymmetricalKernelMatrix(unittest.TestCase):
         rounded_expected = np.array([[1, 0.559, 0.2],
                                      [0.559, 1, 0.559],
                                      [0.2, 0.559, 1]])
-        np.testing.assert_array_almost_equal(rounded_expected, np.round(result, decimals=4))
+        np_testing.assert_array_almost_equal(rounded_expected, np.round(result, decimals=4))
 
     def test_analyse_mode_kernel_compare(self):
         matrix = np.array([[1, .4, .2],
@@ -254,7 +256,7 @@ class TestGetFittedYCurve(unittest.TestCase):
 
         result = get_fitted_y_curve(kernel_name, xdata, ydata)
         rounded_expected = np.array([.1, .2, 1, .2, .1])
-        np.testing.assert_array_almost_equal(rounded_expected, result)
+        np_testing.assert_array_almost_equal(rounded_expected, result)
 
     def test_epanechnikov_kernel_name(self):
         kernel_name = 'epanechnikov'
@@ -263,7 +265,7 @@ class TestGetFittedYCurve(unittest.TestCase):
 
         result = get_fitted_y_curve(kernel_name, xdata, ydata)
         rounded_expected = np.array([-0.1, 0.2, 1, 0.2, -0.1])
-        np.testing.assert_array_almost_equal(rounded_expected, result)
+        np_testing.assert_array_almost_equal(rounded_expected, result)
 
     def test_sinc_kernel_name(self):
         kernel_name = MY_SINC + '_center'
@@ -272,7 +274,7 @@ class TestGetFittedYCurve(unittest.TestCase):
 
         result = get_fitted_y_curve(kernel_name, xdata, ydata)
         rounded_expected = np.array([-0.0525, 0.0531, 1, 0.0531, -0.0525])
-        np.testing.assert_array_almost_equal(rounded_expected, np.round(result, decimals=4))
+        np_testing.assert_array_almost_equal(rounded_expected, np.round(result, decimals=4))
 
     def test_linear_kernel_names(self):
         xdata = np.array([-2, -1, 0, 1, 2])
@@ -284,7 +286,7 @@ class TestGetFittedYCurve(unittest.TestCase):
                                       (MY_LINEAR_INVERSE_P1, [1, 0, 1, 0, 1])]:
             result = get_fitted_y_curve(kernel_name, xdata, ydata)
             rounded_expected = np.array(expected)
-            np.testing.assert_array_almost_equal(rounded_expected, result)
+            np_testing.assert_array_almost_equal(rounded_expected, result)
             self.assertTrue(isinstance(result, np.ndarray))
 
 
@@ -299,7 +301,7 @@ class TestReconstructMatrix(unittest.TestCase):
                                     [-1.4, 4.8],
                                     [-1.8, 7.6],
                                     [-2.2, 10.4]])
-        np.testing.assert_array_almost_equal(expected_result, result)
+        np_testing.assert_array_almost_equal(expected_result, result)
 
     def test_reconstruct_non_orthogonal(self):
         projection = np.array([[1, 2], [3, 4], [5, 6], [7, 8]])
@@ -311,7 +313,7 @@ class TestReconstructMatrix(unittest.TestCase):
                                     [-2.820225, 10.88764],
                                     [-4.168539, 16.730337],
                                     [-5.516854, 22.573034]])
-        np.testing.assert_array_almost_equal(expected_result, result)
+        np_testing.assert_array_almost_equal(expected_result, result)
 
     def test_reconstruct_pseudo_inverse(self):
         projection = np.array([[1], [3], [5], [7]])
@@ -322,4 +324,4 @@ class TestReconstructMatrix(unittest.TestCase):
                                     [4.932584, 7.292135]])
 
         result = reconstruct_matrix(projection, eigenvectors, dim=2, mean=1)
-        np.testing.assert_array_almost_equal(expected_result, result)
+        np_testing.assert_array_almost_equal(expected_result, result)

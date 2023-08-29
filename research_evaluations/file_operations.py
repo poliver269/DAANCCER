@@ -10,7 +10,7 @@ from utils import DUMMY_ZERO
 
 def execute_if_save_enabled(func: callable):
     def wrapper(*args, **kwargs):
-        if args[DUMMY_ZERO].enable_save:
+        if args[DUMMY_ZERO].enable_save:  # e.g. self
             return func(*args, **kwargs)
 
     return wrapper
