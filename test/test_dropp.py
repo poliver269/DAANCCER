@@ -251,26 +251,3 @@ class TestDROPPGetCombinedCovarianceMatrix(unittest.TestCase):
             combined_cov_matrix = self.dropp.get_combined_covariance_matrix()
             self.assertEqual((10, 10), combined_cov_matrix.shape)
             plot_mocker.assert_called_once()
-
-
-class TestDROPP():
-    def test_get_eigenvectors(self):
-        self.fail()
-
-    def test_transform(self):
-        self.fail()
-
-    def test_convert_to_matrix(self):
-        self.fail()
-
-    def test_convert_to_tensor(self):
-        self.fail()
-
-    def test_inverse_transform(self):
-        self.fail()
-
-    def test_reconstruct(self):
-        self.fail()
-
-    def test_score(self):
-        self.fail()

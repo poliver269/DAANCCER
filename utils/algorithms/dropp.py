@@ -2,7 +2,6 @@ import warnings
 
 import numpy as np
 import scipy
-from scipy.stats import zscore
 from sklearn.decomposition import PCA
 from sklearn.metrics import mean_squared_error
 
@@ -35,7 +34,7 @@ class DROPP(TensorDR):
                  analyse_plot_type: str = '',
                  use_std: bool = True,
                  center_over_time: bool = True,
-                 performance_test: bool = True
+                 performance_test: bool = False
                  ):
         """
         Initialize the DROPP (Dimensionality Reduction for Ordered Points with PCA) model.
@@ -71,10 +70,12 @@ class DROPP(TensorDR):
             Type of analysis plot to generate. Default is '' (empty string).
         use_std : bool, optional
             Use standard deviation normalization. Default is True.
-            (Preprocessing is still recommended)
+            (Preprocessing is still recommended, and then False is recommended)
         center_over_time : bool, optional
             Center data over time before dimensionality reduction. Default is True.
             (Preprocessing is still recommended)
+        performance_test: bool, optional
+            Use timing for performance tests. Default is False.
 
         Notes
         -----
@@ -391,10 +392,14 @@ class DROPP(TensorDR):
         >>> standardized_tensor = dropp_instance._standardize_data(tensor_data)
 
         """
+        centered_data = self._center_data(tensor)
+
         if self.use_std:
-            return zscore(tensor, axis=0)
+            self._std = np.std(tensor, axis=0)
+            return centered_data / self._std
         else:
-            return self._center_data(tensor)
+            self._std = 1
+            return centered_data
 
     def _center_data(self, tensor):
         """
