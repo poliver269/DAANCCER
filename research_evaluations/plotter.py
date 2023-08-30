@@ -21,7 +21,7 @@ from utils.timer import Timer
 
 
 class MyPlotter:
-    def __init__(self, interactive: bool = True, title_prefix: str = '', for_paper: bool = False):
+    def __init__(self, interactive: bool = False, title_prefix: str = '', for_paper: bool = False):
         self.fig: Figure = Figure()
         self.axes: Axes = Axes(self.fig, [0, 0, 0, 0])
         self.interactive: bool = interactive
@@ -728,10 +728,10 @@ class MultiArrayPlotter:
     def plot_tensor_layers(tensor, combined, title_part='Covariance'):
         for i in range(tensor.shape[0]):  # for each combined dimension
             ArrayPlotter(
-                interactive=True,
+                interactive=False,
                 title_prefix=f'{ordinal(i)} {title_part} Matrix'
             ).matrix_plot(tensor[i])
         ArrayPlotter(
-            interactive=True,
+            interactive=False,
             title_prefix=f'Combined {title_part} Matrix'
         ).matrix_plot(combined)  # and for the mean-ed

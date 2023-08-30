@@ -249,7 +249,7 @@ def calculate_symmetrical_kernel_matrix(
             ).matrix_plot(matrix, as_surface='2d')
         elif analyse_mode == PLOT_KERNEL_MATRIX_3D:
             ArrayPlotter(
-                interactive=True,
+                interactive=False,
                 title_prefix='Kernel Matrix',
                 x_label='\nCarbon-Alpha Atom\nIndex',
                 y_label='\nCarbon-Alpha Atom\nIndex',
