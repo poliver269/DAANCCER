@@ -18,5 +18,5 @@ jobs:
 
       - name: Activate Conda and Run unit tests
         run: |
-          conda activate dropp-algorithm
+          $CONDA/bin/conda activate dropp-algorithm
           python -m unittest discover -s test -p "test*.py"
