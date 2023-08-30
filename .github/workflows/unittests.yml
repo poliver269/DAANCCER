@@ -14,7 +14,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Create environment with mamba
+      - name: Create environment
         uses: conda-incubator/setup-miniconda@v2
         with:
           mamba-version: "*"

@@ -565,7 +565,7 @@ def _get_density_fitted_y(kernel_name, xdata, rescaled_ydata):
         bandwidths = 10 ** np.linspace(-1, 1, 100)
         grid = GridSearchCV(KernelDensity(kernel=kernel_name), {'bandwidth': bandwidths}, cv=LeaveOneOut())
         grid.fit(xdata)
-        print(f'Best parameters for {kernel_name}: {grid.best_params_}')
+        # print(f'Best parameters for {kernel_name}: {grid.best_params_}')
         kde = KernelDensity(kernel=kernel_name, **grid.best_params_).fit(rescaled_ydata)
         # noinspection PyUnresolvedReferences
         fit_y = np.exp(kde.score_samples(xdata))

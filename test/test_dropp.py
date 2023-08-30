@@ -71,6 +71,9 @@ class TestDROPPInitialization(unittest.TestCase):
 
 
 class TestDROPPInitParamsCheck(unittest.TestCase):
+    def setUp(self):
+        warnings.simplefilter("ignore", category=UserWarning)
+
     def test_nth_eigenvector_adjustment(self):
         dropp = DROPP(nth_eigenvector=0)
         self.assertEqual(dropp.nth_eigenvector, 1)
@@ -141,6 +144,7 @@ class TestDROPPFit(unittest.TestCase):
     def setUp(self):
         self.dropp = DROPP()
         self.data_tensor = np.random.rand(100, 10, 5)
+        warnings.simplefilter("ignore", category=UserWarning)
 
     def test_fit_default(self):
         self.dropp.fit(self.data_tensor)

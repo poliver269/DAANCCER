@@ -1,8 +1,10 @@
 import unittest
+import warnings
 from unittest import TestCase
 from unittest.mock import patch
 
-import numpy.testing as np_testing 
+import numpy.testing as np_testing
+from scipy.optimize import OptimizeWarning
 
 from utils.matrix_tools import *
 
@@ -138,6 +140,9 @@ class TestDiagonalBlockExpand(unittest.TestCase):
 
 
 class TestCalculateSymmetricalKernelMatrix(unittest.TestCase):
+    def setUp(self) -> None:
+        warnings.simplefilter("ignore", category=OptimizeWarning)
+
     def test_valid_input_gaussian(self):
         matrix = np.array([[1, .4, .2],
                            [.4, 1, .8],
