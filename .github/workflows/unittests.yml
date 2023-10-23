@@ -23,6 +23,6 @@ jobs:
           activate-environment: dropp-algorithm
           environment-file: .conda.yml
 
-      - name: Activate Conda and Run unit tests
+      - name: Run unittests
         run: |
           python -m unittest discover -s test -p "test*.py"

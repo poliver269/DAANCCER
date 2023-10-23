@@ -50,7 +50,7 @@ def run(kwargs: dict, model_params_list: list, filename_list: list):
         run_multi_analyse(filename_list, model_params_list, kwargs)
     else:
         data_class = config.get_data_class(params, kwargs)
-        if run_option == 'covert_to_pdb':
+        if run_option == CONVERT_TO_PDB:
             kwargs = {FILENAME: 'protein.xtc', TOPOLOGY_FILENAME: 'protein.gro',
                       GOAL_FILENAME: 'protein.pdb', FOLDER_PATH: 'data/ser-tr'}
             tc = ProteinTopologyConverter(**kwargs)
@@ -63,7 +63,7 @@ def run(kwargs: dict, model_params_list: list, filename_list: list):
             if params[N_COMPONENTS] != 2:
                 raise ValueError(f'The parameter `{N_COMPONENTS}` has to be 2, but it\'s {params[N_COMPONENTS]}.')
             SingleTrajectoryAnalyser(data_class, params).compare(model_params_list)
-        elif run_option == 'plot_kernels':
+        elif run_option == PLOT_KERNELS:
             SingleTrajectoryAnalyser(data_class, params).compare(model_params_list, plot_results=False)
         elif run_option == COMPARE_WITH_CA_ATOMS:
             SingleProteinTrajectoryAnalyser(
@@ -89,7 +89,7 @@ def run_multi_analyse(filename_list, model_params_list, kwargs):
         new_kwargs[FILENAME] = filename
         kwargs_list.append(new_kwargs)
 
-    if run_option == 'multi_trajectory':
+    if run_option == MULTI_TRAJECTORY:
         mtr = MultiTrajectoryAnalyser(kwargs_list, kwargs[PARAMS])
         mtr.compare_pcs(model_params_list)
     elif run_option == MULTI_COMPARE_COMBO_PCS:
@@ -114,7 +114,7 @@ def run_multi_analyse(filename_list, model_params_list, kwargs):
     elif run_option == MULTI_MEDIAN_RE_FIT_ON_ONE_TRANSFORM_ON_ALL:
         mtr = MultiTrajectoryAnalyser(kwargs_list, kwargs[PARAMS])
         mtr.compare_median_reconstruction_scores(model_params_list, fit_transform_re=False)
-    elif run_option == MULTI_KERNEL_COMPARE + '_on_same_model':
+    elif run_option == MULTI_KERNEL_COMPARE_ON_SAME_MODEL:
         kernel_names = [MY_GAUSSIAN, MY_EXPONENTIAL, MY_EPANECHNIKOV]
         model_params = {ALGORITHM_NAME: 'pca', NDIM: TENSOR_NDIM, ANALYSE_PLOT_TYPE: KERNEL_COMPARE}
         mtr = MultiTrajectoryAnalyser(kwargs_list, kwargs[PARAMS])
@@ -134,7 +134,7 @@ def run_multi_analyse(filename_list, model_params_list, kwargs):
     elif run_option == MULTI_QUALITATIVE_PROJECTION_MATRIX:
         mtr = MultiTrajectoryAnalyser(kwargs_list, kwargs[PARAMS])
         mtr.compare_projection_matrix(model_params_list)
-    elif run_option == 'multi_compare_re_on_small_parts':
+    elif run_option == MULTI_COMPARE_RE_ON_SMALL_PARTS:
         mst = MultiSubTrajectoryAnalyser(kwargs_list, kwargs[PARAMS])
         mst.compare_re_on_small_parts(model_params_list)
     else:

@@ -11,7 +11,6 @@ REDUCEE_FEATURE = 'reducee_feature'
 # Plot params
 PLOT_TYPE = 'plot_type'
 PLOT_TICS = 'plot_tics'
-STANDARDIZED_PLOT = 'standardized_plot'
 INTERACTIVE = 'interactive'
 PLOT_FOR_PAPER = 'plot_for_paper'
 # Fitting params

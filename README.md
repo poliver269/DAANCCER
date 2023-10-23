@@ -1,25 +1,35 @@
 # DROPP (Dimensionality Reduction for Ordered Points with PCA)
+A novel **dimensionality reduction technique** designed to preserve the inherent order in data. 
+Unlike conventional methods, DROPP leverages a Gaussian kernel function to capture 
+relationships between closely ordered data points.
+
+# Set up
 ## 1. Create conda environment
 ```
 conda env create -f .conda.yml
 ```
 
-## 2. Get Data
-Molecular Dynamics Data: (e.g. FS-Peptide):
+## 2. Get (example) Data
+Molecular Dynamics Data (e.g. FS-Peptide):
 > https://figshare.com/articles/dataset/Fs_MD_Trajectories/1030363
 
 Climate Data:
 > https://data.open-power-system-data.org/weather_data/
 
-Save the data in the *data* folder. For climate data run the preprocessing steps for the countries.
+Save the data in the *data* folder. For climate data .cvs (Sub folder: weather_data)  run the preprocessing steps for the countries 
+(Specify countries in *config_files\options\preprocess_data*)
+```
+python main.py -o config_files\optionsT\preprocess_climate_data.json
+```
 
 
 ## 3. Configurate Model Parameters
-To run the program, models with different parameters can be used and trained.
-Use predefined ***.json* file** in the folder *config_files\algorithm* or config the parameters in a new file.
+To run the program, models with different parameters can be evaluated.
+Use predefined ***.json* file** in the folder *config_files\algorithm* or 
+config the parameters in a new file. Write the models in a list of dicts inside the .json file.
 The different parameters are explained here, this includes important and optional parameters.
 
-Note: The different parameters in upper-case can be imported `from utils.param_key import *`,
+Note: The different parameters in upper-case can be imported `from utils.param_keys.model import *`,
 although the string values of the parameters are written in lower-case and should be used in the *.json*-config-files.
 
 ### Algorithms
@@ -54,6 +64,7 @@ These parameters are **mandatory** for a correct program run!
 #### Optional Parameters
 The different parameters and their different options are listed here below.
 1. KERNEL_KWARGS (Kernel parameters, which are used to define the kernel on the DROPP-Algorithm)
+`from utils.param_keys.kernel_functions import *`
    1. KERNEL_MAP (Choose how to map the kernel-matrix onto the covariance matrix;
    *default: kernel-matrix not used*)
        - KERNEL_ONLY (*default for DROPP*)
@@ -61,7 +72,7 @@ The different parameters and their different options are listed here below.
        - KERNEL_MULTIPLICATION
        - None
    2. KERNEL_FUNCTION (Choose the kernel-function which should be fitted on the covariance matrix;
-   *default (if kernel set): MY_GAUSSIAN*)
+   *default (if kernel set): MY_GAUSSIAN*) 
        - MY_GAUSSIAN
        - MY_EXPONENTIAL
        - MY_LINEAR
@@ -72,7 +83,7 @@ The different parameters and their different options are listed here below.
    3. KERNEL_STAT_FUNC (Choose the statistical function which determines the threshold 
    for the rescaling the data before fitting the kernel function on the data; *default: statistical_zero*)
        - [str]
-       - statistical_zero
+       - utils.statistical_zero
        - np.min
        - np.max
        - ... (numpy statistical function like)
@@ -120,13 +131,53 @@ by the absolut eigenvalue; *default: True*)
 ## 4. Configure Run options/parameters
 Additionally, use different options to run the program. Config the parameters in a ***.json* file** 
 in the folder *config_files\options*.
-The different parameters are explained here:
 
-1. TODO
-2. TODO
-
-*Note:* The different parameters in upper-case can be imported `from utils.param_key import *`,
+*Note:* The different parameters in upper-case can be imported `from utils.param_keys.`,
 although the string values of the parameters are written in lower-case and should be used in the *.json*-config-files.
 
+#### Required Parameters
+These parameters are **mandatory** for a correct program run!
+1. 'run_option'
+   1. `.run_potions` (Determines which evaluation process should be started)
+      1. COMPARE: comparing different algorithms qualitatively (2 dimensions)
+      2. PLOT_...: plot somehow
+      3. LOAD_...: loads different evaluation results
+      4. MULTI_...: uses multiple trajectories to evaluate the algorithms
+      5. ...
+2. 'data_set'
+   1. 'protein'
+   2. 'weather'
+   3. 'sub_...' (protein or weather)
+3. 'trajectory_name' (name of the folder in which the dataset is saved)
+   1. e.g.: 'fs-peptide'
+
+#### Optional Parameters
+The different parameters and their different options are listed here below.
+1. SUBSET_LIST [list] (list of int-s which elements should be loaded for a subset evaluation)
+2. ENABLE_SAVE [bool] (if True: enables the saving of the evaluation results)
+3. PLOT_TYPE (How or what to plot while evaluating the algorithms) `.analyses`
+      1. COLOR_MAP (colored dots)
+      2. ...
+4. PLOT_TICS [Bool] (if True: enables the component-tics while using a COMPARE evaluation)
+5. INTERACTIVE [Bool] (if True: uses an interactive plot window)
+6. PLOT_FOR_PAPER [Bool] (if True: plots the figures more suited for the paper)
+7. N_COMPONENTS [int, None] (if None: all the components are used, 
+if int: the number of components are used while evaluating)
+8. preprocessing parameters:
+   1. BASIS_TRANSFORMATION
+   2. CARBON_ATOMS_ONLY (for proteins only)
+   3. RANDOM_SEED
+   4. USE_ANGLES (for proteins only)
+   5. SUPERPOSING_INDEX 
+   6. REDUCEE_FEATURE ['temperature'/'radiation_direct_horizontal'/'radiation_diffuse_horizontal'] 
+(For weather data only. Choose the feature you want to use for evaluation)
+   7. MAIN_MODEL_PARAMS
+   8. SEL_COL (For weather data only)
+9. Subset trajectory parameters (for proteins mainly):
+   1. QUANTITY [int] (determines the quantity of the subset size)
+   2. TIME_WINDOW_SIZE [int] (determines the time window size of the subsets)
+   3. PART_COUNT [int] (which part of the subset should be used as the main subset)
+   4. TRANSFORM_ON_WHOLE [bool] (if True: the transformation is made on the whole data set and not on the subset)
+
 ## 5. Run the program
-```python main.py -o config_files\options\run_options_file.json -a config_files\algorithm\pca+tica+daanccer.json```
+```python main.py -o config_files\options\run_params.json -a config_files\algorithm\pca+tica+dropp.json```

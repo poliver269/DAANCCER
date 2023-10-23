@@ -1,3 +1,5 @@
+import os
+
 from tqdm import tqdm
 import pandas as pd
 
@@ -38,3 +40,11 @@ def get_trajectories_per_year(df, time_col, country, folder_path):
         temp = df[mask]
         temp = get_all_features_per_country(temp, time_col, country)
         temp.to_csv(folder_path + "/weather_" + country + '_' + year + '.csv', index=False)
+
+
+def extract_country_to_file(country, folder_path):
+    raw_data = pd.read_csv('data/weather_data.csv')
+    os.makedirs(folder_path, exist_ok=True)
+    print('INFO: Created directory ', folder_path)
+
+    get_trajectories_per_year(raw_data, 'utc_timestamp', country, folder_path)
